@@ -6,5 +6,5 @@ socialLinks:
   - label: 'GitHub'
     url: 'https://github.com/hubert-kozlowski'
   - label: 'LinkedIn'
-    url: 'https://www.linkedin.com/in/hubert-kozlowski/'
+    url: 'https://www.linkedin.com/in/hkoz/'
 ---
