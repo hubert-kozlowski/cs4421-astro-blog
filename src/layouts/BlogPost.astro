@@ -1,6 +1,6 @@
 ---
 import { Image } from 'astro:assets';
-import type { CollectionEntry } from 'astro:content';
+import { getEntry, type CollectionEntry } from 'astro:content';
 import BaseHead from '../components/BaseHead.astro';
 import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
@@ -8,7 +8,8 @@ import Header from '../components/Header.astro';
 
 type Props = CollectionEntry<'blog'>['data'];
 
-const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
+const { title, description, pubDate, updatedDate, heroImage, author } = Astro.props;
+const authorProfile = author ? await getEntry(author) : undefined;
 ---
 
 <html lang="en">
@@ -52,6 +53,60 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
 			.last-updated-on {
 				font-style: italic;
 			}
+			.author-byline {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 0.6em;
+				margin: 0 0 2em;
+				color: rgb(var(--gray));
+				font-size: 0.9em;
+			}
+			.author-byline-avatar {
+				width: 40px;
+				height: 40px;
+				border-radius: 50%;
+				object-fit: cover;
+			}
+			.author-profile {
+				border-top: 1px solid rgb(var(--gray-light));
+				margin-top: 3em;
+				padding-top: 2em;
+				display: flex;
+				gap: 1em;
+				align-items: flex-start;
+			}
+			.author-avatar {
+				width: 72px;
+				height: 72px;
+				border-radius: 50%;
+				object-fit: cover;
+				flex: 0 0 auto;
+			}
+			.author-details h2 {
+				font-size: 1.25em;
+				margin-bottom: 0.25em;
+			}
+			.author-details p {
+				margin: 0 0 0.5em;
+			}
+			.author-links {
+				display: flex;
+				gap: 1em;
+				flex-wrap: wrap;
+			}
+			.author-links a {
+				font-size: 0.9em;
+			}
+			@media (max-width: 480px) {
+				.author-profile {
+					align-items: center;
+				}
+				.author-avatar {
+					width: 56px;
+					height: 56px;
+				}
+			}
 		</style>
 	</head>
 
@@ -77,7 +132,45 @@ const { title, description, pubDate, updatedDate, heroImage } = Astro.props;
 						<h1>{title}</h1>
 						<hr />
 					</div>
+					{
+						authorProfile && (
+							<div class="author-byline">
+								<img
+									class="author-byline-avatar"
+									src={authorProfile.data.avatar}
+									alt={`Portrait of ${authorProfile.data.name}`}
+									width="40"
+									height="40"
+								/>
+								<span>By <strong>{authorProfile.data.name}</strong></span>
+							</div>
+						)
+					}
 					<slot />
+						{
+							authorProfile && (
+								<section class="author-profile" aria-labelledby="author-heading">
+									<img
+										class="author-avatar"
+										src={authorProfile.data.avatar}
+										alt={`Portrait of ${authorProfile.data.name}`}
+										width="72"
+										height="72"
+									/>
+									<div class="author-details">
+										<h2 id="author-heading">About {authorProfile.data.name}</h2>
+										<p>{authorProfile.data.bio}</p>
+										<nav class="author-links" aria-label={`${authorProfile.data.name}'s social links`}>
+											{authorProfile.data.socialLinks.map((link) => (
+												<a href={link.url} target="_blank" rel="noreferrer">
+													{link.label}
+												</a>
+											))}
+										</nav>
+									</div>
+								</section>
+							)
+						}
 				</div>
 			</article>
 		</main>
