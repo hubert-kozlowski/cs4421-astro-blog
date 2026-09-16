@@ -23,11 +23,11 @@ const authors = defineCollection({
 	schema: z.object({
 		name: z.string(),
 		bio: z.string(),
-		avatar: z.string().url(),
+		avatar: z.url(),
 		socialLinks: z.array(
 			z.object({
 				label: z.string(),
-				url: z.string().url(),
+				url: z.url(),
 			}),
 		),
 	}),
