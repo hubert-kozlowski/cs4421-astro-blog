@@ -5,6 +5,7 @@ import BaseHead from '../../components/BaseHead.astro';
 import Footer from '../../components/Footer.astro';
 import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
+import SearchBox from '../../components/SearchBox.astro';
 import TagList from '../../components/TagList.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 import { slugifyTag } from '../../utils/tags';
@@ -50,9 +51,12 @@ const hasVisiblePosts = posts.some(matchesSelectedTags);
 				flex-wrap: wrap;
 				align-items: center;
 				gap: 0.75em;
-				margin-bottom: 2.5rem;
+				margin-bottom: 1.25rem;
 				padding: 0.9em 0 1.1em;
 				border-bottom: 1px solid rgb(var(--gray-light));
+			}
+			.search-bar {
+				margin-bottom: 1.25rem;
 			}
 			.tag-filter-tags {
 				display: flex;
@@ -187,6 +191,9 @@ const hasVisiblePosts = posts.some(matchesSelectedTags);
 	<body>
 		<Header />
 		<main>
+			<div class="search-bar">
+				<SearchBox />
+			</div>
 			{
 				uniqueTags.length > 0 && (
 					<div class="tag-filter-bar" role="group" aria-label="Filter posts by tag">
@@ -213,12 +220,13 @@ const hasVisiblePosts = posts.some(matchesSelectedTags);
 			}
 			<section>
 				<p id="no-results" style={hasVisiblePosts ? undefined : 'display: block'}>
-					No posts match the selected tags.
+					No posts found.
 				</p>
 				<ul id="post-list">
 					{
 						posts.map((post) => (
 							<li
+								data-slug={post.id}
 								data-tags={(post.data.tags ?? []).map(slugifyTag).join(',')}
 								style={matchesSelectedTags(post) ? undefined : 'display: none'}
 							>
@@ -243,18 +251,27 @@ const hasVisiblePosts = posts.some(matchesSelectedTags);
 			const filterBar = document.querySelector('.tag-filter-bar');
 			const postList = document.getElementById('post-list');
 			const noResults = document.getElementById('no-results');
-			if (filterBar && postList) {
-				const pills = [...filterBar.querySelectorAll<HTMLButtonElement>('.tag-filter-pill')];
+			const searchInput = document.getElementById('post-search') as HTMLInputElement | null;
+
+			if (postList) {
+				const pills = filterBar
+					? [...filterBar.querySelectorAll<HTMLButtonElement>('.tag-filter-pill')]
+					: [];
 				const items = [...postList.querySelectorAll<HTMLLIElement>('li[data-tags]')];
 				const selected = new Set(
 					pills.filter((pill) => pill.getAttribute('aria-pressed') === 'true').map((pill) => pill.dataset.tag!),
 				);
+				// Populated asynchronously from the build-time index; empty map = search matches everything.
+				let searchIndex = new Map<string, string>();
+				let query = '';
 
 				function applyFilter() {
 					let visibleCount = 0;
 					for (const item of items) {
 						const postTags = new Set((item.dataset.tags ?? '').split(',').filter(Boolean));
-						const isVisible = selected.size === 0 || [...selected].every((tag) => postTags.has(tag));
+						const tagMatch = selected.size === 0 || [...selected].every((tag) => postTags.has(tag));
+						const searchText = searchIndex.get(item.dataset.slug ?? '') ?? '';
+						const isVisible = tagMatch && searchText.includes(query);
 						item.style.display = isVisible ? '' : 'none';
 						if (isVisible) visibleCount++;
 					}
@@ -287,6 +304,21 @@ const hasVisiblePosts = posts.some(matchesSelectedTags);
 					for (const pill of pills) pill.setAttribute('aria-pressed', 'false');
 					applyFilter();
 				});
+
+				searchInput?.addEventListener('input', () => {
+					query = searchInput.value.trim().toLowerCase();
+					applyFilter();
+				});
+
+				fetch('/search-index.json')
+					.then((res) => res.json())
+					.then((index: { slug: string; searchText: string }[]) => {
+						searchIndex = new Map(index.map((entry) => [entry.slug, entry.searchText]));
+						applyFilter();
+					})
+					.catch(() => {
+						// Search index unavailable; tag filtering still works, search input is a no-op.
+					});
 			}
 		</script>
 	</body>

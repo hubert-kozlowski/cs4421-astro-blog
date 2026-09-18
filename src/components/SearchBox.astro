@@ -1,0 +1,32 @@
+---
+---
+
+<div class="search-box">
+	<label for="post-search" class="search-label">Search posts</label>
+	<input type="search" id="post-search" placeholder="Search posts…" aria-label="Search posts" />
+</div>
+
+<style>
+	.search-box {
+		display: flex;
+		align-items: center;
+		gap: 0.5em;
+	}
+	.search-label {
+		font-size: 0.85em;
+		color: rgb(var(--gray));
+	}
+	#post-search {
+		flex: 1;
+		min-width: 12em;
+		padding: 0.4em 0.8em;
+		border: 1px solid rgb(var(--gray-light));
+		border-radius: 999px;
+		font-size: 0.9em;
+		font-family: inherit;
+	}
+	#post-search:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+</style>
