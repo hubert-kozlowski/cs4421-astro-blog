@@ -12,7 +12,7 @@
     "check": "astro check",
     "astro": "astro",
     "lint": "eslint .",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run --exclude tests/**",
     "test:e2e": "playwright test"
   },
   "dependencies": {
