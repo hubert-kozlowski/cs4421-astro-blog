@@ -12,7 +12,8 @@
     "check": "astro check",
     "astro": "astro",
     "lint": "eslint .",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run --exclude tests/**",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.1",
@@ -28,6 +29,8 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^26.6.2",
     "@typescript-eslint/parser": "^8.70.0",
     "eslint": "^10.11.0",
     "eslint-plugin-astro": "^3.2.1",
