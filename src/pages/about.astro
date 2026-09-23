@@ -1,5 +1,6 @@
 ---
 import AboutHeroImage from '../assets/blog-placeholder-about.jpg';
+import Greeting from '../components/Greeting.astro';
 import Layout from '../layouts/BlogPost.astro';
 ---
 
@@ -9,6 +10,7 @@ import Layout from '../layouts/BlogPost.astro';
 	pubDate={new Date('August 08 2021')}
 	heroImage={AboutHeroImage}
 >
+	<Greeting name="Hubert" />
 	<p>
 		Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
 		labore et dolore magna aliqua. Vitae ultricies leo integer malesuada nunc vel risus commodo
