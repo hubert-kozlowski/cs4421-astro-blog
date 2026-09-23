@@ -1,11 +1,28 @@
 name: Continuous Integration
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+# Cancel superseded runs on the same branch to save CI minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege default; jobs opt into more if they ever need it.
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22.12.0
 
 jobs:
-  validate:
+  lint-and-typecheck:
+    name: Lint & Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
@@ -13,15 +30,55 @@ jobs:
       - name: Setup Node.js Runtime
         uses: actions/setup-node@v4
         with:
-          node-version: 22.12.0
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install Project Dependencies
         run: npm ci # Clean, deterministic install from package-lock.json
-        
-      - name: Run Static Analysis & Tests
-        run: |
-          npm run lint
-          npm run check
-          npm run test:unit
-          npm run build
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Astro Type Check
+        run: npm run check
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install Project Dependencies
+        run: npm ci
+
+      - name: Run Unit Tests
+        run: npm run test:unit
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [lint-and-typecheck, unit-tests]
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install Project Dependencies
+        run: npm ci
+
+      - name: Build Site
+        run: npm run build
