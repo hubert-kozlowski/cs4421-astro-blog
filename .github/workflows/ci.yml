@@ -1,0 +1,27 @@
+name: Continuous Integration
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.12.0
+          cache: npm
+
+      - name: Install Project Dependencies
+        run: npm ci # Clean, deterministic install from package-lock.json
+        
+      - name: Run Static Analysis & Tests
+        run: |
+          npm run lint
+          npm run check
+          npm run test:unit
+          npm run build
