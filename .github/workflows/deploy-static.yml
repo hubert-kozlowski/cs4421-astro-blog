@@ -20,6 +20,10 @@ jobs:
       - name: Install Project & CDK Dependencies
         run: npm ci
 
+      - name: Install CDK Dependencies
+        working-directory: ./cdk
+        run: npm ci
+
       - name: Build Astro Static Site
         run: npm run build
 
