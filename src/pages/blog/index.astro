@@ -7,6 +7,7 @@ import FormattedDate from '../../components/FormattedDate.astro';
 import Header from '../../components/Header.astro';
 import SearchBox from '../../components/SearchBox.astro';
 import TagList from '../../components/TagList.astro';
+import ReadingTime from '../../components/ReadingTime.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 import { slugifyTag } from '../../utils/tags';
 
@@ -164,6 +165,16 @@ const hasVisiblePosts = posts.some(matchesSelectedTags);
 				margin: 0;
 				color: rgb(var(--gray));
 			}
+			.post-meta {
+				display: flex;
+				flex-direction: column;
+				gap: 0.5em;
+				align-items: flex-start;
+				margin-top: 0.5em;
+			}
+			.post-reading-time {
+				font-size: 0.85em;
+			}
 			ul li a:hover h4,
 			ul li a:hover .date {
 				color: rgb(var(--accent));
@@ -239,7 +250,12 @@ const hasVisiblePosts = posts.some(matchesSelectedTags);
 										<FormattedDate date={post.data.pubDate} />
 									</p>
 								</a>
-								<TagList tags={post.data.tags} />
+								<div class="post-meta">
+									<TagList tags={post.data.tags} />
+									<div class="post-reading-time">
+										<ReadingTime body={post.body} />
+									</div>
+								</div>
 							</li>
 						))
 					}
