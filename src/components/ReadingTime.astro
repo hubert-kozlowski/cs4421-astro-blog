@@ -1,13 +1,9 @@
 ---
-import type { CollectionEntry } from 'astro:content';
-
 interface Props {
 	body?: string;
-	toc?: boolean;
-	authorProfile?: CollectionEntry<'authors'>;
 }
 
-const { body = '', toc, authorProfile } = Astro.props;
+const { body = '' } = Astro.props;
 
 // Calculate reading time: 200 words = 1 minute, rounded up
 const words = body.split(/\s+/).filter((word) => word.length > 0).length;
@@ -16,14 +12,6 @@ const minutes = Math.max(1, Math.ceil(words / 200)); // Minimum 1 minute
 
 <div class="reading-time">
 	{minutes} {minutes === 1 ? 'min' : 'mins'} read
-	{
-		!toc && authorProfile && authorProfile.data.name && (
-			<>
-				{' '}
-				by <strong>{authorProfile.data.name}</strong>
-			</>
-		)
-	}
 </div>
 
 <style>
