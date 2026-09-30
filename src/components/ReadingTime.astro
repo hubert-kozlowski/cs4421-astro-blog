@@ -1,10 +1,10 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 
-interface Props<T extends 'blog' | 'article' = 'blog'> {
+interface Props {
 	body?: string;
 	toc?: boolean;
-	authorProfile?: CollectionEntry<T>;
+	authorProfile?: CollectionEntry<'authors'>;
 }
 
 const { body = '', toc, authorProfile } = Astro.props;
@@ -17,10 +17,10 @@ const minutes = Math.max(1, Math.ceil(words / 200)); // Minimum 1 minute
 <div class="reading-time">
 	{minutes} {minutes === 1 ? 'min' : 'mins'} read
 	{
-		!toc && authorProfile && authorProfile.data.author && (
+		!toc && authorProfile && authorProfile.data.name && (
 			<>
 				{' '}
-				by <strong>{authorProfile.data.author}</strong>
+				by <strong>{authorProfile.data.name}</strong>
 			</>
 		)
 	}
