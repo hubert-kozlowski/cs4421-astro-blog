@@ -1,0 +1,44 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props<T extends 'blog' | 'article' = 'blog'> {
+	body?: string;
+	toc?: boolean;
+	authorProfile?: CollectionEntry<T>;
+}
+
+const { body = '', toc, authorProfile } = Astro.props;
+
+// Calculate reading time: 200 words = 1 minute, rounded up
+const words = body.split(/\s+/).filter((word) => word.length > 0).length;
+const minutes = Math.max(1, Math.ceil(words / 200)); // Minimum 1 minute
+---
+
+<div class="reading-time">
+	{minutes} {minutes === 1 ? 'min' : 'mins'} read
+	{
+		!toc && authorProfile && authorProfile.data.author && (
+			<>
+				{' '}
+				by <strong>{authorProfile.data.author}</strong>
+			</>
+		)
+	}
+</div>
+
+<style>
+	.reading-time {
+		color: rgb(var(--gray));
+		font-size: 0.85em;
+		line-height: 1;
+		display: inline-flex;
+		gap: 0.25em;
+		white-space: nowrap;
+	}
+
+	@media (max-width: 480px) {
+		.reading-time {
+			font-size: 0.8em;
+		}
+	}
+</style>

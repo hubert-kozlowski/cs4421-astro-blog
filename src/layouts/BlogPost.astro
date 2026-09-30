@@ -6,10 +6,15 @@ import Footer from '../components/Footer.astro';
 import FormattedDate from '../components/FormattedDate.astro';
 import Header from '../components/Header.astro';
 import TagList from '../components/TagList.astro';
+import ReadingTime from '../components/ReadingTime.astro';
 
-type Props = CollectionEntry<'blog'>['data'];
+type BlogPostData = CollectionEntry<'blog'>['data'];
 
-const { title, description, pubDate, updatedDate, heroImage, author, tags } = Astro.props;
+interface Props extends BlogPostData {
+	body?: string;
+}
+
+const { title, description, pubDate, updatedDate, heroImage, author, tags, body } = Astro.props;
 const authorProfile = author ? await getEntry(author) : undefined;
 ---
 
@@ -50,6 +55,10 @@ const authorProfile = author ? await getEntry(author) : undefined;
 			.date {
 				margin-bottom: 0.5em;
 				color: rgb(var(--gray));
+			}
+			.reading-time-container {
+				margin-top: 0.75em;
+				margin-bottom: 0.75em;
 			}
 			.last-updated-on {
 				font-style: italic;
@@ -99,6 +108,17 @@ const authorProfile = author ? await getEntry(author) : undefined;
 			.author-links a {
 				font-size: 0.9em;
 			}
+			.reading-time-badge {
+				padding: 0.35em 0.75em;
+				border-radius: 999px;
+				background: var(--accent);
+				color: white;
+				font-size: 0.85em;
+				display: inline-flex;
+				align-items: center;
+				gap: 0.25em;
+			}
+
 			@media (max-width: 480px) {
 				.author-profile {
 					align-items: center;
@@ -132,6 +152,13 @@ const authorProfile = author ? await getEntry(author) : undefined;
 						</div>
 						<h1>{title}</h1>
 						<TagList tags={tags} />
+						{
+							body && (
+								<div class="reading-time-container">
+									<ReadingTime body={body} authorProfile={authorProfile} />
+								</div>
+							)
+						}
 						<hr />
 					</div>
 					{
