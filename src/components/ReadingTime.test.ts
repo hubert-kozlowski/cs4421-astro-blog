@@ -93,10 +93,7 @@ describe('ReadingTime component', () => {
 	test('counts words correctly with various punctuation', async () => {
 		const container = await AstroContainer.create();
 		// Create text with punctuation: "word." should still count as one word
-		const words = Array(200)
-			.fill()
-			.map((_, i) => `word${i % 5}.`)
-			.join(' ');
+		const words = Array.from({ length: 200 }, (_, i) => `word${i % 5}.`).join(' ');
 		const result = await container.renderToString(ReadingTime, {
 			props: { body: words },
 		});
