@@ -1,14 +1,19 @@
-# Welcome to your CDK TypeScript project
+# Astro SSR CDK Deployment
 
-This is a blank project for CDK development with TypeScript.
+The CDK stack builds the repository's Docker image and deploys the Astro standalone server to ECS Fargate behind a public Application Load Balancer. The deployed URL is available in the `SiteUrl` stack output.
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+## Requirements
 
-## Useful commands
+- Node.js 22
+- Docker running locally (CDK builds and publishes the image)
+- AWS credentials configured for the target account
 
-* `npm run build`   type-check the project
-* `npm run watch`   watch for changes and type-check
-* `npm run test`    perform the jest unit tests
-* `npx cdk deploy`  deploy this stack to your default AWS account/region
-* `npx cdk diff`    compare deployed stack with current state
-* `npx cdk synth`   emits the synthesized CloudFormation template
+Run these commands from `cdk/`:
+
+```sh
+npm ci
+npm test
+npm run build
+npx cdk synth
+npx cdk deploy --require-approval never
+```

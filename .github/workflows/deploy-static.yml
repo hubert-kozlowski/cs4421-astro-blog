@@ -1,4 +1,4 @@
-name: Deploy Static Site via AWS CDK
+name: Deploy Astro SSR Container via AWS CDK
 
 on:
   push:
@@ -20,12 +20,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
-      - name: Install Project Dependencies
-        run: npm ci
-
-      - name: Build Astro Static Site
-        run: npm run build
+          cache-dependency-path: cdk/package-lock.json
 
       - name: Install CDK Dependencies
         working-directory: ./cdk

@@ -7,32 +7,14 @@ import Header from '../../components/Header.astro';
 import { SITE_DESCRIPTION, SITE_TITLE } from '../../consts';
 import { slugifyTag } from '../../utils/tags';
 
-export async function getStaticPaths() {
-	const posts = await getCollection('blog');
+const requestedTag = Astro.params.tag;
+const allPosts = await getCollection('blog');
+const tag = allPosts.flatMap((post) => post.data.tags ?? []).find((value) => slugifyTag(value) === requestedTag);
+if (!tag) return new Response('Not Found', { status: 404 });
 
-	const bySlug = new Map<string, { tag: string; posts: typeof posts }>();
-	for (const post of posts) {
-		for (const tag of post.data.tags ?? []) {
-			const slug = slugifyTag(tag);
-			const entry = bySlug.get(slug);
-			if (entry) {
-				entry.posts.push(post);
-			} else {
-				bySlug.set(slug, { tag, posts: [post] });
-			}
-		}
-	}
-
-	return [...bySlug.entries()].map(([slug, { tag, posts: matchingPosts }]) => ({
-		params: { tag: slug },
-		props: {
-			tag,
-			posts: matchingPosts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()),
-		},
-	}));
-}
-
-const { tag, posts } = Astro.props;
+const posts = allPosts
+	.filter((post) => post.data.tags?.some((value) => slugifyTag(value) === requestedTag))
+	.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 ---
 
 <!doctype html>

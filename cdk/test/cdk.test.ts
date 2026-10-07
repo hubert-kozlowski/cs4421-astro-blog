@@ -1,30 +1,25 @@
 import * as cdk from 'aws-cdk-lib';
-import { Template } from 'aws-cdk-lib/assertions';
-import { StaticSiteStack } from '../lib/cdk-stack';
+import { Match, Template } from 'aws-cdk-lib/assertions';
+import { BlogStack } from '../lib/cdk-stack';
 
-describe('StaticSiteStack', () => {
-	it('associates a CloudFront Function with viewer requests', () => {
+describe('BlogStack', () => {
+	it('deploys the standalone app as an ECS service behind a load balancer', () => {
 		const app = new cdk.App();
-		const stack = new StaticSiteStack(app, 'TestStack');
+		const stack = new BlogStack(app, 'TestStack');
 		const template = Template.fromStack(stack);
 
-		template.resourceCountIs('AWS::CloudFront::Function', 1);
-		template.resourceCountIs('AWS::Lambda::Version', 0);
-		template.hasResourceProperties('AWS::CloudFront::Function', {
-			FunctionConfig: {
-				Runtime: 'cloudfront-js-2.0',
-			},
-		});
-		template.hasResourceProperties('AWS::CloudFront::Distribution', {
-			DistributionConfig: {
-				DefaultCacheBehavior: {
-					FunctionAssociations: [
-						{
-							EventType: 'viewer-request',
-						},
-					],
-				},
-			},
+		template.resourceCountIs('AWS::ECS::Service', 1);
+		template.resourceCountIs('AWS::ElasticLoadBalancingV2::LoadBalancer', 1);
+		template.resourceCountIs('AWS::S3::Bucket', 0);
+		template.resourceCountIs('AWS::CloudFront::Distribution', 0);
+		template.hasResourceProperties('AWS::ECS::TaskDefinition', {
+			Cpu: '256',
+			Memory: '512',
+			ContainerDefinitions: Match.arrayWith([
+				Match.objectLike({
+					PortMappings: Match.arrayWith([Match.objectLike({ ContainerPort: 4321 })]),
+				}),
+			]),
 		});
 	});
 });
