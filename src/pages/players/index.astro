@@ -1,0 +1,27 @@
+---
+import DataState from '../../components/DataState.astro';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+---
+
+<SiteLayout
+	title="Players"
+	description="Explore NFL player profiles, season statistics, and team rosters."
+>
+	<div class="page-heading">
+		<p class="eyebrow">THE PLAYERS</p>
+		<h1>Players</h1>
+		<p>Find player profiles and stats with the context to understand what they mean.</p>
+	</div>
+	<section class="content-card" aria-labelledby="players-heading">
+		<header class="content-card__header">
+			<div>
+				<h2 id="players-heading">Player directory</h2>
+				<p>Profiles, rosters, and season statistics</p>
+			</div>
+		</header>
+		<DataState
+			title="Player directory is not available yet"
+			description="Player profiles will appear when verified roster and statistics data is connected."
+		/>
+	</section>
+</SiteLayout>

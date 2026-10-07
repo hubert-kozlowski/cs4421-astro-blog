@@ -1,0 +1,34 @@
+---
+import DataState from '../../components/DataState.astro';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+
+const team = (Astro.params.team ?? 'team').split('-').join(' ');
+---
+
+<SiteLayout
+	title="Team overview"
+	description="Team profile, schedule, standings, and statistics."
+>
+	<div class="page-heading">
+		<p class="eyebrow"><a href="/teams">TEAMS</a> · TEAM OVERVIEW</p>
+		<h1>Team overview</h1>
+		<p>Schedule, standings, roster, and season performance in one place.</p>
+	</div>
+	<section class="content-card" aria-label="Team data status">
+		<DataState
+			title="Team data is not available"
+			description={`Verified profile and season information for ${team} will appear here when the league data source is connected.`}
+		/>
+	</section>
+</SiteLayout>
+
+<style>
+	.eyebrow a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.eyebrow a:hover {
+		color: var(--color-blue);
+	}
+</style>

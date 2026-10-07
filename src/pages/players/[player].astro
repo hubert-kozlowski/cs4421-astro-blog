@@ -1,0 +1,34 @@
+---
+import DataState from '../../components/DataState.astro';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+
+const player = (Astro.params.player ?? 'player').split('-').join(' ');
+---
+
+<SiteLayout
+	title="Player profile"
+	description="Player profile, team, and season statistics."
+>
+	<div class="page-heading">
+		<p class="eyebrow"><a href="/players">PLAYERS</a> · PLAYER PROFILE</p>
+		<h1>Player profile</h1>
+		<p>Player details, team, and season performance at a glance.</p>
+	</div>
+	<section class="content-card" aria-label="Player data status">
+		<DataState
+			title="Player data is not available"
+			description={`Verified profile and season information for ${player} will appear here when roster and statistics data is connected.`}
+		/>
+	</section>
+</SiteLayout>
+
+<style>
+	.eyebrow a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.eyebrow a:hover {
+		color: var(--color-blue);
+	}
+</style>

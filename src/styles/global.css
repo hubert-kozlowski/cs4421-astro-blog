@@ -1,141 +1,324 @@
-/*
-  The CSS in this style tag is based off of Bear Blog's default CSS.
-  https://github.com/HermanMartinus/bearblog/blob/297026a877bc2ab2b3bdfbd6b9f7961c350917dd/templates/styles/blog/default.css
-  License MIT: https://github.com/HermanMartinus/bearblog/blob/master/LICENSE.md
- */
-
 :root {
-	--accent: #2337ff;
-	--accent-dark: #000d8a;
-	--black: 15, 18, 25;
-	--gray: 96, 115, 159;
-	--gray-light: 229, 233, 240;
-	--gray-dark: 34, 41, 57;
-	--gray-gradient: rgba(var(--gray-light), 50%), #fff;
-	--box-shadow:
-		0 2px 6px rgba(var(--gray), 25%), 0 8px 24px rgba(var(--gray), 33%),
-		0 16px 32px rgba(var(--gray), 33%);
+	color-scheme: light;
+	font-family:
+		-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+
+	--color-ink: #17191f;
+	--color-muted: #6f7480;
+	--color-faint: #969ba5;
+	--color-border: #e6e8ec;
+	--color-surface: #fff;
+	--color-page: #f6f7f9;
+	--color-navy: #121a2b;
+	--color-red: #c9293a;
+	--color-blue: #2856c7;
+	--radius-card: 20px;
+	--shadow-card: 0 14px 40px rgb(20 29 48 / 5%);
 }
+
+* {
+	box-sizing: border-box;
+}
+
+html {
+	min-width: 320px;
+	background: var(--color-page);
+	scroll-behavior: smooth;
+}
+
 body {
-	font-family: var(--font-atkinson);
 	margin: 0;
-	padding: 0;
-	text-align: left;
-	background: linear-gradient(var(--gray-gradient)) no-repeat;
-	background-size: 100% 600px;
-	word-wrap: break-word;
-	overflow-wrap: break-word;
-	color: rgb(var(--gray-dark));
-	font-size: 20px;
-	line-height: 1.7;
+	color: var(--color-ink);
+	font-size: 15px;
+	line-height: 1.5;
 }
-main {
-	width: 720px;
-	max-width: calc(100% - 2em);
-	margin: auto;
-	padding: 3em 1em;
+
+body,
+button,
+input,
+select {
+	font-family: inherit;
 }
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-	margin: 0 0 0.5rem 0;
-	color: rgb(var(--black));
-	line-height: 1.2;
-}
-h1 {
-	font-size: 3.052em;
-}
-h2 {
-	font-size: 2.441em;
-}
-h3 {
-	font-size: 1.953em;
-}
-h4 {
-	font-size: 1.563em;
-}
-h5 {
-	font-size: 1.25em;
-}
-strong,
-b {
-	font-weight: 700;
-}
+
 a {
-	color: var(--accent);
+	color: inherit;
 }
-a:hover {
-	color: var(--accent);
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+	outline: 3px solid rgb(40 86 199 / 45%);
+	outline-offset: 3px;
 }
-p {
-	margin-bottom: 1em;
+
+button,
+input,
+select {
+	font-size: inherit;
 }
-.prose p {
-	margin-bottom: 2em;
+
+::selection {
+	color: #fff;
+	background: var(--color-blue);
 }
-textarea {
-	width: 100%;
-	font-size: 16px;
+
+.site-main {
+	width: min(100% - 48px, 1120px);
+	min-height: calc(100vh - 166px);
+	margin: 0 auto;
+	padding: 64px 0 88px;
 }
-input {
-	font-size: 16px;
+
+.page-heading {
+	max-width: 720px;
+	margin: 0 0 34px;
 }
-table {
-	width: 100%;
+
+.eyebrow {
+	margin: 0 0 10px;
+	color: var(--color-muted);
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
 }
-img {
-	max-width: 100%;
-	height: auto;
-	border-radius: 8px;
-}
-code {
-	padding: 2px 5px;
-	background-color: rgb(var(--gray-light));
-	border-radius: 2px;
-}
-pre {
-	padding: 1.5em;
-	border-radius: 8px;
-}
-pre > code {
-	all: unset;
-}
-blockquote {
-	border-left: 4px solid var(--accent);
-	padding: 0 0 0 20px;
+
+.page-heading h1 {
 	margin: 0;
-	font-size: 1.333em;
+	font-size: clamp(36px, 5vw, 54px);
+	font-weight: 700;
+	letter-spacing: -0.055em;
+	line-height: 1.04;
 }
-hr {
-	border: none;
-	border-top: 1px solid rgb(var(--gray-light));
+
+.page-heading > p:last-child {
+	max-width: 620px;
+	margin: 16px 0 0;
+	color: var(--color-muted);
+	font-size: 17px;
+	line-height: 1.65;
 }
-@media (max-width: 720px) {
-	body {
-		font-size: 18px;
-	}
-	main {
-		padding: 1em;
+
+.content-card {
+	overflow: hidden;
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius-card);
+	background: var(--color-surface);
+	box-shadow: var(--shadow-card);
+}
+
+.content-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 20px;
+	padding: 24px 28px;
+	border-bottom: 1px solid var(--color-border);
+}
+
+.content-card__header h2 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 650;
+	letter-spacing: -0.025em;
+}
+
+.content-card__header p {
+	margin: 4px 0 0;
+	color: var(--color-muted);
+	font-size: 13px;
+}
+
+.data-state {
+	display: flex;
+	min-height: 248px;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 42px 24px;
+	text-align: center;
+}
+
+.data-state__icon {
+	display: grid;
+	width: 52px;
+	height: 52px;
+	place-items: center;
+	margin-bottom: 18px;
+	border: 1px solid var(--color-border);
+	border-radius: 16px;
+	background: #fafbfc;
+	color: var(--color-muted);
+}
+
+.data-state__icon svg {
+	width: 24px;
+	height: 24px;
+}
+
+.data-state h3 {
+	margin: 0;
+	font-size: 18px;
+	font-weight: 650;
+	letter-spacing: -0.025em;
+}
+
+.data-state p {
+	max-width: 430px;
+	margin: 8px 0 0;
+	color: var(--color-muted);
+	font-size: 14px;
+	line-height: 1.65;
+}
+
+.data-state--error .data-state__icon {
+	border-color: #f0d8dc;
+	background: #fff8f9;
+	color: var(--color-red);
+}
+
+.data-state__spinner {
+	width: 22px;
+	height: 22px;
+	border: 2px solid var(--color-border);
+	border-top-color: var(--color-navy);
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+}
+
+.link-cards {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+	margin-top: 22px;
+}
+
+.link-card {
+	display: flex;
+	min-height: 98px;
+	flex-direction: column;
+	justify-content: center;
+	padding: 20px 22px;
+	border: 1px solid var(--color-border);
+	border-radius: 16px;
+	background: var(--color-surface);
+	text-decoration: none;
+	transition:
+		border-color 160ms ease,
+		transform 160ms ease,
+		box-shadow 160ms ease;
+}
+
+.link-card:hover {
+	transform: translateY(-2px);
+	border-color: #cbd1dc;
+	box-shadow: var(--shadow-card);
+}
+
+.link-card strong {
+	font-size: 15px;
+	font-weight: 650;
+}
+
+.link-card span {
+	margin-top: 4px;
+	color: var(--color-muted);
+	font-size: 13px;
+}
+
+.comparison-slots {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	align-items: center;
+	gap: 18px;
+	padding: 28px;
+}
+
+.comparison-slot {
+	display: grid;
+	min-height: 152px;
+	place-content: center;
+	border: 1px dashed #d7dbe2;
+	border-radius: 16px;
+	background: #fafbfc;
+	text-align: center;
+}
+
+.comparison-slot strong {
+	font-size: 15px;
+}
+
+.comparison-slot span {
+	margin-top: 4px;
+	color: var(--color-muted);
+	font-size: 13px;
+}
+
+.comparison-versus {
+	color: var(--color-faint);
+	font-size: 12px;
+	font-weight: 750;
+	letter-spacing: 0.1em;
+}
+
+@keyframes spin {
+	to {
+		transform: rotate(360deg);
 	}
 }
 
-.sr-only {
-	border: 0;
-	padding: 0;
-	margin: 0;
-	position: absolute !important;
-	height: 1px;
-	width: 1px;
-	overflow: hidden;
-	/* IE6, IE7 - a 0 height clip, off to the bottom right of the visible 1px box */
-	clip: rect(1px 1px 1px 1px);
-	/* maybe deprecated but we need to support legacy browsers */
-	clip: rect(1px, 1px, 1px, 1px);
-	/* modern browsers, clip-path works inwards from each corner */
-	clip-path: inset(50%);
-	/* added line to stop words getting smushed together (as they go onto separate lines and some screen readers do not understand line feeds as a space */
-	white-space: nowrap;
+@media (max-width: 640px) {
+	.site-main {
+		width: min(100% - 32px, 1120px);
+		min-height: calc(100vh - 150px);
+		padding: 42px 0 64px;
+	}
+
+	.page-heading {
+		margin-bottom: 26px;
+	}
+
+	.page-heading > p:last-child {
+		font-size: 15px;
+	}
+
+	.content-card__header {
+		align-items: flex-start;
+		padding: 20px;
+	}
+
+	.data-state {
+		min-height: 224px;
+		padding: 34px 20px;
+	}
+
+	.link-cards {
+		grid-template-columns: 1fr;
+	}
+
+	.comparison-slots {
+		gap: 10px;
+		padding: 18px;
+	}
+
+	.comparison-slot {
+		min-height: 128px;
+		padding: 10px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		scroll-behavior: auto !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
 }

@@ -1,0 +1,34 @@
+---
+import DataState from '../../components/DataState.astro';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+
+const gameId = Astro.params.gameId ?? '';
+---
+
+<SiteLayout
+	title="Game details"
+	description="Game status, matchup information, and statistics."
+>
+	<div class="page-heading">
+		<p class="eyebrow"><a href="/games">GAMES</a> · GAME CENTER</p>
+		<h1>Game details</h1>
+		<p>Score, status, and deeper game statistics will live here.</p>
+	</div>
+	<section class="content-card" aria-label="Game detail status">
+		<DataState
+			title="Game data is not available"
+			description={`Details for game ${gameId} will appear when a verified schedule and statistics source is connected.`}
+		/>
+	</section>
+</SiteLayout>
+
+<style>
+	.eyebrow a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.eyebrow a:hover {
+		color: var(--color-blue);
+	}
+</style>

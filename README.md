@@ -1,10 +1,10 @@
 # NFL Weekend
 
-An Astro server-rendered NFL games and statistics explorer in development. The goal is to make it easy to see the week's games at a glance, then browse to detailed game, team, player, and standings information when wanted.
+An Astro server-rendered NFL games and statistics explorer. Start with the weekly schedule, then browse standings, teams, players, and comparisons through a clean, progressively detailed interface.
 
-The interface is intended to be clear and approachable rather than presenting every statistic at once. Game and data freshness should be visible, and deeper detail should be available through dedicated pages.
+The interface is intended to be clear and approachable rather than presenting every statistic at once. Game status and data freshness should be visible, and deeper detail should be available through dedicated pages.
 
-> **Project status:** The Astro application and Docker runtime are in place. The NFL data integrations and NFL-focused pages are planned; they are not yet wired into the application.
+> **Project status:** The NFL-facing page structure and responsive interface are in place. NFL data integrations are not yet wired in, so pages show clear empty states rather than invented schedules, scores, or statistics.
 
 ## Data providers
 
@@ -16,6 +16,10 @@ The planned data flow keeps provider requests on the server, validates and maps 
 | Optional live scores and game updates | ESPN public-facing endpoints | Candidate only. These are not a supported developer API and must be checked for reliability and acceptable use before integration. |
 
 The intended refresh policy separates slower-changing data from live scores: scheduled refreshes for general statistics and, if the ESPN option is verified and implemented, a separate server-side cache refreshed during games. Live information must not be presented as guaranteed real time. See [ADR-002](docs/adr/ADR-002-transition-to-nfl-games-and-statistics.m) for the architectural decision.
+
+## Interface
+
+The main routes are `/` and `/games` for the weekly schedule, `/games/:gameId` for game details, `/standings`, `/teams` and `/teams/:team`, `/players` and `/players/:player`, and `/compare`. The shared interface is responsive and uses explicit empty, loading, and error states; it does not present placeholder values as real NFL data.
 
 ## Technology
 
@@ -116,16 +120,14 @@ AWS CLI credentials need permission to authenticate and push to the ECR reposito
 ```text
 ├── public/              # Static assets
 ├── src/
-│   ├── components/      # Shared Astro UI components
-│   ├── content/         # Existing blog posts and author entries
+│   ├── components/      # Shared NFL navigation and data-state UI
 │   ├── layouts/         # Shared page layouts
 │   ├── pages/
 │   │   └── api/         # Health, readiness, and liveness endpoints
-│   └── utils/           # Shared utilities
 ├── docs/adr/            # Architecture decision records
 ├── Dockerfile
 ├── astro.config.mjs
 └── package.json
 ```
 
-The current content collection still includes the original blog. NFL pages, provider clients, and the scheduled data refresh will be added as the product transition proceeds.
+Provider clients, persistent caching, and scheduled data refresh will be added as the server-side data layer is implemented.

@@ -1,0 +1,36 @@
+<footer class="site-footer">
+	<div class="site-footer__inner">
+		<span>Built for the game.</span>
+		<span>Scores and stats will appear when data is connected.</span>
+	</div>
+</footer>
+
+<style>
+	.site-footer {
+		border-top: 1px solid var(--color-border);
+		background: #fff;
+	}
+
+	.site-footer__inner {
+		display: flex;
+		width: min(100% - 48px, 1120px);
+		min-height: 72px;
+		align-items: center;
+		justify-content: space-between;
+		gap: 16px;
+		margin: 0 auto;
+		color: var(--color-muted);
+		font-size: 12px;
+	}
+
+	@media (max-width: 640px) {
+		.site-footer__inner {
+			width: min(100% - 32px, 1120px);
+			flex-direction: column;
+			align-items: flex-start;
+			justify-content: center;
+			gap: 3px;
+			padding: 16px 0;
+		}
+	}
+</style>

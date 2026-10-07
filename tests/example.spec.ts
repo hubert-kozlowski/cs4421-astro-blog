@@ -1,25 +1,40 @@
 import { expect, test } from '@playwright/test';
 
-test('blog page lists posts and opens a post', async ({ page }) => {
-  await page.goto('/blog');
+test('homepage presents the NFL overview and navigates to standings', async ({ page }) => {
+	await page.goto('/');
 
-  await expect(page).toHaveTitle(/Astro Blog/);
-  const firstPost = page.locator('#post-list > li').first();
-  await expect(firstPost).toBeVisible();
+	await expect(page).toHaveTitle(/NFL games this week \| NFL Weekend/);
+	await expect(page.getByRole('heading', { name: 'Every game. One clear view.' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'The schedule is not connected yet' })).toBeVisible();
 
-  await firstPost.getByRole('link').click();
-  await expect(page).toHaveURL(/\/blog\/[^/]+\/$/);
-  await expect(page.locator('article .title h1')).toBeVisible();
+	await page.getByRole('navigation', { name: 'Main navigation' }).getByRole('link', { name: 'Standings' }).click();
+	await expect(page).toHaveURL(/\/standings$/);
+	await expect(page.getByRole('heading', { name: 'Standings', exact: true })).toBeVisible();
 });
 
-test('search filters posts and shows an empty state', async ({ page }) => {
-  await page.goto('/blog');
-  const search = page.getByRole('searchbox', { name: 'Search posts' });
-  const posts = page.locator('#post-list > li');
+test('NFL sections and detail routes show clear data states', async ({ page }) => {
+	for (const route of [
+		'/games',
+		'/games/example-game',
+		'/teams',
+		'/teams/example-team',
+		'/players',
+		'/players/example-player',
+		'/compare',
+	]) {
+		const response = await page.goto(route);
+		expect(response?.status(), `${route} should render successfully`).toBe(200);
+		await expect(page.locator('main')).toBeVisible();
+		await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+		await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+	}
+});
 
-  await expect(posts.first()).toBeVisible();
-  await search.fill('this will not match any post');
+test('homepage fits a narrow mobile viewport without horizontal overflow', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.goto('/');
 
-  await expect(page.locator('#no-results')).toBeVisible();
-  await expect(posts.filter({ visible: true })).toHaveCount(0);
+	await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible();
+	const documentWidth = await page.evaluate(() => document.documentElement.scrollWidth);
+	expect(documentWidth).toBeLessThanOrEqual(390);
 });

@@ -1,0 +1,27 @@
+---
+import DataState from '../components/DataState.astro';
+import SiteLayout from '../layouts/SiteLayout.astro';
+---
+
+<SiteLayout
+	title="Standings"
+	description="Browse NFL standings by conference and division."
+>
+	<div class="page-heading">
+		<p class="eyebrow">THE SEASON</p>
+		<h1>Standings</h1>
+		<p>Track the season across conferences and divisions, with the numbers kept easy to scan.</p>
+	</div>
+	<section class="content-card" aria-labelledby="standings-heading">
+		<header class="content-card__header">
+			<div>
+				<h2 id="standings-heading">League standings</h2>
+				<p>Conference and division records</p>
+			</div>
+		</header>
+		<DataState
+			title="Standings are not available yet"
+			description="Verified standings will appear here when the league data source is connected."
+		/>
+	</section>
+</SiteLayout>

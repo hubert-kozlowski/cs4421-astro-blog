@@ -1,67 +1,182 @@
 ---
 import { SITE_TITLE } from '../consts';
-import HeaderLink from './HeaderLink.astro';
+
+const navigation = [
+	{ href: '/games', label: 'Games', key: 'games' },
+	{ href: '/standings', label: 'Standings', key: 'standings' },
+	{ href: '/teams', label: 'Teams', key: 'teams' },
+	{ href: '/players', label: 'Players', key: 'players' },
+	{ href: '/compare', label: 'Compare', key: 'compare' },
+];
+
+const pathname = Astro.url.pathname;
+const activeKey =
+	pathname === '/' || pathname.startsWith('/games')
+		? 'games'
+		: navigation.find(({ href }) => pathname === href || pathname.startsWith(`${href}/`))?.key;
 ---
 
-<header>
-	<nav>
-		<h2><a href="/">{SITE_TITLE}</a></h2>
-		<div class="internal-links">
-			<HeaderLink href="/">Home</HeaderLink>
-			<HeaderLink href="/blog">Blog</HeaderLink>
-			<HeaderLink href="/about">About</HeaderLink>
+<header class="site-header">
+	<div class="site-header__inner">
+		<a class="brand" href="/" aria-label={`${SITE_TITLE} home`}>
+			<span class="brand__mark" aria-hidden="true">N</span>
+			<span class="brand__name">NFL <span>WEEKEND</span></span>
+		</a>
+		<nav class="primary-nav" aria-label="Main navigation">
+			{
+				navigation.map(({ href, label, key }) => (
+					<a
+						class:list={['primary-nav__link', { 'is-active': activeKey === key }]}
+						href={href}
+						aria-current={activeKey === key ? 'page' : undefined}
+					>
+						{label}
+					</a>
+				))
+			}
+		</nav>
+		<div class="site-header__season" aria-label="Data source status">
+			<span class="status-dot" aria-hidden="true"></span>
+			<span>Data setup</span>
 		</div>
-		<div class="social-links">
-			<a href="https://github.com/hubert-kozlowski" target="_blank">
-				<span class="sr-only">Go to Hubert Kozlowski's GitHub repo</span>
-				<svg viewBox="0 0 16 16" aria-hidden="true" width="32" height="32"
-					><path
-						fill="currentColor"
-						d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-					></path></svg
-				>
-			</a>
-		</div>
-	</nav>
+	</div>
 </header>
+
 <style>
-	header {
-		margin: 0;
-		padding: 0 1em;
-		background: white;
-		box-shadow: 0 2px 8px rgba(var(--black), 5%);
-	}
-	h2 {
-		margin: 0;
-		font-size: 1em;
+	.site-header {
+		position: sticky;
+		z-index: 10;
+		top: 0;
+		border-bottom: 1px solid rgb(230 232 236 / 80%);
+		background: rgb(255 255 255 / 90%);
+		backdrop-filter: saturate(180%) blur(20px);
 	}
 
-	h2 a,
-	h2 a.active {
-		text-decoration: none;
-	}
-	nav {
+	.site-header__inner {
 		display: flex;
+		width: min(100% - 48px, 1180px);
+		height: 72px;
 		align-items: center;
 		justify-content: space-between;
+		gap: 28px;
+		margin: 0 auto;
 	}
-	nav a {
-		padding: 1em 0.5em;
-		color: var(--black);
-		border-bottom: 4px solid transparent;
+
+	.brand {
+		display: inline-flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 10px;
+		color: var(--color-ink);
 		text-decoration: none;
 	}
-	nav a.active {
-		text-decoration: none;
-		border-bottom-color: var(--accent);
+
+	.brand__mark {
+		display: grid;
+		width: 33px;
+		height: 33px;
+		place-items: center;
+		border-radius: 10px;
+		background: var(--color-navy);
+		color: #fff;
+		font-size: 15px;
+		font-weight: 800;
+		letter-spacing: -0.07em;
 	}
-	.social-links,
-	.social-links a {
+
+	.brand__name {
+		font-size: 13px;
+		font-weight: 800;
+		letter-spacing: -0.025em;
+		white-space: nowrap;
+	}
+
+	.brand__name span {
+		margin-left: 3px;
+		color: var(--color-muted);
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.11em;
+	}
+
+	.primary-nav {
 		display: flex;
+		height: 100%;
+		align-items: center;
+		gap: 4px;
 	}
-	@media (max-width: 720px) {
-		.social-links {
+
+	.primary-nav__link {
+		display: inline-flex;
+		height: 38px;
+		align-items: center;
+		padding: 0 13px;
+		border-radius: 10px;
+		color: var(--color-muted);
+		font-size: 13px;
+		font-weight: 550;
+		text-decoration: none;
+		transition:
+			background-color 150ms ease,
+			color 150ms ease;
+	}
+
+	.primary-nav__link:hover {
+		background: #f3f4f6;
+		color: var(--color-ink);
+	}
+
+	.primary-nav__link.is-active {
+		background: #f0f2f5;
+		color: var(--color-ink);
+		font-weight: 650;
+	}
+
+	.site-header__season {
+		display: inline-flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 8px;
+		color: var(--color-muted);
+		font-size: 12px;
+		font-weight: 550;
+	}
+
+	.status-dot {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #d59b43;
+	}
+
+	@media (max-width: 780px) {
+		.site-header__inner {
+			width: min(100% - 32px, 1180px);
+			height: auto;
+			min-height: 68px;
+			flex-wrap: wrap;
+			gap: 0 12px;
+			padding-top: 12px;
+		}
+
+		.primary-nav {
+			order: 3;
+			width: 100%;
+			height: 48px;
+			overflow-x: auto;
+			gap: 2px;
+			margin: 0 -4px;
+			scrollbar-width: none;
+		}
+
+		.primary-nav::-webkit-scrollbar {
 			display: none;
+		}
+
+		.primary-nav__link {
+			height: 34px;
+			padding: 0 11px;
+			font-size: 12px;
 		}
 	}
 </style>

@@ -1,0 +1,48 @@
+---
+import DataState from '../components/DataState.astro';
+import SiteLayout from '../layouts/SiteLayout.astro';
+---
+
+<SiteLayout
+	title="Compare"
+	description="Compare NFL teams and players side by side."
+>
+	<div class="page-heading">
+		<p class="eyebrow">SIDE BY SIDE</p>
+		<h1>Compare</h1>
+		<p>Put two teams or players alongside each other and focus on the stats that matter.</p>
+	</div>
+	<section class="content-card" aria-labelledby="comparison-heading">
+		<header class="content-card__header">
+			<div>
+				<h2 id="comparison-heading">Start a comparison</h2>
+				<p>Choose two profiles to explore their season side by side.</p>
+			</div>
+		</header>
+		<div class="comparison-slots" aria-label="Comparison profiles">
+			<div class="comparison-slot">
+				<strong>First profile</strong>
+				<span>Team or player</span>
+			</div>
+			<span class="comparison-versus" aria-hidden="true">VS</span>
+			<div class="comparison-slot">
+				<strong>Second profile</strong>
+				<span>Team or player</span>
+			</div>
+		</div>
+		<DataState
+			title="Comparisons will be available with verified stats"
+			description="Profile selection and side-by-side statistics will become available when team and player data is connected."
+		/>
+	</section>
+	<nav class="link-cards" aria-label="Explore profiles">
+		<a class="link-card" href="/teams">
+			<strong>Browse teams</strong>
+			<span>Open the team directory.</span>
+		</a>
+		<a class="link-card" href="/players">
+			<strong>Browse players</strong>
+			<span>Open the player directory.</span>
+		</a>
+	</nav>
+</SiteLayout>

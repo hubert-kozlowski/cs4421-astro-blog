@@ -1,0 +1,27 @@
+---
+import DataState from '../../components/DataState.astro';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+---
+
+<SiteLayout
+	title="Teams"
+	description="Explore NFL teams, their season records, schedules, and statistics."
+>
+	<div class="page-heading">
+		<p class="eyebrow">THE LEAGUE</p>
+		<h1>Teams</h1>
+		<p>Team records, schedules, and season stats—organized for a quick read.</p>
+	</div>
+	<section class="content-card" aria-labelledby="teams-heading">
+		<header class="content-card__header">
+			<div>
+				<h2 id="teams-heading">All teams</h2>
+				<p>Open a team for its schedule and season overview.</p>
+			</div>
+		</header>
+		<DataState
+			title="Team directory is not available yet"
+			description="Teams will appear here after verified league data is available."
+		/>
+	</section>
+</SiteLayout>

@@ -1,49 +1,101 @@
 ---
-import BaseHead from '../components/BaseHead.astro';
-import Footer from '../components/Footer.astro';
-import Header from '../components/Header.astro';
-import { SITE_DESCRIPTION, SITE_TITLE } from '../consts';
+import DataState from '../components/DataState.astro';
+import SiteLayout from '../layouts/SiteLayout.astro';
 ---
 
-<!doctype html>
-<html lang="en">
-	<head>
-		<BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
-	</head>
-	<body>
-		<Header />
-		<main>
-			<h1>🧑‍🚀 Hello, Astronaut!</h1>
-			<p>
-				Welcome to the official <a href="https://astro.build/">Astro</a> blog starter template. This template
-				serves as a lightweight, minimally-styled starting point for anyone looking to build a personal
-				website, blog, or portfolio with Astro.
-			</p>
-			<p>
-				This template comes with a few integrations already configured in your
-				<code>astro.config.mjs</code> file. You can customize your setup with
-				<a href="https://astro.build/integrations">Astro Integrations</a> to add tools like Tailwind,
-				React, or Vue to your project.
-			</p>
-			<p>Here are a few ideas on how to get started with the template:</p>
-			<ul>
-				<li>Edit this page in <code>src/pages/index.astro</code></li>
-				<li>Edit the site header items in <code>src/components/Header.astro</code></li>
-				<li>Add your name to the footer in <code>src/components/Footer.astro</code></li>
-				<li>Check out the included blog posts in <code>src/content/blog/</code></li>
-				<li>Customize the blog post page layout in <code>src/layouts/BlogPost.astro</code></li>
-			</ul>
-			<p>
-				Have fun! If you get stuck, remember to
-				<a href="https://docs.astro.build/">read the docs</a>
-				or <a href="https://astro.build/chat">join us on Discord</a> to ask questions.
-			</p>
-			<p>
-				Looking for a blog template with a bit more personality? Check out
-				<a href="https://github.com/Charca/astro-blog-template">astro-blog-template</a>
-				by <a href="https://twitter.com/Charca">Maxi Ferreira</a>.
-			</p>
-		</main>
-		<Footer />
-	</body>
-</html>
+<SiteLayout
+	title="NFL games this week"
+	description="A clear weekly view of NFL games, with standings and team and player details close at hand."
+>
+	<div class="page-heading">
+		<p class="eyebrow">NFL WEEKEND · WEEKLY OVERVIEW</p>
+		<h1>Every game.<br />One clear view.</h1>
+		<p>
+			Start with the week’s matchups, then go deeper into the teams, players, and numbers behind
+			the game.
+		</p>
+	</div>
+
+	<section class="content-card" aria-labelledby="games-heading">
+		<header class="content-card__header">
+			<div>
+				<h2 id="games-heading">This week’s games</h2>
+				<p>Schedule, kickoff times, and game status</p>
+			</div>
+			<a class="section-link" href="/games">All games <span aria-hidden="true">↗</span></a>
+		</header>
+		<DataState
+			title="The schedule is not connected yet"
+			description="Game times and scores will show here after the NFL data source is configured. No game information is being displayed as live or current until then."
+		/>
+	</section>
+
+	<section class="explore-section" aria-labelledby="explore-heading">
+		<div class="explore-section__heading">
+			<p class="eyebrow">EXPLORE THE LEAGUE</p>
+			<h2 id="explore-heading">More than game day.</h2>
+		</div>
+		<div class="link-cards">
+			<a class="link-card" href="/standings">
+				<strong>Standings</strong>
+				<span>See how the season is taking shape.</span>
+			</a>
+			<a class="link-card" href="/teams">
+				<strong>Teams</strong>
+				<span>Find a team and follow its season.</span>
+			</a>
+			<a class="link-card" href="/players">
+				<strong>Players</strong>
+				<span>Explore player profiles and stats.</span>
+			</a>
+			<a class="link-card" href="/compare">
+				<strong>Compare</strong>
+				<span>Put teams or players side by side.</span>
+			</a>
+		</div>
+	</section>
+</SiteLayout>
+
+<style>
+	.section-link {
+		flex: 0 0 auto;
+		color: var(--color-blue);
+		font-size: 13px;
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+	.section-link:hover {
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.explore-section {
+		margin-top: 54px;
+	}
+
+	.explore-section__heading {
+		margin-bottom: 18px;
+	}
+
+	.explore-section__heading .eyebrow {
+		margin-bottom: 7px;
+	}
+
+	.explore-section__heading h2 {
+		margin: 0;
+		font-size: 23px;
+		font-weight: 650;
+		letter-spacing: -0.04em;
+	}
+
+	@media (max-width: 480px) {
+		.content-card__header {
+			gap: 10px;
+		}
+
+		.section-link {
+			font-size: 12px;
+		}
+	}
+</style>

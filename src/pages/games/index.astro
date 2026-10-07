@@ -1,0 +1,27 @@
+---
+import DataState from '../../components/DataState.astro';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+---
+
+<SiteLayout
+	title="Games"
+	description="Browse the weekly NFL schedule and game details."
+>
+	<div class="page-heading">
+		<p class="eyebrow">THE SCHEDULE</p>
+		<h1>Games</h1>
+		<p>Matchups, kickoff times, and game status in one place.</p>
+	</div>
+	<section class="content-card" aria-labelledby="schedule-heading">
+		<header class="content-card__header">
+			<div>
+				<h2 id="schedule-heading">Weekly schedule</h2>
+				<p>Game information and freshness will be shown together.</p>
+			</div>
+		</header>
+		<DataState
+			title="No schedule available"
+			description="The schedule data source has not been connected. This page will show games here once verified data is available."
+		/>
+	</section>
+</SiteLayout>
