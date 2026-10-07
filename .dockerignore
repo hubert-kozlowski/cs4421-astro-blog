@@ -5,3 +5,10 @@ dist
 node_modules
 playwright-report
 test-results
+docs
+README.md
+AGENTS.md
+.env
+.env.*
+!.env.example
+data
