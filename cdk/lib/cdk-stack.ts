@@ -15,26 +15,46 @@ export class BlogStack extends cdk.Stack {
 		});
 
 		const cluster = new ecs.Cluster(this, 'Cluster', { vpc });
-		const service = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'BlogService', {
-			cluster,
+		const taskDefinition = new ecs.FargateTaskDefinition(this, 'BlogTask', {
 			cpu: 256,
 			memoryLimitMiB: 512,
+		});
+		taskDefinition.addContainer('Web', {
+			image: ecs.ContainerImage.fromAsset(path.join(__dirname, '../..')),
+			environment: {
+				HOST: '0.0.0.0',
+				NODE_ENV: 'production',
+				PORT: '4321',
+			},
+			logging: ecs.LogDrivers.awsLogs({ streamPrefix: 'blog' }),
+			healthCheck: {
+				command: [
+					'CMD',
+					'node',
+					'-e',
+					"fetch('http://127.0.0.1:4321/api/live').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+				],
+				interval: cdk.Duration.seconds(30),
+				timeout: cdk.Duration.seconds(5),
+				retries: 3,
+				startPeriod: cdk.Duration.seconds(30),
+			},
+			portMappings: [{ containerPort: 4321 }],
+		});
+
+		const service = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'BlogService', {
+			cluster,
+			taskDefinition,
 			desiredCount: 1,
+			minHealthyPercent: 100,
+			maxHealthyPercent: 200,
 			assignPublicIp: true,
 			healthCheckGracePeriod: cdk.Duration.seconds(60),
-			taskImageOptions: {
-				image: ecs.ContainerImage.fromAsset(path.join(__dirname, '../..')),
-				containerPort: 4321,
-				environment: {
-					HOST: '0.0.0.0',
-					NODE_ENV: 'production',
-					PORT: '4321',
-				},
-			},
+			circuitBreaker: { rollback: true },
 		});
 
 		service.targetGroup.configureHealthCheck({
-			path: '/',
+			path: '/api/ready',
 			healthyHttpCodes: '200',
 		});
 

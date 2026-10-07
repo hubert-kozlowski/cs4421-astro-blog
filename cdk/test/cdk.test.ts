@@ -18,8 +18,24 @@ describe('BlogStack', () => {
 			ContainerDefinitions: Match.arrayWith([
 				Match.objectLike({
 					PortMappings: Match.arrayWith([Match.objectLike({ ContainerPort: 4321 })]),
+					HealthCheck: Match.objectLike({
+						Command: Match.arrayWith([
+							'CMD',
+							'node',
+							'-e',
+							Match.stringLikeRegexp('/api/live'),
+						]),
+						Interval: 30,
+						Timeout: 5,
+						Retries: 3,
+						StartPeriod: 30,
+					}),
 				}),
 			]),
+		});
+		template.hasResourceProperties('AWS::ElasticLoadBalancingV2::TargetGroup', {
+			HealthCheckPath: '/api/ready',
+			Matcher: { HttpCode: '200' },
 		});
 	});
 });
