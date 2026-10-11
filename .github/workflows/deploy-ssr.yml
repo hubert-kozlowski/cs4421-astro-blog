@@ -1,19 +1,29 @@
 name: Deploy Astro SSR Container via AWS CDK
 
 on:
-  push:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    types: [completed]
     branches: [main]
+  workflow_dispatch:
 
 env:
   NODE_VERSION: 22.12.0
 
 jobs:
   deploy:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Node.js Runtime
         uses: actions/setup-node@v4
