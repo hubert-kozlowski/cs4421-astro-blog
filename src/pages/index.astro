@@ -332,6 +332,11 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 </SiteLayout>
 
 <script src="../scripts/dashboard-motion.ts"></script>
+<script>
+	if (window.location.hash === '#players' && new URLSearchParams(window.location.search).has('player')) {
+		document.querySelector('#players')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+	}
+</script>
 
 <style>
 	.dashboard-hero {
