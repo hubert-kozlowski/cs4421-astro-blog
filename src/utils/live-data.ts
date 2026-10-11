@@ -6,6 +6,7 @@ const LIVE_WINDOW_BEFORE_MS = 12 * 60 * 60 * 1000;
 const LIVE_WINDOW_AFTER_MS = 8 * 24 * 60 * 60 * 1000;
 
 export type LiveGameState = 'scheduled' | 'in_progress' | 'halftime' | 'final' | 'delayed';
+export type LiveGameNotice = 'flag' | 'under_review';
 
 export interface LiveStatAthlete {
 	name: string;
@@ -43,11 +44,13 @@ export interface LiveGame {
 		scoring: boolean;
 		keyAction: boolean;
 	} | null;
+	notice: LiveGameNotice | null;
 	situation: {
 		downDistance: string | null;
 		possession: string | null;
 		redZone: boolean;
 		yardLine: number | null;
+		direction: 'left' | 'right' | null;
 	} | null;
 	boxScore: LiveTeamBoxScore[];
 }
@@ -146,6 +149,109 @@ function classifyState(status: Record<string, unknown>): LiveGameState {
 	if (name.includes('DELAY') || name.includes('POSTPON')) return 'delayed';
 	if (state === 'in' || name.includes('IN_PROGRESS') || name.includes('LIVE')) return 'in_progress';
 	return 'scheduled';
+}
+
+function classifyLiveNotice(
+	status: Record<string, unknown>,
+	playType: string | undefined,
+	playText: string | undefined,
+): LiveGameNotice | null {
+	const type = isRecord(status.type) ? status.type : {};
+	const statusText = [
+		stringValue(status.name),
+		stringValue(status.detail),
+		stringValue(status.description),
+		stringValue(type.name),
+		stringValue(type.detail),
+		stringValue(type.description),
+	].filter(Boolean).join(' ');
+	const playDescription = [playType, playText].filter(Boolean).join(' ');
+	if (
+		/\b(?:under review|replay review|booth review|review in progress|challenged)\b/i.test(statusText) ||
+		/\b(?:under review|replay review|booth review|review in progress|challenged by|challenge initiated)\b/i.test(playDescription) ||
+		/\breview\b/i.test(playType ?? '')
+	) return 'under_review';
+	if (
+		/\b(?:penalty|flag)\b/i.test(playType ?? '') ||
+		/\bPENALTY\s+on\b|\bflag (?:on the play|thrown|picked up)\b/i.test(playText ?? '')
+	) return 'flag';
+	return null;
+}
+
+function liveFieldDirection(
+	situation: Record<string, unknown> | undefined,
+	possessionId: string | undefined,
+): 'left' | 'right' | null {
+	const play = situation && isRecord(situation.lastPlay) ? situation.lastPlay : undefined;
+	const start = play && isRecord(play.start) ? numberValue(play.start.yardLine) : undefined;
+	const end = play && isRecord(play.end) ? numberValue(play.end.yardLine) : undefined;
+	if (
+		start === undefined ||
+		end === undefined ||
+		!Number.isInteger(start) ||
+		!Number.isInteger(end) ||
+		start < 0 ||
+		start > 100 ||
+		end < 0 ||
+		end > 100 ||
+		start === end
+	) return null;
+
+	const teamRecord = play && isRecord(play.team) ? play.team : undefined;
+	const startRecord = play && isRecord(play.start) && isRecord(play.start.team) ? play.start.team : undefined;
+	const playTeamId = identifier(teamRecord?.id) ?? identifier(startRecord?.id);
+	if (possessionId && !playTeamId) return null;
+	const playMovesRight = end > start;
+	if (possessionId && playTeamId && possessionId !== playTeamId) {
+		return playMovesRight ? 'left' : 'right';
+	}
+	return playMovesRight ? 'right' : 'left';
+}
+
+function summaryFieldDirection(summary: unknown, possession: string | null): 'left' | 'right' | null {
+	if (!possession || !isRecord(summary)) return null;
+	const header = isRecord(summary.header) ? summary.header : undefined;
+	const competition = recordArray(header?.competitions)[0];
+	if (!competition) return null;
+	const competitors = recordArray(competition.competitors);
+	const possessionId = competitors.find((competitor) =>
+		teamAbbreviation(competitor.team)?.toUpperCase() === possession.toUpperCase(),
+	);
+	const possessionTeamId = possessionId ? identifier(possessionId.id) : undefined;
+	if (!possessionTeamId) return null;
+
+	const drives = isRecord(summary.drives) ? summary.drives : undefined;
+	const currentDrive = drives && isRecord(drives.current) ? drives.current : undefined;
+	const previousDrives = recordArray(drives?.previous);
+	const playGroups = [currentDrive, ...previousDrives].filter(isRecord);
+	for (const drive of playGroups) {
+		const plays = recordArray(drive.plays);
+		for (let index = plays.length - 1; index >= 0; index -= 1) {
+			const play = plays[index];
+			const start = isRecord(play.start) ? numberValue(play.start.yardLine) : undefined;
+			const end = isRecord(play.end) ? numberValue(play.end.yardLine) : undefined;
+			if (
+				start === undefined ||
+				end === undefined ||
+				!Number.isInteger(start) ||
+				!Number.isInteger(end) ||
+				start < 0 ||
+				start > 100 ||
+				end < 0 ||
+				end > 100 ||
+				start === end
+			) continue;
+			const offense = recordArray(play.teamParticipants).find((participant) => participant.type === 'offense');
+			const offenseId = identifier(offense?.id) ??
+				(isRecord(play.start) && isRecord(play.start.team) ? identifier(play.start.team.id) : undefined);
+			if (!offenseId) continue;
+			const playMovesRight = end > start;
+			return offenseId !== possessionTeamId
+				? playMovesRight ? 'left' : 'right'
+				: playMovesRight ? 'right' : 'left';
+		}
+	}
+	return null;
 }
 
 function parseBoxScore(value: unknown): LiveTeamBoxScore[] {
@@ -248,6 +354,7 @@ function parseLiveEvent(event: Record<string, unknown>, now: number): LiveGame |
 						? yardLine
 						: null;
 				})(),
+				direction: liveFieldDirection(competitionSituation, possessionId),
 			}
 		: null;
 	return {
@@ -270,6 +377,7 @@ function parseLiveEvent(event: Record<string, unknown>, now: number): LiveGame |
 					keyAction: scoreValue > 0 || /\b(touchdown|interception|fumble|safety|field goal|two-point)\b/i.test(playText),
 				}
 			: null,
+		notice: classifyLiveNotice(status, playType, playText),
 		situation,
 		boxScore: [],
 	};
@@ -374,6 +482,9 @@ export async function getLiveGames(date = new Date()): Promise<LiveGamesResult> 
 		if (game) {
 			game.boxScore = parseBoxScore(summary.value.value);
 			game.boxScoreUpdatedAt = new Date(summary.value.fetchedAt).toISOString();
+			if (game.situation && !game.situation.direction) {
+				game.situation.direction = summaryFieldDirection(summary.value.value, game.situation.possession);
+			}
 		}
 	}
 

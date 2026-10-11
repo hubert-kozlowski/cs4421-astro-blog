@@ -154,6 +154,32 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 		white-space: nowrap;
 	}
 
+	.live-center :global(.live-game-row__notice) {
+		display: flex;
+		grid-column: 1 / -1;
+		align-items: center;
+		min-height: 18px;
+		padding: 3px 8px;
+		border-left: 3px solid transparent;
+		border-radius: 2px;
+		font-size: 8px;
+		font-weight: 900;
+		letter-spacing: 0.12em;
+		line-height: 1;
+	}
+
+	.live-center :global(.live-game-row__notice--flag) {
+		border-left-color: #bf8c0a;
+		background: repeating-linear-gradient(135deg, #f7d46b 0, #f7d46b 8px, #f4cd57 8px, #f4cd57 16px);
+		color: #342909;
+	}
+
+	.live-center :global(.live-game-row__notice--under_review) {
+		border-left-color: #53647b;
+		background: linear-gradient(100deg, #e9edf2, #f3f5f7);
+		color: #2d3949;
+	}
+
 	.live-center :global(.live-game-row:last-child) {
 		border-bottom: 0;
 	}

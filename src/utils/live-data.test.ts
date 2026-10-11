@@ -168,6 +168,172 @@ describe('getLiveGames', () => {
 		});
 	});
 
+	it('uses absolute play coordinates and reverses direction for the new team after a turnover', async () => {
+		const date = new Date('2036-01-08T18:00:00.000Z');
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(date);
+		const makeEvent = (
+			id: string,
+			possession: string,
+			playTeam: string,
+			start: number,
+			end: number,
+		) => ({
+			id,
+			date: '2036-01-08T20:00:00.000Z',
+			competitions: [{
+				date: '2036-01-08T20:00:00.000Z',
+				status: { type: { name: 'STATUS_IN_PROGRESS', state: 'in' } },
+				competitors: [
+					{ id: '30', homeAway: 'home', score: '10', team: { abbreviation: 'JAX' } },
+					{ id: '21', homeAway: 'away', score: '14', team: { abbreviation: 'PHI' } },
+				],
+				situation: {
+					possession,
+					yardLine: end,
+					lastPlay: {
+						id: `${id}-play`,
+						text: 'Live play',
+						team: { id: playTeam },
+						start: { yardLine: start, team: { id: playTeam } },
+						end: { yardLine: end, team: { id: possession } },
+					},
+				},
+			}],
+		});
+		const events = [
+			makeEvent('pickup-moving-left', '21', '21', 74, 56),
+			makeEvent('turnover-to-phi', '21', '30', 46, 74),
+		];
+		vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input.toString());
+			if (url.pathname.endsWith('/scoreboard')) {
+				return new Response(JSON.stringify({
+					events: url.searchParams.get('dates') === '20360108' ? events : [],
+				}));
+			}
+			return new Response(JSON.stringify({ boxscore: {} }));
+		}));
+
+		const result = await getLiveGames(date);
+		expect(result.games.map((game) => game.situation?.direction)).toEqual(['left', 'left']);
+	});
+
+	it('uses the recent drive movement when the latest scoreboard play did not advance', async () => {
+		const date = new Date('2037-01-08T18:00:00.000Z');
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(date);
+		const event = {
+			id: 'latest-play-no-movement',
+			date: '2037-01-08T20:00:00.000Z',
+			competitions: [{
+				date: '2037-01-08T20:00:00.000Z',
+				status: { type: { name: 'STATUS_IN_PROGRESS', state: 'in' } },
+				competitors: [
+					{ id: '30', homeAway: 'home', score: '10', team: { abbreviation: 'JAX' } },
+					{ id: '21', homeAway: 'away', score: '14', team: { abbreviation: 'PHI' } },
+				],
+				situation: {
+					possession: '21',
+					yardLine: 54,
+					lastPlay: {
+						id: 'incomplete',
+						text: 'Pass incomplete',
+						team: { id: '21' },
+						start: { yardLine: 54, team: { id: '21' } },
+						end: { yardLine: 54, team: { id: '21' } },
+					},
+				},
+			}],
+		};
+		vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input.toString());
+			if (url.pathname.endsWith('/scoreboard')) {
+				return new Response(JSON.stringify({
+					events: url.searchParams.get('dates') === '20370108' ? [event] : [],
+				}));
+			}
+			return new Response(JSON.stringify({
+				header: {
+					competitions: [{
+						competitors: [
+							{ id: '30', team: { abbreviation: 'JAX' } },
+							{ id: '21', team: { abbreviation: 'PHI' } },
+						],
+					}],
+				},
+				drives: {
+					current: {
+						plays: [{
+							start: { yardLine: 56, team: { id: '21' } },
+							end: { yardLine: 54, team: { id: '21' } },
+							teamParticipants: [{ id: '21', type: 'offense' }],
+						}],
+					},
+				},
+				boxscore: {},
+			}));
+		}));
+
+		const result = await getLiveGames(date);
+		expect(result.games[0]?.situation?.direction).toBe('left');
+	});
+
+	it('marks explicit penalties and replay reviews without flagging ordinary plays', async () => {
+		const date = new Date('2035-01-08T18:00:00.000Z');
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(date);
+		const makeEvent = (
+			id: string,
+			statusDetail: string,
+			playType: string,
+			playText: string,
+		) => ({
+			id,
+			date: '2035-01-08T20:00:00.000Z',
+			competitions: [{
+				date: '2035-01-08T20:00:00.000Z',
+				status: {
+					type: { name: 'STATUS_IN_PROGRESS', state: 'in', detail: statusDetail },
+					period: 2,
+					displayClock: '8:42',
+				},
+				competitors: [
+					{ homeAway: 'home', score: '7', team: { abbreviation: 'KC' } },
+					{ homeAway: 'away', score: '3', team: { abbreviation: 'BUF' } },
+				],
+				situation: {
+					possession: 'KC',
+					yardLine: 34,
+					lastPlay: { id: `${id}-play`, type: { text: playType }, text: playText, scoreValue: 0 },
+				},
+			}],
+		});
+		const events = [
+			makeEvent('flag-event', '2nd Quarter', 'Penalty', 'Holding on defense'),
+			makeEvent('review-event', 'Under Review', 'Penalty', 'Holding on defense'),
+			makeEvent('ordinary-event', '2nd Quarter', 'Pass', 'Pass complete for 8 yards'),
+			makeEvent('replay-assisted-play', '2nd Quarter', 'Pass Reception', 'The penalty was assisted by replay'),
+		];
+		vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input.toString());
+			if (url.pathname.endsWith('/scoreboard')) {
+				return new Response(JSON.stringify({
+					events: url.searchParams.get('dates') === '20350108' ? events : [],
+				}));
+			}
+			return new Response(JSON.stringify({ boxscore: {} }));
+		}));
+
+		const result = await getLiveGames(date);
+		expect(result.games.map(({ eventId, notice }) => [eventId, notice])).toEqual([
+			['flag-event', 'flag'],
+			['review-event', 'under_review'],
+			['ordinary-event', null],
+			['replay-assisted-play', null],
+		]);
+	});
+
 	it('keeps field position when valid even if possession is ambiguous, and rejects invalid yard lines', async () => {
 		const date = new Date('2033-01-08T18:00:00.000Z');
 		vi.useFakeTimers({ toFake: ['Date'] });

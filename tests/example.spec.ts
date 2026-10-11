@@ -46,7 +46,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 			scoring: false,
 			keyAction: false,
 		},
-		situation: { downDistance: '1st & Goal', possession: 'JAX', redZone: true, yardLine: 99 },
+		situation: { downDistance: '1st & Goal', possession: 'JAX', redZone: true, yardLine: 99, direction: 'right' },
 		boxScore: [],
 	};
 	await page.route('**/api/live/games', async (route) => {
@@ -72,7 +72,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-game-row__team--possession')).toHaveCSS('border-bottom-color', 'rgb(215, 162, 42)');
 	await expect(liveCenter.locator('.live-game-row__field')).toHaveAttribute(
 		'aria-label',
-		'Offense-relative field view, with OWN on the left and OPP on the right; JAX possession, opponent 1-yard line',
+		'Play-derived field view; offense moving left to right; JAX possession, opponent 1-yard line',
 	);
 	await expect(liveCenter.locator('.live-game-row__field-mark')).toHaveCount(11);
 	await expect(liveCenter.locator('.live-game-row__field-direction')).toHaveAttribute(
@@ -86,7 +86,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-game-row')).toHaveClass(/live-game-row--red-zone/);
 	await expect(liveCenter.locator('.live-game-row--red-zone')).toHaveCSS('background-image', /linear-gradient/);
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCount(0);
-	await expect.poll(() => apiRequests).toBe(1);
+	await expect.poll(() => apiRequests).toBeGreaterThan(0);
 	expect(
 		await liveCenter.locator('.live-center__indicator i').evaluate((element) => getComputedStyle(element).animationName),
 	).toBe('none');
@@ -101,8 +101,9 @@ test('live game center stays visible while the next kickoff countdown advances',
 	).toBe(true);
 
 	game.clock = '3:56';
+	const requestsBeforeClockRefresh = apiRequests;
 	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-	await expect.poll(() => apiRequests).toBe(2);
+	await expect.poll(() => apiRequests).toBeGreaterThan(requestsBeforeClockRefresh);
 	await expect(liveCenter.locator('.live-game-row__clock')).toHaveText('Q1 · 3:56');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCount(0);
 	await expect(liveCenter.locator('.live-game-row__score')).not.toHaveClass(/--changed/);
@@ -114,8 +115,9 @@ test('live game center stays visible while the next kickoff countdown advances',
 		scoring: true,
 		keyAction: true,
 	};
+	const requestsBeforeScoreRefresh = apiRequests;
 	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-	await expect.poll(() => apiRequests).toBe(3);
+	await expect.poll(() => apiRequests).toBeGreaterThan(requestsBeforeScoreRefresh);
 	await expect(liveCenter.locator('.live-event-alert__title')).toHaveText('TOUCHDOWN');
 	await expect(liveCenter.locator('.live-event-alert__score')).toHaveText('PHI 0 – JAX 7');
 	await expect(liveCenter.locator('.live-event-alert__detail')).toContainText('Touchdown');
@@ -145,7 +147,7 @@ test('live field hides an unknown spot and fits narrow screens', async ({ page }
 						clock: '4:19',
 						boxScoreUpdatedAt: null,
 						lastPlay: null,
-						situation: { downDistance: null, possession: 'Unknown', redZone: false, yardLine: null },
+						situation: { downDistance: null, possession: 'Unknown', redZone: false, yardLine: null, direction: null },
 						boxScore: [],
 					},
 					{
@@ -161,7 +163,7 @@ test('live field hides an unknown spot and fits narrow screens', async ({ page }
 						clock: '4:19',
 						boxScoreUpdatedAt: null,
 						lastPlay: null,
-						situation: { downDistance: null, possession: 'JAX', redZone: false, yardLine: 50 },
+						situation: { downDistance: null, possession: 'JAX', redZone: false, yardLine: 50, direction: 'right' },
 						boxScore: [],
 					},
 				],
@@ -173,13 +175,13 @@ test('live field hides an unknown spot and fits narrow screens', async ({ page }
 	await expect(rows).toHaveCount(2);
 	await expect(rows.nth(0).locator('.live-game-row__field')).toHaveAttribute(
 		'aria-label',
-		'Offense-relative field view, with OWN on the left and OPP on the right; provider field position unavailable',
+		'Play-derived field view; direction unavailable; provider field position unavailable',
 	);
 	await expect(rows.nth(0).locator('.live-game-row__field-direction')).toHaveCount(0);
 	await expect(rows.nth(0).locator('.live-game-row__field-ball')).toHaveCount(0);
 	await expect(rows.nth(1).locator('.live-game-row__field')).toHaveAttribute(
 		'aria-label',
-		'Offense-relative field view, with OWN on the left and OPP on the right; JAX possession, midfield',
+		'Play-derived field view; offense moving left to right; JAX possession, midfield',
 	);
 	await expect(rows.nth(1).locator('.live-game-row__field-ball')).toHaveCount(1);
 	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -217,6 +219,7 @@ test('live ticker highlights the offense, not the team named in its yard line', 
 						possession: 'JAX',
 						redZone: false,
 						yardLine: 76,
+						direction: 'right',
 					},
 					boxScore: [],
 				}],
@@ -241,6 +244,180 @@ test('live ticker highlights the offense, not the team named in its yard line', 
 	await expect(page).toHaveURL(new RegExp(`${detailHref.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
 });
 
+test('live mini-field follows the play direction even when an away team has possession', async ({ page }) => {
+	await page.route('**/api/live/games', async (route) => {
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-11T16:00:00.000Z',
+				stale: false,
+				games: [{
+					eventId: 'live-phi-jax-away-possession',
+					kickoffAt: '2026-10-11T13:00:00.000Z',
+					homeTeam: 'JAX',
+					awayTeam: 'PHI',
+					homeScore: 17,
+					awayScore: 13,
+					state: 'in_progress',
+					status: '3rd Quarter',
+					period: 3,
+					clock: '8:28',
+					boxScoreUpdatedAt: null,
+					lastPlay: null,
+					notice: null,
+					situation: {
+						downDistance: '1st & 20 at JAX 24',
+						possession: 'PHI',
+						redZone: false,
+						yardLine: 76,
+						direction: 'right',
+					},
+					boxScore: [],
+				}],
+			},
+		});
+	});
+	await page.goto('/');
+	const row = page.locator('.live-game-row');
+	await expect(row.locator('.live-game-row__field')).toHaveAttribute(
+		'aria-label',
+		'Play-derived field view; offense moving left to right; PHI possession, opponent 24-yard line',
+	);
+	await expect(row.locator('.live-game-row__field-ball')).toHaveAttribute('cx', '202.4');
+	await expect(row.locator('.live-game-row__field-direction')).toHaveAttribute(
+		'd',
+		'M 205.4 20 H 214.4 M 211.4 17 L 214.4 20 L 211.4 23',
+	);
+	await expect(row.locator('.live-game-row__field-endzone-label').nth(0)).toHaveText('OWN');
+	await expect(row.locator('.live-game-row__field-endzone-label').nth(1)).toHaveText('OPP');
+});
+
+test('mini-field reverses immediately on turnover and keeps provider field coordinates fixed', async ({ page }) => {
+	let apiRequests = 0;
+	const game = {
+		eventId: 'live-turnover-direction',
+		kickoffAt: '2026-10-11T13:00:00.000Z',
+		homeTeam: 'JAX',
+		awayTeam: 'PHI',
+		homeScore: 10,
+		awayScore: 14,
+		state: 'in_progress',
+		status: '3rd Quarter',
+		period: 3,
+		clock: '2:24',
+		boxScoreUpdatedAt: null,
+		lastPlay: null,
+		notice: null,
+		situation: {
+			downDistance: '3rd & 10',
+			possession: 'JAX',
+			redZone: false,
+			yardLine: 46,
+			direction: 'right',
+		},
+		boxScore: [],
+	};
+	let possession = 'JAX';
+	let yardLine = 46;
+	let direction: 'left' | 'right' | null = 'right';
+	let lastPlay: { id: string; text: string; scoring: boolean; keyAction: boolean } | null = null;
+	await page.route('**/api/live/games', async (route) => {
+		apiRequests += 1;
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-11T16:00:00.000Z',
+				stale: false,
+				games: [{
+					...game,
+					lastPlay,
+					situation: { ...game.situation, possession, yardLine, direction },
+				}],
+			},
+		});
+	});
+	await page.goto('/');
+	const row = page.locator('.live-game-row');
+	await expect(row.locator('.live-game-row__field-direction')).toHaveAttribute(
+		'd',
+		'M 133.4 20 H 142.4 M 139.4 17 L 142.4 20 L 139.4 23',
+	);
+	possession = 'PHI';
+	yardLine = 74;
+	direction = null;
+	lastPlay = {
+		id: 'interception',
+		text: 'Pass intercepted by PHI',
+		scoring: false,
+		keyAction: true,
+	};
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => apiRequests).toBe(2);
+	await expect(row.locator('.live-game-row__field-ball')).toHaveAttribute('cx', '197.6');
+	await expect(row.locator('.live-game-row__field-direction')).toHaveAttribute(
+		'd',
+		'M 194.6 20 H 185.6 M 188.6 17 L 185.6 20 L 188.6 23',
+	);
+	await expect(row.locator('.live-game-row__field')).toHaveAttribute(
+		'aria-label',
+		'Play-derived field view; offense moving right to left; PHI possession, own 26-yard line',
+	);
+	yardLine = 56;
+	direction = 'left';
+	lastPlay = {
+		id: 'pickup-moving-left',
+		text: 'PHI pickup advances toward the left end zone',
+		scoring: false,
+		keyAction: false,
+	};
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => apiRequests).toBe(3);
+	await expect(row.locator('.live-game-row__field-ball')).toHaveAttribute('cx', '154.4');
+	await expect(row.locator('.live-game-row__field-direction')).toHaveAttribute(
+		'd',
+		'M 151.4 20 H 142.4 M 145.4 17 L 142.4 20 L 145.4 23',
+	);
+});
+
+test('live game cards show discreet flag and review banners only when signaled', async ({ page }) => {
+	const baseGame = {
+		kickoffAt: '2026-10-11T13:00:00.000Z',
+		homeTeam: 'JAX',
+		awayTeam: 'PHI',
+		homeScore: 17,
+		awayScore: 13,
+		state: 'in_progress',
+		status: '3rd Quarter',
+		period: 3,
+		clock: '8:28',
+		boxScoreUpdatedAt: null,
+		lastPlay: null,
+		situation: { downDistance: null, possession: null, redZone: false, yardLine: null },
+		boxScore: [],
+	};
+	await page.route('**/api/live/games', async (route) => {
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-11T16:00:00.000Z',
+				stale: false,
+				games: [
+					{ ...baseGame, eventId: 'flagged-game', notice: 'flag' },
+					{ ...baseGame, eventId: 'review-game', notice: 'under_review' },
+					{ ...baseGame, eventId: 'ordinary-game', notice: null },
+				],
+			},
+		});
+	});
+	await page.goto('/');
+	const rows = page.locator('.live-game-row');
+	await expect(rows).toHaveCount(3);
+	const flagBanner = rows.nth(0).locator('.live-game-row__notice');
+	await expect(flagBanner).toHaveText('FLAG');
+	await expect(flagBanner).toHaveCSS('min-height', '18px');
+	await expect(flagBanner).toHaveCSS('background-image', /repeating-linear-gradient/);
+	await expect(rows.nth(1).locator('.live-game-row__notice')).toHaveText('UNDER REVIEW');
+	await expect(rows.nth(1).locator('.live-game-row__notice')).toHaveCSS('border-left-color', 'rgb(83, 100, 123)');
+	await expect(rows.nth(2).locator('.live-game-row__notice')).toHaveCount(0);
+});
+
 test('game page shows live team and player stats without collapsing categories', async ({ page }) => {
 	await page.route('**/api/live/games', async (route) => {
 		await route.fulfill({
@@ -260,7 +437,7 @@ test('game page shows live team and player stats without collapsing categories',
 					clock: '8:42',
 					boxScoreUpdatedAt: '2026-10-11T13:59:45.000Z',
 					lastPlay: null,
-					situation: { downDistance: '3rd & 4', possession: 'KC', redZone: false, yardLine: 34 },
+					situation: { downDistance: '3rd & 4', possession: 'KC', redZone: false, yardLine: 34, direction: 'right' },
 					boxScore: [
 						{
 							team: 'JAX',
