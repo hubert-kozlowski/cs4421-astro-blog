@@ -119,7 +119,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 	expect(
 		await liveCenter.locator('.live-center__indicator i').evaluate((element) => getComputedStyle(element).animationName),
 	).toBe('none');
-	await expect(liveCenter.locator('.live-game-row')).toHaveCSS('height', '84px');
+	await expect(liveCenter.locator('.live-game-row')).toHaveCSS('height', '108px');
 	expect(await liveCenter.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(150);
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
 	expect(
@@ -150,7 +150,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert__title')).toHaveText('TOUCHDOWN');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveClass(/live-event-alert--touchdown/);
 	await expect(liveCenter.locator('.live-event-alert__team')).toHaveText('JAX SCORES');
-	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('min-height', '16px');
+	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('min-height', '24px');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('border-left-color', 'rgb(0, 103, 120)');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('background-image', /linear-gradient/);
 	await expect(liveCenter.locator('.live-event-alert__score')).toHaveText('PHI 0 – JAX 7');
@@ -723,7 +723,7 @@ test('live game cards show broadcast-style flag and review banners only when sig
 		clock: '8:28',
 		boxScoreUpdatedAt: null,
 		lastPlay: null,
-		situation: { downDistance: null, possession: null, redZone: false, yardLine: null },
+		situation: { downDistance: '1st & 10 at JAX 24', possession: null, redZone: false, yardLine: null },
 		boxScore: [],
 	};
 	await page.route('**/api/live/games', async (route) => {
@@ -750,11 +750,33 @@ test('live game cards show broadcast-style flag and review banners only when sig
 	const flagBanner = rows.nth(0).locator('.live-game-row__notice');
 	await expect(flagBanner.locator('.live-game-row__notice-label')).toHaveText('FLAG');
 	await expect(flagBanner.locator('.live-game-row__notice-detail')).toHaveText('Holding on defense');
-	await expect(flagBanner).toHaveCSS('min-height', '16px');
+	await expect(flagBanner).toHaveCSS('min-height', '24px');
+	await expect(flagBanner).toHaveCSS('padding', '3px 8px');
 	await expect(flagBanner).toHaveCSS('background-color', 'rgb(248, 210, 79)');
+	const desktopAlignment = await page.evaluate(() => {
+		const field = document.querySelector('.live-game-row .live-game-row__field')?.getBoundingClientRect();
+		const banner = document.querySelector('.live-game-row .live-game-row__notice')?.getBoundingClientRect();
+		return field && banner ? { fieldLeft: field.left, bannerLeft: banner.left, bannerHeight: banner.height } : null;
+	});
+	expect(desktopAlignment).not.toBeNull();
+	expect(desktopAlignment?.bannerLeft).toBeCloseTo(desktopAlignment?.fieldLeft ?? 0, 0);
+	expect(desktopAlignment?.bannerHeight).toBeGreaterThanOrEqual(24);
 	await expect(rows.nth(1).locator('.live-game-row__notice-label')).toHaveText('UNDER REVIEW');
 	await expect(rows.nth(1).locator('.live-game-row__notice')).toHaveCSS('border-color', 'rgb(200, 208, 219)');
 	await expect(rows.nth(2).locator('.live-game-row__notice')).toHaveCount(0);
+
+	await page.setViewportSize({ width: 390, height: 844 });
+	const mobileAlignment = await page.evaluate(() => {
+		const field = document.querySelector('.live-game-row .live-game-row__field')?.getBoundingClientRect();
+		const context = document.querySelector('.live-game-row .live-game-row__context')?.getBoundingClientRect();
+		const banner = document.querySelector('.live-game-row .live-game-row__notice')?.getBoundingClientRect();
+		return field && context && banner
+			? { fieldLeft: field.left, bannerLeft: banner.left, contextBottom: context.bottom, bannerTop: banner.top }
+			: null;
+	});
+	expect(mobileAlignment).not.toBeNull();
+	expect(mobileAlignment?.bannerLeft).toBeCloseTo(mobileAlignment?.fieldLeft ?? 0, 0);
+	expect(mobileAlignment?.bannerTop).toBeGreaterThanOrEqual(mobileAlignment?.contextBottom ?? 0);
 });
 
 test('game page shows live team and player stats without collapsing categories', async ({ page }) => {

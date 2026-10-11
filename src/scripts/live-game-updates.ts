@@ -510,6 +510,11 @@ function renderLiveRow(
 	row.dataset.gameTeams = `${game.awayTeam} at ${game.homeTeam}`;
 	const link = detailHref ? document.createElement('a') : undefined;
 	const content: HTMLElement = link ?? row;
+	if (game.notice) row.dataset.hasNotice = 'true';
+	if (event) row.dataset.hasEvent = 'true';
+	if (game.situation?.downDistance || game.state === 'halftime' || game.state === 'final') {
+		row.dataset.hasContext = 'true';
+	}
 	if (link && detailHref) {
 		link.href = detailHref;
 		link.className = 'live-game-row__link';
@@ -577,9 +582,10 @@ function renderLiveRow(
 			: game.status;
 	appendText(content, 'div', clock, 'live-game-row__clock');
 	const details = appendText(content, 'div', '', 'live-game-row__details');
+	const context = appendText(details, 'div', '', 'live-game-row__context');
 	if (phaseLabel) {
 		appendText(
-			details,
+			context,
 			'div',
 			phaseLabel,
 			`live-game-row__phase${game.state === 'halftime' ? ' live-game-row__phase--halftime' : ''}`,
@@ -587,12 +593,13 @@ function renderLiveRow(
 	}
 	if (game.situation?.downDistance) {
 		appendText(
-			details,
+			context,
 			'p',
 			`${game.situation.downDistance}${game.situation.redZone ? ' · RED ZONE' : ''}`,
 			'live-game-row__situation',
 		);
 	}
+	if (!context.childElementCount) context.remove();
 	if (event) {
 		const alert = appendText(
 			details,
