@@ -633,6 +633,9 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 		border-left: 3px solid #c33440;
 		border-radius: 7px;
 		background: linear-gradient(100deg, #fff6f5, #fffdfd);
+	}
+
+	.live-center :global(.live-event-alert--new) {
 		animation: live-event-arrive 220ms ease-out both;
 	}
 
@@ -899,7 +902,7 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 
 	@media (prefers-reduced-motion: reduce) {
 		.live-center :global(.live-game-row__score--changed),
-		.live-center :global(.live-event-alert) {
+		.live-center :global(.live-event-alert--new) {
 			animation: none;
 		}
 	}

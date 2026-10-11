@@ -499,6 +499,7 @@ function renderLiveRow(
 		detail: string;
 		scoringTeam?: string;
 		touchdown: boolean;
+		announce: boolean;
 	} | undefined,
 	scoreChanged: boolean,
 	showField: boolean,
@@ -610,14 +611,14 @@ function renderLiveRow(
 			details,
 			'div',
 			'',
-			`live-event-alert${event.touchdown ? ' live-event-alert--touchdown' : ''}`,
+			`live-event-alert${event.touchdown ? ' live-event-alert--touchdown' : ''}${event.announce ? ' live-event-alert--new' : ''}`,
 		);
 		if (event.scoringTeam) {
 			const accent = teamPalette(event.scoringTeam)?.primary;
 			if (accent) alert.style.setProperty('--scoring-team-accent', accent);
 		}
 		alert.setAttribute('role', 'status');
-		alert.setAttribute('aria-live', 'assertive');
+		alert.setAttribute('aria-live', event.announce ? 'assertive' : 'off');
 		appendText(alert, 'strong', event.title, 'live-event-alert__title');
 		if (event.touchdown && event.scoringTeam) {
 			appendText(alert, 'span', `${event.scoringTeam} SCORES`, 'live-event-alert__team');
@@ -702,7 +703,7 @@ function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChange
 		for (const game of orderedGames) {
 			const recentEvent = recentEvents.get(game.eventId);
 			const event = recentEvent && recentEvent.expiresAt > Date.now()
-				? recentEvent
+				? { ...recentEvent, announce: eventIds.has(game.eventId) }
 				: undefined;
 			fragment.append(
 				renderLiveRow(
@@ -715,7 +716,7 @@ function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChange
 			);
 		}
 		list.replaceChildren(fragment);
-		center.setAttribute('aria-live', eventIds.size > 0 ? 'polite' : 'off');
+		center.setAttribute('aria-live', 'off');
 	}
 }
 

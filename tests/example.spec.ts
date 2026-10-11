@@ -168,6 +168,16 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert__score')).toHaveText('PHI 0 – JAX 7');
 	await expect(liveCenter.locator('.live-event-alert__detail')).toContainText('Touchdown');
 	await expect(liveCenter.locator('.live-game-row__score')).toHaveClass(/live-game-row__score--changed/);
+	await expect(liveCenter).toHaveAttribute('aria-live', 'off');
+	await expect(liveCenter.locator('.live-event-alert')).toHaveAttribute('aria-live', 'assertive');
+	await expect(liveCenter.locator('.live-event-alert')).toHaveClass(/live-event-alert--new/);
+
+	const requestsBeforeRepeatedPoll = apiRequests;
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => apiRequests).toBeGreaterThan(requestsBeforeRepeatedPoll);
+	await expect(liveCenter.locator('.live-event-alert')).toHaveCount(1);
+	await expect(liveCenter.locator('.live-event-alert')).toHaveAttribute('aria-live', 'off');
+	await expect(liveCenter.locator('.live-event-alert')).not.toHaveClass(/live-event-alert--new/);
 });
 
 test('live mini-fields align across games with different score widths', async ({ page }) => {
