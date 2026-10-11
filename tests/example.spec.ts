@@ -46,7 +46,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 			scoring: false,
 			keyAction: false,
 		},
-		situation: { downDistance: '1st & Goal', possession: 'JAX', redZone: true },
+		situation: { downDistance: '1st & Goal', possession: 'JAX', redZone: true, yardLine: 99 },
 		boxScore: [],
 	};
 	await page.route('**/api/live/games', async (route) => {
@@ -69,13 +69,26 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-game-row')).toContainText('Q1 · 4:19');
 	await expect(liveCenter.locator('.live-game-row__situation')).toHaveText('1st & Goal · RED ZONE');
 	await expect(liveCenter.locator('.live-game-row__team--possession')).toHaveAttribute('aria-label', 'JAX, has possession');
+	await expect(liveCenter.locator('.live-game-row__field')).toHaveAttribute(
+		'aria-label',
+		'Offense advances from own end zone toward opponent end zone; JAX possession, opponent 1-yard line',
+	);
+	await expect(liveCenter.locator('.live-game-row__field-mark')).toHaveCount(11);
+	await expect(liveCenter.locator('.live-game-row__field-direction')).toHaveAttribute(
+		'd',
+		'M 58 6 H 264 M 255 1 L 264 6 L 255 11',
+	);
+	await expect(liveCenter.locator('.live-game-row__field-ball')).toHaveAttribute('cx', '257.6');
+	await expect(liveCenter.locator('.live-game-row__field')).toHaveCSS('height', '52px');
+	await expect(liveCenter.locator('.live-game-row')).toHaveClass(/live-game-row--red-zone/);
+	await expect(liveCenter.locator('.live-game-row--red-zone')).toHaveCSS('background-image', /linear-gradient/);
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCount(0);
 	await expect.poll(() => apiRequests).toBe(1);
 	expect(
 		await liveCenter.locator('.live-center__indicator i').evaluate((element) => getComputedStyle(element).animationName),
 	).toBe('none');
 	await expect(liveCenter.locator('.live-game-row')).toHaveCSS('min-height', '38px');
-	expect(await liveCenter.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(105);
+	expect(await liveCenter.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(150);
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
 	expect(
 		await liveCenter.evaluate((element) => {
@@ -104,6 +117,140 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert__score')).toHaveText('PHI 0 – JAX 7');
 	await expect(liveCenter.locator('.live-event-alert__detail')).toContainText('Touchdown');
 	await expect(liveCenter.locator('.live-game-row__score')).toHaveClass(/live-game-row__score--changed/);
+});
+
+test('live field hides an unknown spot and fits narrow screens', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.route('**/api/live/games', async (route) => {
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-11T14:00:00.000Z',
+				stale: false,
+				games: [
+					{
+						eventId: 'live-unknown-position',
+						kickoffAt: '2026-10-11T13:00:00.000Z',
+						homeTeam: 'JAX',
+						awayTeam: 'PHI',
+						homeScore: 0,
+						awayScore: 0,
+						state: 'in_progress',
+						status: '1st Quarter',
+						period: 1,
+						clock: '4:19',
+						boxScoreUpdatedAt: null,
+						lastPlay: null,
+						situation: { downDistance: null, possession: 'Unknown', redZone: false, yardLine: null },
+						boxScore: [],
+					},
+					{
+						eventId: 'live-known-position',
+						kickoffAt: '2026-10-11T13:00:00.000Z',
+						homeTeam: 'JAX',
+						awayTeam: 'PHI',
+						homeScore: 0,
+						awayScore: 0,
+						state: 'in_progress',
+						status: '1st Quarter',
+						period: 1,
+						clock: '4:19',
+						boxScoreUpdatedAt: null,
+						lastPlay: null,
+						situation: { downDistance: null, possession: 'JAX', redZone: false, yardLine: 50 },
+						boxScore: [],
+					},
+				],
+			},
+		});
+	});
+	await page.goto('/');
+	const rows = page.locator('.live-game-row');
+	await expect(rows).toHaveCount(2);
+	await expect(rows.nth(0).locator('.live-game-row__field')).toHaveAttribute(
+		'aria-label',
+		'Offense advances from own end zone toward opponent end zone; provider field position unavailable',
+	);
+	await expect(rows.nth(0).locator('.live-game-row__field-direction')).toBeVisible();
+	await expect(rows.nth(0).locator('.live-game-row__field-ball')).toHaveCount(0);
+	await expect(rows.nth(1).locator('.live-game-row__field')).toHaveAttribute(
+		'aria-label',
+		'Offense advances from own end zone toward opponent end zone; JAX possession, midfield',
+	);
+	await expect(rows.nth(1).locator('.live-game-row__field-ball')).toHaveCount(1);
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test('game page shows live team and player stats without collapsing categories', async ({ page }) => {
+	await page.route('**/api/live/games', async (route) => {
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-11T14:00:00.000Z',
+				stale: false,
+				games: [{
+					eventId: 'live-detail-fixture',
+					kickoffAt: '2026-10-11T13:00:00.000Z',
+					homeTeam: 'JAX',
+					awayTeam: 'PHI',
+					homeScore: 14,
+					awayScore: 10,
+					state: 'in_progress',
+					status: '2nd Quarter',
+					period: 2,
+					clock: '8:42',
+					boxScoreUpdatedAt: '2026-10-11T13:59:45.000Z',
+					lastPlay: null,
+					situation: { downDistance: '3rd & 4', possession: 'KC', redZone: false, yardLine: 34 },
+					boxScore: [
+						{
+							team: 'JAX',
+							stats: [{ label: 'Total Yards', value: '250' }, { label: 'First Downs', value: '12' }],
+							categories: [{
+								name: 'passing',
+								labels: ['C/ATT', 'YDS', 'TD'],
+								athletes: [{ name: 'Patrick Mahomes', stats: ['15/20', '180', '2'] }],
+							}],
+						},
+						{
+							team: 'PHI',
+							stats: [{ label: 'Total Yards', value: '190' }],
+							categories: [{
+								name: 'rushing',
+								labels: ['CAR', 'YDS'],
+								athletes: [{ name: 'James Cook', stats: ['8', '42'] }],
+							}],
+						},
+					],
+				}],
+			},
+		});
+	});
+	await page.goto('/');
+	await page.evaluate(() => {
+		const liveCenter = document.querySelector<HTMLElement>('[data-live-center]');
+		if (!liveCenter) throw new Error('Live center is not present on the home page.');
+		const boxScore = document.createElement('section');
+		for (const attribute of liveCenter.attributes) {
+			if (attribute.name.startsWith('data-astro-cid-')) boxScore.setAttribute(attribute.name, '');
+		}
+		boxScore.className = 'live-boxscore';
+		boxScore.dataset.liveBoxscore = '';
+		boxScore.dataset.gameHome = 'JAX';
+		boxScore.dataset.gameAway = 'PHI';
+		boxScore.hidden = true;
+		boxScore.innerHTML = '<div class="live-boxscore__header"><div><p class="eyebrow">LIVE BOX SCORE</p><h2>Live game stats</h2></div><span data-live-updated></span></div><div data-live-stats></div>';
+		document.body.append(boxScore);
+		document.dispatchEvent(new Event('visibilitychange'));
+	});
+	const liveStats = page.locator('.live-boxscore');
+	await expect(liveStats).toBeVisible();
+	await expect(liveStats.getByRole('heading', { name: 'Live game stats' })).toBeVisible();
+	await expect(liveStats.locator('.live-boxscore__team')).toHaveCount(2);
+	await expect(liveStats.locator('.live-boxscore__totals').first()).toContainText('Total Yards');
+	await expect(liveStats.locator('.live-boxscore__totals').first()).toContainText('250');
+	await expect(liveStats.locator('.live-boxscore__table tbody tr')).toHaveCount(2);
+	await expect(liveStats.locator('.live-boxscore__category').nth(0)).toContainText('Patrick Mahomes');
+	await expect(liveStats.locator('.live-boxscore__category').nth(1)).toContainText('James Cook');
+	await expect(liveStats.locator('details, summary')).toHaveCount(0);
 });
 
 test('game, team, player, and directory routes respond', async ({ page }) => {

@@ -31,7 +31,12 @@ interface LiveGame {
 	clock: string | null;
 	boxScoreUpdatedAt: string | null;
 	lastPlay: { id: string; text: string; scoring: boolean; keyAction: boolean } | null;
-	situation: { downDistance: string | null; possession: string | null; redZone: boolean } | null;
+	situation: {
+		downDistance: string | null;
+		possession: string | null;
+		redZone: boolean;
+		yardLine: number | null;
+	} | null;
 	boxScore: LiveTeamBoxScore[];
 }
 
@@ -192,6 +197,88 @@ function possessionMatchesTeam(possession: string | null | undefined, team: stri
 		new RegExp(`(?:^|\\W)${normalizedAbbr}(?:$|\\W)`).test(possession.toUpperCase());
 }
 
+function appendFieldGraphic(parent: HTMLElement, game: LiveGame, possessionTeam: string | undefined) {
+	const reportedYardLine = game.situation?.yardLine;
+	const yardLine = typeof reportedYardLine === 'number' &&
+		Number.isInteger(reportedYardLine) &&
+		reportedYardLine >= 0 &&
+		reportedYardLine <= 100
+		? reportedYardLine
+		: null;
+
+	const svgNamespace = 'http://www.w3.org/2000/svg';
+	const svg = document.createElementNS(svgNamespace, 'svg');
+	svg.setAttribute('class', 'live-game-row__field');
+	svg.setAttribute('viewBox', '0 0 280 52');
+	svg.setAttribute('role', 'img');
+	const spot = yardLine === null
+		? 'provider field position unavailable'
+		: yardLine === 50
+			? 'midfield'
+			: yardLine === 0
+				? 'own goal line'
+				: yardLine === 100
+					? 'opponent goal line'
+					: yardLine < 50
+						? `own ${yardLine}-yard line`
+						: `opponent ${100 - yardLine}-yard line`;
+	svg.setAttribute(
+		'aria-label',
+		`Offense advances from own end zone toward opponent end zone; ${possessionTeam ? `${possessionTeam} possession, ` : ''}${spot}`,
+	);
+
+	const appendSvg = (tag: string, attributes: Record<string, string>) => {
+		const element = document.createElementNS(svgNamespace, tag);
+		for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+		svg.append(element);
+		return element;
+	};
+	const directionLabel = appendSvg('text', { x: '8', y: '9', class: 'live-game-row__field-direction-label' });
+	directionLabel.textContent = 'OFFENSE';
+	appendSvg('path', { d: 'M 58 6 H 264 M 255 1 L 264 6 L 255 11', class: 'live-game-row__field-direction' });
+	appendSvg('rect', { x: '0', y: '14', width: '280', height: '32', rx: '5', class: 'live-game-row__field-surface' });
+	appendSvg('rect', { x: '0', y: '14', width: '20', height: '32', class: 'live-game-row__field-endzone' });
+	appendSvg('rect', { x: '260', y: '14', width: '20', height: '32', class: 'live-game-row__field-endzone' });
+	const ownEndzone = appendSvg('text', { x: '10', y: '32', class: 'live-game-row__field-endzone-label' });
+	ownEndzone.textContent = 'OWN';
+	const opponentEndzone = appendSvg('text', { x: '270', y: '32', class: 'live-game-row__field-endzone-label' });
+	opponentEndzone.textContent = 'OPP';
+
+	for (let yard = 0; yard <= 100; yard += 10) {
+		const x = 20 + yard * 2.4;
+		appendSvg('line', { x1: String(x), y1: '15', x2: String(x), y2: '45', class: 'live-game-row__field-mark' });
+		if (yard > 0 && yard < 100) {
+			const displayedYard = yard <= 50 ? yard : 100 - yard;
+			const topLabel = appendSvg('text', { x: String(x), y: '22', class: 'live-game-row__field-yard' });
+			topLabel.textContent = String(displayedYard);
+			const bottomLabel = appendSvg('text', { x: String(x), y: '43', class: 'live-game-row__field-yard' });
+			bottomLabel.textContent = String(displayedYard);
+			const hash = appendSvg('line', {
+				x1: String(x),
+				y1: '27',
+				x2: String(x),
+				y2: '31',
+				class: 'live-game-row__field-hash',
+			});
+			hash.setAttribute('aria-hidden', 'true');
+			continue;
+		}
+	}
+
+	if (yardLine !== null) {
+		const x = String(20 + yardLine * 2.4);
+		appendSvg('line', { x1: x, y1: '8', x2: x, y2: '15', class: 'live-game-row__field-ball-stem' });
+		const ball = appendSvg('circle', {
+			cx: x,
+			cy: '8',
+			r: '3',
+			class: 'live-game-row__field-ball',
+		});
+		ball.setAttribute('aria-hidden', 'true');
+	}
+	parent.append(svg);
+}
+
 function renderLiveRow(
 	game: LiveGame,
 	event: { title: string; score: string; detail: string } | undefined,
@@ -205,6 +292,7 @@ function renderLiveRow(
 		: possessionMatchesTeam(possession, game.homeTeam)
 			? game.homeTeam
 			: undefined;
+	if (game.situation?.redZone) row.classList.add('live-game-row--red-zone');
 	row.setAttribute(
 		'aria-label',
 		`${game.awayTeam} ${game.awayScore}, ${game.homeTeam} ${game.homeScore}, ${game.status}${possessionTeam ? `, ${possessionTeam} has possession` : ''}`,
@@ -221,6 +309,7 @@ function renderLiveRow(
 		home.classList.add('live-game-row__team--possession');
 		home.setAttribute('aria-label', `${game.homeTeam}, has possession`);
 	}
+	appendFieldGraphic(row, game, possessionTeam);
 	const score = appendText(
 		row,
 		'div',
@@ -297,36 +386,51 @@ function renderBoxScore(game: LiveGame) {
 	const teams = appendText(fragment, 'div', '', 'live-boxscore__teams');
 	for (const team of game.boxScore) {
 		const panel = appendText(teams, 'section', '', 'live-boxscore__team');
-		appendText(panel, 'h3', `${team.team} TEAM TOTALS`);
-		const totals = appendText(panel, 'div', '', 'live-boxscore__totals');
-		for (const stat of team.stats) appendText(totals, 'span', `${stat.label} ${stat.value}`, 'live-boxscore__total');
+		const heading = appendText(panel, 'div', '', 'live-boxscore__team-heading');
+		appendText(heading, 'h3', team.team);
+		appendText(heading, 'span', 'TEAM', 'live-boxscore__team-label');
+		if (team.stats.length > 0) {
+			const totals = appendText(panel, 'dl', '', 'live-boxscore__totals');
+			for (const stat of team.stats) {
+				const metric = appendText(totals, 'div', '', 'live-boxscore__metric');
+				appendText(metric, 'dt', stat.label);
+				appendText(metric, 'dd', stat.value);
+			}
+		}
 		for (const category of team.categories) {
 			if (category.athletes.length === 0) continue;
-			const disclosure = document.createElement('details');
-			const summary = document.createElement('summary');
-			summary.textContent = category.name;
-			disclosure.append(summary);
+			const categorySection = appendText(panel, 'section', '', 'live-boxscore__category');
+			appendText(categorySection, 'h4', category.name);
 			const table = document.createElement('table');
+			table.className = 'live-boxscore__table';
+			const caption = document.createElement('caption');
+			caption.textContent = `${team.team} ${category.name} statistics`;
+			table.append(caption);
 			const head = document.createElement('thead');
 			const headerRow = document.createElement('tr');
-			appendText(headerRow, 'th', 'Player');
-			for (const label of category.labels) appendText(headerRow, 'th', label);
+			const playerHeader = appendText(headerRow, 'th', 'PLAYER');
+			playerHeader.setAttribute('scope', 'col');
+			for (const label of category.labels) {
+				const header = appendText(headerRow, 'th', label);
+				header.setAttribute('scope', 'col');
+			}
 			head.append(headerRow);
 			table.append(head);
 			const body = document.createElement('tbody');
 			for (const athlete of category.athletes) {
 				const row = document.createElement('tr');
-				appendText(row, 'th', athlete.name);
+				const name = appendText(row, 'th', athlete.name);
+				name.setAttribute('scope', 'row');
 				for (const stat of athlete.stats) appendText(row, 'td', stat);
 				body.append(row);
 			}
 			table.append(body);
-			disclosure.append(table);
-			panel.append(disclosure);
+			const tableWrap = appendText(categorySection, 'div', '', 'live-boxscore__table-wrap');
+			tableWrap.append(table);
 		}
 	}
 	if (game.boxScore.length === 0) {
-		appendText(fragment, 'p', 'Live box-score stats are not available from the provider yet.', 'live-boxscore__empty');
+		appendText(fragment, 'p', 'Player and team stats are not available from the provider yet.', 'live-boxscore__empty');
 	}
 	statsContainer.replaceChildren(fragment);
 	const updated = container.querySelector<HTMLElement>('[data-live-updated]');

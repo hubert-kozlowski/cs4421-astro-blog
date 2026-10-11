@@ -47,6 +47,7 @@ export interface LiveGame {
 		downDistance: string | null;
 		possession: string | null;
 		redZone: boolean;
+		yardLine: number | null;
 	} | null;
 	boxScore: LiveTeamBoxScore[];
 }
@@ -217,6 +218,15 @@ function parseLiveEvent(event: Record<string, unknown>, now: number): LiveGame |
 				downDistance: stringValue(competitionSituation.downDistanceText) ?? null,
 				possession: stringValue(competitionSituation.possessionText) ?? null,
 				redZone: competitionSituation.isRedZone === true,
+				yardLine: (() => {
+					const yardLine = numberValue(competitionSituation.yardLine);
+					return yardLine !== undefined &&
+						Number.isInteger(yardLine) &&
+						yardLine >= 0 &&
+						yardLine <= 100
+						? yardLine
+						: null;
+				})(),
 			}
 		: null;
 	return {

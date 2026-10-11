@@ -32,6 +32,7 @@ describe('getLiveGames', () => {
 				situation: {
 					downDistanceText: '3rd & 4',
 					possessionText: 'KC',
+					yardLine: 34,
 					isRedZone: true,
 					lastPlay: {
 						id: 'play-1',
@@ -93,6 +94,7 @@ describe('getLiveGames', () => {
 				downDistance: '3rd & 4',
 				possession: 'KC',
 				redZone: true,
+				yardLine: 34,
 			},
 		});
 		expect(result.games[0]?.boxScore[0]).toMatchObject({
@@ -119,5 +121,78 @@ describe('getLiveGames', () => {
 		vi.setSystemTime(new Date(date.getTime() + LIVE_SUMMARY_CACHE_TTL_MS + 1));
 		await getLiveGames(date);
 		expect(fetchMock).toHaveBeenCalledTimes(11);
+	});
+
+	it('keeps field position when valid even if possession is ambiguous, and rejects invalid yard lines', async () => {
+		const date = new Date('2033-01-08T18:00:00.000Z');
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(date);
+		const event = {
+			id: 'position-validation-event',
+			date: '2033-01-08T20:00:00.000Z',
+			competitions: [{
+				date: '2033-01-08T20:00:00.000Z',
+				status: { type: { name: 'STATUS_IN_PROGRESS', state: 'in' } },
+				competitors: [
+					{ homeAway: 'home', score: '0', team: { abbreviation: 'KC' } },
+					{ homeAway: 'away', score: '0', team: { abbreviation: 'BUF' } },
+				],
+				situation: { possessionText: 'Unknown', yardLine: 100.5, isRedZone: false },
+			}],
+		};
+		const events = [
+			{
+				...event,
+				id: 'invalid-yard-line-event',
+				competitions: [{
+					...event.competitions[0],
+					situation: { possessionText: 'KC', yardLine: 100.5, isRedZone: false },
+				}],
+			},
+			event,
+			{
+				...event,
+				id: 'own-goal-line-event',
+				competitions: [{
+					...event.competitions[0],
+					situation: { possessionText: 'BUF', yardLine: 0, isRedZone: false },
+				}],
+			},
+			{
+				...event,
+				id: 'ambiguous-possession-valid-yard-line-event',
+				competitions: [{
+					...event.competitions[0],
+					situation: { possessionText: 'Unknown', yardLine: 100, isRedZone: false },
+				}],
+			},
+		];
+		vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input.toString());
+			return new Response(JSON.stringify({
+				events: url.pathname.endsWith('/scoreboard') && url.searchParams.get('dates') === '20330108'
+					? events
+					: [],
+			}));
+		}));
+
+		const result = await getLiveGames(date);
+		expect(result.games).toHaveLength(4);
+		expect(result.games.find((game) => game.eventId === 'invalid-yard-line-event')?.situation).toMatchObject({
+			possession: 'KC',
+			yardLine: null,
+		});
+		expect(result.games.find((game) => game.eventId === 'position-validation-event')?.situation).toMatchObject({
+			possession: 'Unknown',
+			yardLine: null,
+		});
+		expect(result.games.find((game) => game.eventId === 'ambiguous-possession-valid-yard-line-event')?.situation).toMatchObject({
+			possession: 'Unknown',
+			yardLine: 100,
+		});
+		expect(result.games.find((game) => game.eventId === 'own-goal-line-event')?.situation).toMatchObject({
+			possession: 'BUF',
+			yardLine: 0,
+		});
 	});
 });
