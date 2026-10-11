@@ -123,6 +123,51 @@ describe('getLiveGames', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(11);
 	});
 
+	it('uses ESPN possession team IDs instead of the yard-line team in possessionText', async () => {
+		const date = new Date('2034-01-08T18:00:00.000Z');
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(date);
+		const event = {
+			id: 'phi-jax-possession-regression',
+			date: '2034-01-08T20:00:00.000Z',
+			competitions: [{
+				date: '2034-01-08T20:00:00.000Z',
+				status: { type: { name: 'STATUS_IN_PROGRESS', state: 'in' } },
+				competitors: [
+					{ id: '30', homeAway: 'home', score: '14', team: { abbreviation: 'JAX' } },
+					{ id: '21', homeAway: 'away', score: '10', team: { abbreviation: 'PHI' } },
+				],
+				situation: {
+					possession: '30',
+					possessionText: 'PHI 24',
+					yardLine: 76,
+					downDistanceText: '1st & 20 at PHI 24',
+				},
+			}],
+		};
+		vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input.toString());
+			if (url.pathname.endsWith('/scoreboard')) {
+				return new Response(JSON.stringify({
+					events: url.searchParams.get('dates') === '20340108' ? [event] : [],
+				}));
+			}
+			return new Response(JSON.stringify({ boxscore: {} }));
+		}));
+
+		const result = await getLiveGames(date);
+		expect(result.games).toHaveLength(1);
+		expect(result.games[0]).toMatchObject({
+			homeTeam: 'JAX',
+			awayTeam: 'PHI',
+			situation: {
+				possession: 'JAX',
+				yardLine: 76,
+				downDistance: '1st & 20 at PHI 24',
+			},
+		});
+	});
+
 	it('keeps field position when valid even if possession is ambiguous, and rejects invalid yard lines', async () => {
 		const date = new Date('2033-01-08T18:00:00.000Z');
 		vi.useFakeTimers({ toFake: ['Date'] });
@@ -183,11 +228,11 @@ describe('getLiveGames', () => {
 			yardLine: null,
 		});
 		expect(result.games.find((game) => game.eventId === 'position-validation-event')?.situation).toMatchObject({
-			possession: 'Unknown',
+			possession: null,
 			yardLine: null,
 		});
 		expect(result.games.find((game) => game.eventId === 'ambiguous-possession-valid-yard-line-event')?.situation).toMatchObject({
-			possession: 'Unknown',
+			possession: null,
 			yardLine: 100,
 		});
 		expect(result.games.find((game) => game.eventId === 'own-goal-line-event')?.situation).toMatchObject({

@@ -95,9 +95,17 @@ function teamAbbreviation(value: unknown): string | undefined {
 	return isRecord(value) ? stringValue(value.abbreviation) : undefined;
 }
 
+function identifier(value: unknown): string | undefined {
+	if (typeof value === 'string' && value.trim() !== '') return value.trim();
+	if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+	return undefined;
+}
+
 function getEventTeams(event: Record<string, unknown>): {
 	homeTeam: string;
+	homeTeamId: string | undefined;
 	awayTeam: string;
+	awayTeamId: string | undefined;
 	homeScore: number;
 	awayScore: number;
 	competition: Record<string, unknown>;
@@ -114,7 +122,9 @@ function getEventTeams(event: Record<string, unknown>): {
 	if (!homeTeam || !awayTeam) return undefined;
 	return {
 		homeTeam,
+		homeTeamId: identifier(home.id),
 		awayTeam,
+		awayTeamId: identifier(away.id),
 		homeScore: numberValue(home.score) ?? 0,
 		awayScore: numberValue(away.score) ?? 0,
 		competition,
@@ -203,6 +213,17 @@ function parseLiveEvent(event: Record<string, unknown>, now: number): LiveGame |
 	const period = numberValue(status.period);
 	const clock = stringValue(status.displayClock);
 	const competitionSituation = isRecord(match.competition.situation) ? match.competition.situation : undefined;
+	const possessionId = identifier(competitionSituation?.possession);
+	const possessionText = stringValue(competitionSituation?.possessionText)?.trim().toUpperCase();
+	const possessionTeam = possessionId && possessionId === match.homeTeamId
+		? match.homeTeam
+		: possessionId && possessionId === match.awayTeamId
+			? match.awayTeam
+			: possessionText === match.homeTeam.toUpperCase()
+				? match.homeTeam
+				: possessionText === match.awayTeam.toUpperCase()
+					? match.awayTeam
+					: null;
 	const lastPlay = competitionSituation && isRecord(competitionSituation.lastPlay)
 		? competitionSituation.lastPlay
 		: undefined;
@@ -216,7 +237,7 @@ function parseLiveEvent(event: Record<string, unknown>, now: number): LiveGame |
 	const situation = competitionSituation
 		? {
 				downDistance: stringValue(competitionSituation.downDistanceText) ?? null,
-				possession: stringValue(competitionSituation.possessionText) ?? null,
+				possession: possessionTeam,
 				redZone: competitionSituation.isRedZone === true,
 				yardLine: (() => {
 					const yardLine = numberValue(competitionSituation.yardLine);
