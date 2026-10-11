@@ -151,6 +151,14 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert')).toHaveClass(/live-event-alert--touchdown/);
 	await expect(liveCenter.locator('.live-event-alert__team')).toHaveText('JAX SCORES');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('min-height', '24px');
+	const alertAlignment = await page.evaluate(() => {
+		const field = document.querySelector('.live-game-row__field')?.getBoundingClientRect();
+		const alert = document.querySelector('.live-event-alert')?.getBoundingClientRect();
+		return field && alert ? { fieldLeft: field.left, fieldRight: field.right, alertLeft: alert.left, alertRight: alert.right } : null;
+	});
+	expect(alertAlignment).not.toBeNull();
+	expect(Math.abs((alertAlignment?.alertLeft ?? 0) - (alertAlignment?.fieldLeft ?? 0))).toBeLessThan(3);
+	expect(Math.abs((alertAlignment?.alertRight ?? 0) - (alertAlignment?.fieldRight ?? 0))).toBeLessThan(3);
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('border-left-color', 'rgb(0, 103, 120)');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('background-image', /linear-gradient/);
 	await expect(liveCenter.locator('.live-event-alert__score')).toHaveText('PHI 0 – JAX 7');
@@ -756,10 +764,13 @@ test('live game cards show broadcast-style flag and review banners only when sig
 	const desktopAlignment = await page.evaluate(() => {
 		const field = document.querySelector('.live-game-row .live-game-row__field')?.getBoundingClientRect();
 		const banner = document.querySelector('.live-game-row .live-game-row__notice')?.getBoundingClientRect();
-		return field && banner ? { fieldLeft: field.left, bannerLeft: banner.left, bannerHeight: banner.height } : null;
+		return field && banner
+			? { fieldLeft: field.left, fieldRight: field.right, bannerLeft: banner.left, bannerRight: banner.right, bannerHeight: banner.height }
+			: null;
 	});
 	expect(desktopAlignment).not.toBeNull();
-	expect(desktopAlignment?.bannerLeft).toBeCloseTo(desktopAlignment?.fieldLeft ?? 0, 0);
+	expect(Math.abs((desktopAlignment?.bannerLeft ?? 0) - (desktopAlignment?.fieldLeft ?? 0))).toBeLessThan(3);
+	expect(Math.abs((desktopAlignment?.bannerRight ?? 0) - (desktopAlignment?.fieldRight ?? 0))).toBeLessThan(3);
 	expect(desktopAlignment?.bannerHeight).toBeGreaterThanOrEqual(24);
 	await expect(rows.nth(1).locator('.live-game-row__notice-label')).toHaveText('UNDER REVIEW');
 	await expect(rows.nth(1).locator('.live-game-row__notice')).toHaveCSS('border-color', 'rgb(200, 208, 219)');
@@ -771,11 +782,12 @@ test('live game cards show broadcast-style flag and review banners only when sig
 		const context = document.querySelector('.live-game-row .live-game-row__context')?.getBoundingClientRect();
 		const banner = document.querySelector('.live-game-row .live-game-row__notice')?.getBoundingClientRect();
 		return field && context && banner
-			? { fieldLeft: field.left, bannerLeft: banner.left, contextBottom: context.bottom, bannerTop: banner.top }
+			? { fieldLeft: field.left, fieldRight: field.right, bannerLeft: banner.left, bannerRight: banner.right, contextBottom: context.bottom, bannerTop: banner.top }
 			: null;
 	});
 	expect(mobileAlignment).not.toBeNull();
-	expect(mobileAlignment?.bannerLeft).toBeCloseTo(mobileAlignment?.fieldLeft ?? 0, 0);
+	expect(Math.abs((mobileAlignment?.bannerLeft ?? 0) - (mobileAlignment?.fieldLeft ?? 0))).toBeLessThan(3);
+	expect(Math.abs((mobileAlignment?.bannerRight ?? 0) - (mobileAlignment?.fieldRight ?? 0))).toBeLessThan(3);
 	expect(mobileAlignment?.bannerTop).toBeGreaterThanOrEqual(mobileAlignment?.contextBottom ?? 0);
 });
 
