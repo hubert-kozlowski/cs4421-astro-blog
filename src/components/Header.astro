@@ -1,44 +1,39 @@
 ---
 import { SITE_TITLE } from '../consts';
 
-const navigation = [
-	{ href: '/games', label: 'Games', key: 'games' },
-	{ href: '/standings', label: 'Standings', key: 'standings' },
-	{ href: '/teams', label: 'Teams', key: 'teams' },
-	{ href: '/players', label: 'Players', key: 'players' },
-	{ href: '/compare', label: 'Compare', key: 'compare' },
+const sections = [
+	{ href: '#schedule', label: 'Games' },
+	{ href: '#standings', label: 'Standings' },
+	{ href: '#players', label: 'Players' },
+	{ href: '#matchups', label: 'Matchups' },
 ];
-
-const pathname = Astro.url.pathname;
-const activeKey =
-	pathname === '/' || pathname.startsWith('/games')
-		? 'games'
-		: navigation.find(({ href }) => pathname === href || pathname.startsWith(`${href}/`))?.key;
+const onHome = Astro.url.pathname === '/';
 ---
 
 <header class="site-header">
 	<div class="site-header__inner">
 		<a class="brand" href="/" aria-label={`${SITE_TITLE} home`}>
-			<span class="brand__mark" aria-hidden="true">N</span>
-			<span class="brand__name">NFL <span>WEEKEND</span></span>
+			<span class="brand__mark" aria-hidden="true">GA</span>
+			<span class="brand__name">GRIDIRON <span>ATLAS</span></span>
 		</a>
-		<nav class="primary-nav" aria-label="Main navigation">
+		<nav class="quick-nav" aria-label="Dashboard sections">
 			{
-				navigation.map(({ href, label, key }) => (
-					<a
-						class:list={['primary-nav__link', { 'is-active': activeKey === key }]}
-						href={href}
-						aria-current={activeKey === key ? 'page' : undefined}
-					>
+				sections.map(({ href, label }) => (
+					<a class="quick-nav__link" href={onHome ? href : `/${href}`}>
 						{label}
 					</a>
 				))
 			}
 		</nav>
-		<div class="site-header__season" aria-label="Data source status">
-			<span class="status-dot" aria-hidden="true"></span>
-			<span>Data setup</span>
-		</div>
+		<form class="header-search" action="/players#player-search-form" method="get" role="search">
+			<label class="sr-only" for="header-player-search">Find an NFL player</label>
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<circle cx="10.8" cy="10.8" r="6.3" />
+				<path d="m15.4 15.4 4.2 4.2" />
+			</svg>
+			<input id="header-player-search" type="search" name="name" placeholder="Find a player" />
+			<button type="submit" aria-label="Search players">Search</button>
+		</form>
 	</div>
 </header>
 
@@ -48,17 +43,17 @@ const activeKey =
 		z-index: 10;
 		top: 0;
 		border-bottom: 1px solid rgb(230 232 236 / 80%);
-		background: rgb(255 255 255 / 90%);
+		background: rgb(255 255 255 / 93%);
 		backdrop-filter: saturate(180%) blur(20px);
 	}
 
 	.site-header__inner {
 		display: flex;
 		width: min(100% - 48px, 1180px);
-		height: 72px;
+		min-height: 72px;
 		align-items: center;
 		justify-content: space-between;
-		gap: 28px;
+		gap: 22px;
 		margin: 0 auto;
 	}
 
@@ -73,110 +68,146 @@ const activeKey =
 
 	.brand__mark {
 		display: grid;
-		width: 33px;
-		height: 33px;
+		width: 35px;
+		height: 35px;
 		place-items: center;
-		border-radius: 10px;
-		background: var(--color-navy);
+		border-radius: 11px;
+		background: linear-gradient(145deg, #17233b, #304e80);
+		box-shadow: 0 4px 10px rgb(28 50 88 / 20%);
 		color: #fff;
-		font-size: 15px;
+		font-size: 16px;
 		font-weight: 800;
 		letter-spacing: -0.07em;
 	}
 
 	.brand__name {
-		font-size: 13px;
+		font-size: 12px;
 		font-weight: 800;
-		letter-spacing: -0.025em;
+		letter-spacing: 0.04em;
 		white-space: nowrap;
 	}
 
 	.brand__name span {
-		margin-left: 3px;
 		color: var(--color-muted);
-		font-size: 10px;
-		font-weight: 700;
-		letter-spacing: 0.11em;
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
 	}
 
-	.primary-nav {
+	.quick-nav {
 		display: flex;
-		height: 100%;
 		align-items: center;
 		gap: 4px;
 	}
 
-	.primary-nav__link {
+	.quick-nav__link {
 		display: inline-flex;
-		height: 38px;
+		min-height: 36px;
 		align-items: center;
-		padding: 0 13px;
+		padding: 0 12px;
 		border-radius: 10px;
 		color: var(--color-muted);
-		font-size: 13px;
-		font-weight: 550;
+		font-size: 12px;
+		font-weight: 600;
 		text-decoration: none;
 		transition:
 			background-color 150ms ease,
 			color 150ms ease;
 	}
 
-	.primary-nav__link:hover {
-		background: #f3f4f6;
-		color: var(--color-ink);
+	.quick-nav__link:hover {
+		background: #f0f3f8;
+		color: var(--color-blue);
 	}
 
-	.primary-nav__link.is-active {
-		background: #f0f2f5;
-		color: var(--color-ink);
-		font-weight: 650;
-	}
-
-	.site-header__season {
-		display: inline-flex;
+	.header-search {
+		display: flex;
+		width: 238px;
+		height: 38px;
 		flex: 0 0 auto;
 		align-items: center;
 		gap: 8px;
+		padding: 0 6px 0 11px;
+		border: 1px solid var(--color-border);
+		border-radius: 12px;
+		background: #f8f9fb;
 		color: var(--color-muted);
+	}
+
+	.header-search svg {
+		width: 16px;
+		height: 16px;
+		flex: 0 0 auto;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-width: 1.7;
+	}
+
+	.header-search input {
+		width: 100%;
+		min-width: 0;
+		border: 0;
+		outline: 0;
+		background: transparent;
+		color: var(--color-ink);
 		font-size: 12px;
-		font-weight: 550;
 	}
 
-	.status-dot {
-		width: 7px;
-		height: 7px;
-		border-radius: 50%;
-		background: #d59b43;
+	.header-search input::placeholder {
+		color: var(--color-faint);
 	}
 
-	@media (max-width: 780px) {
+	.header-search button {
+		padding: 6px 9px;
+		border: 0;
+		border-radius: 8px;
+		background: #e8edf8;
+		color: var(--color-blue);
+		font-size: 11px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.header-search button:hover {
+		background: #dce5f7;
+	}
+
+	@media (max-width: 900px) {
 		.site-header__inner {
 			width: min(100% - 32px, 1180px);
-			height: auto;
-			min-height: 68px;
 			flex-wrap: wrap;
-			gap: 0 12px;
-			padding-top: 12px;
+			gap: 8px 14px;
+			padding: 12px 0;
 		}
 
-		.primary-nav {
+		.quick-nav {
 			order: 3;
 			width: 100%;
-			height: 48px;
 			overflow-x: auto;
-			gap: 2px;
-			margin: 0 -4px;
+			margin: 0 -6px;
 			scrollbar-width: none;
 		}
 
-		.primary-nav::-webkit-scrollbar {
+		.quick-nav::-webkit-scrollbar {
 			display: none;
 		}
 
-		.primary-nav__link {
-			height: 34px;
-			padding: 0 11px;
-			font-size: 12px;
+		.quick-nav__link {
+			min-height: 32px;
+			padding: 0 10px;
+			font-size: 11px;
+			white-space: nowrap;
+		}
+	}
+
+	@media (max-width: 520px) {
+		.header-search {
+			width: min(52vw, 205px);
+		}
+
+		.header-search button {
+			padding: 6px;
 		}
 	}
 </style>

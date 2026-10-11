@@ -1,27 +1,288 @@
 ---
+import DataFreshness from '../../components/DataFreshness.astro';
 import DataState from '../../components/DataState.astro';
+import PlayerAvatar from '../../components/PlayerAvatar.astro';
 import SiteLayout from '../../layouts/SiteLayout.astro';
+import { searchPlayersWithSuggestions, type PlayerSearchResult } from '../../utils/nfl-data';
+
+const query = Astro.url.searchParams.get('name')?.trim() ?? '';
+let result: PlayerSearchResult | undefined;
+let unavailable = false;
+let tooShort = false;
+if (query) {
+	if (query.length >= 2) {
+		try {
+			result = await searchPlayersWithSuggestions(query, 50);
+		} catch (error) {
+			unavailable = true;
+			console.error(
+				JSON.stringify({
+					level: 'error',
+					event: 'player_search_unavailable',
+					error: error instanceof Error ? error.name : 'UnknownError',
+				}),
+			);
+		}
+	} else {
+		tooShort = true;
+	}
+}
 ---
 
-<SiteLayout
-	title="Players"
-	description="Explore NFL player profiles, season statistics, and team rosters."
->
+<SiteLayout title="Find a player" description="Search NFL player profiles by name, position, or college.">
 	<div class="page-heading">
-		<p class="eyebrow">THE PLAYERS</p>
-		<h1>Players</h1>
-		<p>Find player profiles and stats with the context to understand what they mean.</p>
+		<p class="eyebrow">PLAYER DIRECTORY</p>
+		<h1>Find your player.</h1>
+		<p>Search real player profiles, then open a profile to see current-season numbers.</p>
 	</div>
-	<section class="content-card" aria-labelledby="players-heading">
-		<header class="content-card__header">
+	<form id="player-search-form" class="player-search" action="/players#player-search-form" method="get" role="search">
+		<label class="sr-only" for="player-search">Search NFL players</label>
+		<span aria-hidden="true">⌕</span>
+		<input id="player-search" type="search" name="name" value={query} minlength="2" placeholder="Player name" required />
+		<button type="submit">Search players</button>
+	</form>
+	{tooShort && <p class="form-note">Enter at least two characters to search the player directory.</p>}
+	{result && (
+		<div class="results-heading">
 			<div>
-				<h2 id="players-heading">Player directory</h2>
-				<p>Profiles, rosters, and season statistics</p>
+				<p class="eyebrow">SEARCH RESULTS</p>
+				<h2>
+					{result.suggested
+						? `Closest matches for “${query}”`
+						: `${result.value.total} player${result.value.total === 1 ? '' : 's'} for “${query}”`}
+				</h2>
 			</div>
-		</header>
-		<DataState
-			title="Player directory is not available yet"
-			description="Player profiles will appear when verified roster and statistics data is connected."
-		/>
-	</section>
+			<DataFreshness fetchedAt={result.fetchedAt} stale={result.stale} />
+		</div>
+	)}
+	{
+		result && result.value.data.length > 0 ? (
+			<div class="player-grid">
+				{result.value.data.map((player) => (
+					<a class="player-card" href={`/players/${encodeURIComponent(player.gsis_id)}`}>
+						<PlayerAvatar name={player.display_name} />
+						<span class="player-card__details">
+							<span class:list={['position-pill', `position-pill--${(player.position ?? 'other').toLowerCase()}`]}>
+								{player.position ?? 'NFL'}
+							</span>
+							<strong>{player.display_name}</strong>
+							<span>
+								{player.college ?? 'Player profile'}
+								{player.years_exp ? ` · ${player.years_exp} seasons` : ''}
+							</span>
+						</span>
+					</a>
+				))}
+			</div>
+		) : result ? (
+			<DataState title="No players found" description="Try a different spelling or search with a shorter part of the name." />
+		) : unavailable ? (
+			<DataState
+				state="error"
+				title="Player search is unavailable"
+				description="The NFL player directory could not be reached. Please try again."
+			/>
+		) : (
+			<div class="search-prompt">
+				<span aria-hidden="true">⌕</span>
+				<strong>Search 24,000+ player profiles</strong>
+				<p>Try a player’s name, then open their profile for current-season stats.</p>
+			</div>
+		)
+	}
 </SiteLayout>
+
+<style>
+	.player-search {
+		display: flex;
+		max-width: 680px;
+		min-height: 54px;
+		align-items: center;
+		gap: 10px;
+		padding: 6px 7px 6px 14px;
+		border: 1px solid var(--color-border);
+		border-radius: 15px;
+		background: #fff;
+		box-shadow: var(--shadow-card);
+	}
+
+	.player-search > span {
+		color: #7772b7;
+		font-size: 23px;
+	}
+
+	.player-search input {
+		width: 100%;
+		min-width: 0;
+		border: 0;
+		outline: 0;
+		background: transparent;
+		font-size: 13px;
+	}
+
+	.player-search button {
+		min-height: 38px;
+		flex: 0 0 auto;
+		padding: 0 13px;
+		border: 0;
+		border-radius: 10px;
+		background: #4e488e;
+		color: #fff;
+		font-size: 11px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.player-search button:hover {
+		background: #39346e;
+	}
+
+	.form-note {
+		color: var(--color-muted);
+		font-size: 12px;
+	}
+
+	.results-heading {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 12px;
+		margin: 38px 0 16px;
+	}
+
+	.results-heading .eyebrow {
+		margin-bottom: 4px;
+	}
+
+	.results-heading h2 {
+		margin: 0;
+		font-size: 20px;
+		letter-spacing: -0.04em;
+	}
+
+	.player-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 11px;
+	}
+
+	.player-card {
+		display: flex;
+		min-height: 116px;
+		align-items: center;
+		gap: 12px;
+		padding: 15px;
+		border: 1px solid #e8e7f1;
+		border-radius: 15px;
+		background: #fff;
+		text-decoration: none;
+		transition:
+			transform 140ms ease,
+			border-color 140ms ease,
+			box-shadow 140ms ease;
+	}
+
+	.player-card:hover {
+		transform: translateY(-2px);
+		border-color: #b8b0df;
+		box-shadow: var(--shadow-card);
+	}
+
+	.player-card__details {
+		display: grid;
+		min-width: 0;
+		gap: 7px;
+	}
+
+	.position-pill {
+		width: fit-content;
+		padding: 4px 7px;
+		border-radius: 7px;
+		background: #eeedff;
+		color: #6157a0;
+		font-size: 9px;
+		font-weight: 750;
+	}
+
+	.position-pill--qb {
+		background: #e8efff;
+		color: #345cb1;
+	}
+
+	.position-pill--rb,
+	.position-pill--fb {
+		background: #e8f6ef;
+		color: #2e7654;
+	}
+
+	.position-pill--wr,
+	.position-pill--te {
+		background: #fff2e7;
+		color: #9c5a26;
+	}
+
+	.player-card strong {
+		font-size: 13px;
+	}
+
+	.player-card__details > span:last-child {
+		overflow: hidden;
+		color: var(--color-muted);
+		font-size: 10px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.search-prompt {
+		display: grid;
+		justify-items: center;
+		margin-top: 30px;
+		padding: 43px 20px;
+		border: 1px dashed #dcdfe8;
+		border-radius: 18px;
+		background: #fafbfe;
+		text-align: center;
+	}
+
+	.search-prompt > span {
+		margin-bottom: 10px;
+		color: #7772b7;
+		font-size: 28px;
+	}
+
+	.search-prompt strong {
+		font-size: 14px;
+	}
+
+	.search-prompt p {
+		margin: 5px 0 0;
+		color: var(--color-muted);
+		font-size: 12px;
+	}
+
+	@media (max-width: 720px) {
+		.player-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 480px) {
+		.player-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.results-heading {
+			align-items: flex-start;
+			flex-direction: column;
+		}
+
+		.player-search {
+			gap: 7px;
+		}
+
+		.player-search button {
+			padding: 0 9px;
+			font-size: 10px;
+		}
+	}
+</style>

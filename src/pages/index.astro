@@ -1,101 +1,1034 @@
 ---
+import DataFreshness from '../components/DataFreshness.astro';
 import DataState from '../components/DataState.astro';
+import GameCard from '../components/GameCard.astro';
+import LiveGameCenter from '../components/LiveGameCenter.astro';
+import NextSessionCountdown from '../components/NextSessionCountdown.astro';
+import PlayerAvatar from '../components/PlayerAvatar.astro';
+import RecordBoard from '../components/RecordBoard.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
+import UpcomingGames from '../components/UpcomingGames.astro';
+import {
+	compareTeams,
+	getDashboardData,
+	searchPlayersWithSuggestions,
+	type ApiResult,
+	type HeadToHead,
+	type NflDashboardData,
+	type PlayerSearchResult,
+} from '../utils/nfl-data';
+
+const searchParams = Astro.url.searchParams;
+const requestedWeek = Number(searchParams.get('week'));
+const requestedTeam = searchParams.get('team') ?? '';
+const playerQuery = searchParams.get('player')?.trim() ?? '';
+const team1Param = searchParams.get('team1') ?? '';
+const team2Param = searchParams.get('team2') ?? '';
+
+let dashboardResult: ApiResult<NflDashboardData> | undefined;
+let dashboardError = false;
+try {
+	dashboardResult = await getDashboardData(Number.isInteger(requestedWeek) ? requestedWeek : undefined);
+} catch (error) {
+	dashboardError = true;
+	console.error(
+		JSON.stringify({
+			level: 'error',
+			event: 'dashboard_data_unavailable',
+			error: error instanceof Error ? error.name : 'UnknownError',
+		}),
+	);
+}
+
+const dashboard = dashboardResult?.value;
+const teamFilter = dashboard?.teams.some((team) => team.abbr === requestedTeam) ? requestedTeam : '';
+const visibleGames =
+	dashboard?.games.filter(
+		(game) => !teamFilter || game.home_team === teamFilter || game.away_team === teamFilter,
+	) ?? [];
+const teamsByConference = dashboard?.teams ?? [];
+
+let playerResults: PlayerSearchResult | undefined;
+let playerError = false;
+if (playerQuery.length >= 2) {
+	try {
+		playerResults = await searchPlayersWithSuggestions(playerQuery, 12);
+	} catch (error) {
+		playerError = true;
+		console.error(
+			JSON.stringify({
+				level: 'error',
+				event: 'player_search_unavailable',
+				error: error instanceof Error ? error.name : 'UnknownError',
+			}),
+		);
+	}
+}
+
+const validCompareSelection =
+	dashboard &&
+	teamsByConference.some((team) => team.abbr === team1Param) &&
+	teamsByConference.some((team) => team.abbr === team2Param) &&
+	team1Param !== team2Param;
+let matchupResult: ApiResult<HeadToHead> | undefined;
+let matchupError = false;
+if (validCompareSelection) {
+	try {
+		matchupResult = await compareTeams(team1Param, team2Param);
+	} catch (error) {
+		matchupError = true;
+		console.error(
+			JSON.stringify({
+				level: 'error',
+				event: 'matchup_data_unavailable',
+				error: error instanceof Error ? error.name : 'UnknownError',
+			}),
+		);
+	}
+}
+
+const allRecords = dashboard?.records ?? [];
+const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 ---
 
 <SiteLayout
-	title="NFL games this week"
-	description="A clear weekly view of NFL games, with standings and team and player details close at hand."
+	title="NFL dashboard"
+	description="Follow NFL games, standings, team records, player profiles, and classic matchups in one colorful dashboard."
 >
-	<div class="page-heading">
-		<p class="eyebrow">NFL WEEKEND · WEEKLY OVERVIEW</p>
-		<h1>Every game.<br />One clear view.</h1>
-		<p>
-			Start with the week’s matchups, then go deeper into the teams, players, and numbers behind
-			the game.
-		</p>
-	</div>
+	<section class="dashboard-hero">
+		<div class="dashboard-hero__copy">
+			<p class="eyebrow">THE NFL, IN FULL VIEW</p>
+			<h1>Every game.<br /><span>One place.</span></h1>
+			<p>From kickoff to the final whistle, follow the games, teams, and players shaping the season.</p>
+		</div>
+	</section>
+	{dashboard && <NextSessionCountdown games={dashboard.countdownGames} />}
+	<LiveGameCenter />
 
-	<section class="content-card" aria-labelledby="games-heading">
-		<header class="content-card__header">
+	<nav class="dashboard-shortcuts" aria-label="Jump to a dashboard feature">
+		<a href="#schedule"><span class="shortcut-icon shortcut-icon--games">01</span> Games</a>
+		<a href="#standings"><span class="shortcut-icon shortcut-icon--standings">02</span> Standings</a>
+		<a href="#players"><span class="shortcut-icon shortcut-icon--players">03</span> Find a player</a>
+		<a href="#matchups"><span class="shortcut-icon shortcut-icon--matchups">04</span> Matchups</a>
+	</nav>
+
+	<section id="schedule" class="dashboard-section" aria-labelledby="schedule-heading">
+		<div class="section-heading">
 			<div>
-				<h2 id="games-heading">This week’s games</h2>
-				<p>Schedule, kickoff times, and game status</p>
+				<p class="eyebrow">THE WEEKLY LINEUP</p>
+				<h2 id="schedule-heading">Pick your game.</h2>
 			</div>
-			<a class="section-link" href="/games">All games <span aria-hidden="true">↗</span></a>
-		</header>
-		<DataState
-			title="The schedule is not connected yet"
-			description="Game times and scores will show here after the NFL data source is configured. No game information is being displayed as live or current until then."
-		/>
+			{dashboardResult && <DataFreshness fetchedAt={dashboardResult.fetchedAt} stale={dashboardResult.stale} />}
+		</div>
+
+		{dashboard && (
+			<>
+				{dashboard.upcomingGames.length > 0 && (
+					<UpcomingGames games={dashboard.upcomingGames} />
+				)}
+				<div class="schedule-toolbar">
+					<div class="week-switcher">
+						<a
+							class:list={['week-arrow', { 'week-arrow--disabled': dashboard.week <= 1 }]}
+							href={`/?week=${Math.max(1, dashboard.week - 1)}${teamFilter ? `&team=${teamFilter}` : ''}#schedule`}
+							aria-label="Previous week"
+							aria-disabled={dashboard.week <= 1 ? 'true' : undefined}
+						>‹</a>
+						<div>
+							<strong>Week {dashboard.week}</strong>
+							<span>{dashboard.season} regular season</span>
+						</div>
+						<a
+							class:list={['week-arrow', { 'week-arrow--disabled': dashboard.week >= 18 }]}
+							href={`/?week=${Math.min(18, dashboard.week + 1)}${teamFilter ? `&team=${teamFilter}` : ''}#schedule`}
+							aria-label="Next week"
+							aria-disabled={dashboard.week >= 18 ? 'true' : undefined}
+						>›</a>
+					</div>
+					<form class="schedule-filter" action="/#schedule" method="get">
+						<label for="week-filter">Week</label>
+						<select id="week-filter" name="week">
+							{dashboard.availableWeeks.map((week) => (
+								<option value={week} selected={week === dashboard.week}>Week {week}</option>
+							))}
+						</select>
+						<label for="team-filter">Team</label>
+						<select id="team-filter" name="team">
+							<option value="">All teams</option>
+							{dashboard.teams.map((team) => (
+								<option value={team.abbr} selected={team.abbr === teamFilter}>{team.abbr}</option>
+							))}
+						</select>
+						<button type="submit">Show games</button>
+						<a class="browse-teams" href="/teams">Browse teams ↗</a>
+					</form>
+				</div>
+				{dashboard.stale && (
+					<p class="stale-note">The provider is temporarily unavailable. Showing the last saved NFL data.</p>
+				)}
+				{visibleGames.length > 0 ? (
+					<div class="game-grid">
+						{visibleGames.map((game) => <GameCard game={game} teams={dashboard.teams} />)}
+					</div>
+				) : (
+					<DataState
+						title={teamFilter ? `No ${teamFilter} game in week ${dashboard.week}` : `No games listed for week ${dashboard.week}`}
+						description="Choose another week or clear the team filter to see more of the schedule."
+					/>
+				)}
+			</>
+		)}
+		{dashboardError && (
+			<DataState
+				state="error"
+				title="The schedule could not load"
+				description="We couldn’t reach the NFL data provider and there’s no saved schedule available. Try again later."
+			/>
+		)}
 	</section>
 
-	<section class="explore-section" aria-labelledby="explore-heading">
-		<div class="explore-section__heading">
-			<p class="eyebrow">EXPLORE THE LEAGUE</p>
-			<h2 id="explore-heading">More than game day.</h2>
+	<section id="standings" class="dashboard-section" aria-labelledby="standings-heading">
+		<div class="section-heading">
+			<div>
+				<p class="eyebrow">THE SEASON SO FAR</p>
+				<h2 id="standings-heading">See who’s climbing.</h2>
+			</div>
+			<span class="section-kicker">AFC <i></i> NFC</span>
 		</div>
-		<div class="link-cards">
-			<a class="link-card" href="/standings">
-				<strong>Standings</strong>
-				<span>See how the season is taking shape.</span>
-			</a>
-			<a class="link-card" href="/teams">
-				<strong>Teams</strong>
-				<span>Find a team and follow its season.</span>
-			</a>
-			<a class="link-card" href="/players">
-				<strong>Players</strong>
-				<span>Explore player profiles and stats.</span>
-			</a>
-			<a class="link-card" href="/compare">
-				<strong>Compare</strong>
-				<span>Put teams or players side by side.</span>
-			</a>
+		{recordsAvailable && dashboard ? (
+			<RecordBoard records={allRecords} />
+		) : dashboard ? (
+			<div class="section-empty">
+				<span class="empty-orb" aria-hidden="true">W–L</span>
+				<div>
+					<strong>Records will take shape after the first final.</strong>
+					<p>The standings snapshot is calculated from completed regular-season games, not estimates.</p>
+				</div>
+			</div>
+		) : (
+			<DataState
+				title="Standings are unavailable"
+				description="The standings snapshot will return when season game data is available."
+			/>
+		)}
+	</section>
+
+	<section id="players" class="dashboard-section players-feature" aria-labelledby="players-heading">
+		<div class="section-heading">
+			<div>
+				<p class="eyebrow">PLAYER SPOTLIGHT</p>
+				<h2 id="players-heading">Find your player.</h2>
+			</div>
+			<a class="text-link" href="/players">Advanced search <span aria-hidden="true">↗</span></a>
 		</div>
+		<form class="player-search" action="/#players" method="get" role="search">
+			<label class="sr-only" for="dashboard-player-search">Search NFL player names</label>
+			<span aria-hidden="true">⌕</span>
+			<input
+				id="dashboard-player-search"
+				type="search"
+				name="player"
+				value={playerQuery}
+				minlength="2"
+				placeholder="Try a name, like Patrick Mahomes"
+				required
+			/>
+			<button type="submit">Search players</button>
+		</form>
+		{playerResults && (
+			<>
+				<p class="results-caption">
+					{playerResults.suggested
+						? `Closest matches for “${playerQuery}”`
+						: `${playerResults.value.total} players found for “${playerQuery}”`}
+					<DataFreshness fetchedAt={playerResults.fetchedAt} stale={playerResults.stale} />
+				</p>
+				<div class="player-grid">
+					{playerResults.value.data.map((player) => (
+						<a class="player-card" href={`/players/${encodeURIComponent(player.gsis_id)}`}>
+							<PlayerAvatar name={player.display_name} />
+							<span class="player-card__details">
+								<span class:list={['position-pill', `position-pill--${(player.position ?? 'other').toLowerCase()}`]}>
+									{player.position ?? 'NFL'}
+								</span>
+								<strong>{player.display_name}</strong>
+								<span>{player.college ?? 'Player profile'}{player.years_exp ? ` · ${player.years_exp} seasons` : ''}</span>
+							</span>
+						</a>
+					))}
+				</div>
+			</>
+		)}
+		{playerQuery.length > 0 && playerQuery.length < 2 && (
+			<p class="inline-message">Enter at least two characters to search players.</p>
+		)}
+		{playerError && (
+			<DataState
+				state="error"
+				title="Player search is unavailable"
+				description="The NFL player directory could not be reached. Please try again."
+			/>
+		)}
+		{playerResults?.value.data.length === 0 && (
+			<DataState title="No players found" description="Try a different spelling or search with a shorter part of the name." />
+		)}
+	</section>
+
+	<section id="matchups" class="dashboard-section" aria-labelledby="matchups-heading">
+		<div class="section-heading">
+			<div>
+				<p class="eyebrow">HISTORY MAKES THE GAME</p>
+				<h2 id="matchups-heading">Set up a matchup.</h2>
+			</div>
+			<span class="matchup-mark" aria-hidden="true">VS</span>
+		</div>
+		<form class="matchup-form" action="/#matchups" method="get">
+			<label>
+				<span>First team</span>
+				<select name="team1" required>
+					<option value="">Choose a team</option>
+					{dashboard?.teams.map((team) => (
+						<option value={team.abbr} selected={team.abbr === team1Param}>{team.name}</option>
+					))}
+				</select>
+			</label>
+			<span class="matchup-vs" aria-hidden="true">VS</span>
+			<label>
+				<span>Second team</span>
+				<select name="team2" required>
+					<option value="">Choose a team</option>
+					{dashboard?.teams.map((team) => (
+						<option value={team.abbr} selected={team.abbr === team2Param}>{team.name}</option>
+					))}
+				</select>
+			</label>
+			<button type="submit">Compare history <span aria-hidden="true">→</span></button>
+		</form>
+		{matchupResult && (
+			<div class="matchup-result">
+				<p class="matchup-result__eyebrow">ALL-TIME SERIES · {matchupResult.value.total_games} GAMES</p>
+				<div class="matchup-result__score">
+					<strong>{matchupResult.value.record[team1Param]?.wins ?? 0}</strong>
+					<span>{team1Param}</span>
+					<i>—</i>
+					<span>{team2Param}</span>
+					<strong>{matchupResult.value.record[team2Param]?.wins ?? 0}</strong>
+				</div>
+				<DataFreshness fetchedAt={matchupResult.fetchedAt} stale={matchupResult.stale} />
+				<p>Historical matchup data · ties: {matchupResult.value.record[team1Param]?.ties ?? 0}</p>
+			</div>
+		)}
+		{team1Param && team2Param && team1Param === team2Param && (
+			<p class="inline-message">Choose two different teams to compare their series.</p>
+		)}
+		{matchupError && (
+			<DataState
+				state="error"
+				title="Matchup history is unavailable"
+				description="We couldn’t load this historical series. Try again in a moment."
+			/>
+		)}
 	</section>
 </SiteLayout>
 
+<script src="../scripts/dashboard-motion.ts"></script>
+
 <style>
-	.section-link {
+	.dashboard-hero {
+		position: relative;
+		display: flex;
+		min-height: 230px;
+		align-items: center;
+		justify-content: flex-start;
+		overflow: hidden;
+		padding: 34px 48px;
+		border-radius: 24px 24px 0 0;
+		background:
+			radial-gradient(ellipse at 75% 5%, rgb(83 119 192 / 38%), transparent 34%),
+			linear-gradient(115deg, #111a2e 0%, #1b2a49 62%, #263d68 100%);
+		color: #fff;
+	}
+
+	.dashboard-hero::after {
+		position: absolute;
+		right: -42px;
+		bottom: -96px;
+		width: 390px;
+		height: 250px;
+		border: 1px solid rgb(255 255 255 / 10%);
+		border-radius: 50%;
+		content: "";
+		transform: rotate(-22deg);
+	}
+
+	.dashboard-hero__copy {
+		position: relative;
+		z-index: 1;
+		max-width: 600px;
+	}
+
+	.dashboard-hero .eyebrow {
+		color: #b9c8e4;
+	}
+
+	.dashboard-hero h1 {
+		margin: 0;
+		font-size: clamp(38px, 6vw, 60px);
+		font-weight: 750;
+		letter-spacing: -0.065em;
+		line-height: 0.98;
+	}
+
+	.dashboard-hero h1 span {
+		color: #92b6ff;
+	}
+
+	.dashboard-hero__copy > p:last-child {
+		max-width: 470px;
+		margin: 17px 0 0;
+		color: #d0d8e8;
+		font-size: 15px;
+		line-height: 1.6;
+	}
+
+	.dashboard-shortcuts {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		margin: 22px 0 48px;
+		overflow-x: auto;
+		scrollbar-width: none;
+	}
+
+	.dashboard-shortcuts::-webkit-scrollbar {
+		display: none;
+	}
+
+	.dashboard-shortcuts a {
+		display: inline-flex;
+		min-height: 44px;
 		flex: 0 0 auto;
-		color: var(--color-blue);
-		font-size: 13px;
-		font-weight: 600;
+		align-items: center;
+		gap: 9px;
+		padding: 0 15px 0 9px;
+		border: 1px solid var(--color-border);
+		border-radius: 13px;
+		background: #fff;
+		color: var(--color-ink);
+		font-size: 12px;
+		font-weight: 650;
+		text-decoration: none;
+		transition:
+			transform 140ms ease,
+			box-shadow 140ms ease;
+	}
+
+	.dashboard-shortcuts a:hover {
+		transform: translateY(-2px);
+		box-shadow: var(--shadow-card);
+	}
+
+	.shortcut-icon {
+		display: grid;
+		width: 26px;
+		height: 26px;
+		place-items: center;
+		border-radius: 8px;
+		font-size: 9px;
+		font-weight: 800;
+	}
+
+	.shortcut-icon--games {
+		background: #eaf0fd;
+		color: #315cae;
+	}
+
+	.shortcut-icon--standings {
+		background: #fff0ec;
+		color: #b74b32;
+	}
+
+	.shortcut-icon--players {
+		background: #f0eefe;
+		color: #6b56bb;
+	}
+
+	.shortcut-icon--matchups {
+		background: #e9f7f0;
+		color: #27825a;
+	}
+
+	.dashboard-section {
+		scroll-margin-top: 110px;
+		margin-top: 52px;
+	}
+
+	#schedule {
+		margin-top: 0;
+	}
+
+	.section-heading {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 16px;
+		margin-bottom: 20px;
+	}
+
+	.section-heading .eyebrow {
+		margin-bottom: 5px;
+	}
+
+	.section-heading h2 {
+		margin: 0;
+		font-size: clamp(23px, 3vw, 30px);
+		font-weight: 700;
+		letter-spacing: -0.05em;
+		line-height: 1.12;
+	}
+
+	.section-kicker {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		color: #697384;
+		font-size: 10px;
+		font-weight: 800;
+		letter-spacing: 0.09em;
+	}
+
+	.section-kicker i {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: linear-gradient(90deg, #c23646 50%, #3766b6 50%);
+	}
+
+	.schedule-toolbar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 18px;
+		margin-bottom: 17px;
+		padding: 15px 17px;
+		border: 1px solid var(--color-border);
+		border-radius: 16px;
+		background: linear-gradient(110deg, #fff, #f9faff);
+	}
+
+	.week-switcher {
+		display: flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 11px;
+	}
+
+	.week-switcher > div {
+		display: grid;
+		gap: 1px;
+	}
+
+	.week-switcher strong {
+		font-size: 14px;
+		font-weight: 750;
+	}
+
+	.week-switcher span {
+		color: var(--color-muted);
+		font-size: 10px;
+	}
+
+	.week-arrow {
+		display: grid;
+		width: 30px;
+		height: 30px;
+		place-items: center;
+		border: 1px solid var(--color-border);
+		border-radius: 9px;
+		background: #fff;
+		color: #485d85;
+		font-size: 21px;
+		line-height: 1;
 		text-decoration: none;
 	}
 
-	.section-link:hover {
+	.week-arrow:hover {
+		border-color: #afc2e8;
+		background: #eff4ff;
+	}
+
+	.week-arrow--disabled {
+		opacity: 0.42;
+		pointer-events: none;
+	}
+
+	.schedule-filter {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.schedule-filter label {
+		color: var(--color-muted);
+		font-size: 10px;
+		font-weight: 650;
+	}
+
+	.schedule-filter select,
+	.matchup-form select {
+		max-width: 145px;
+		min-height: 34px;
+		padding: 0 26px 0 9px;
+		border: 1px solid var(--color-border);
+		border-radius: 9px;
+		background: #fff;
+		color: var(--color-ink);
+		font-size: 11px;
+	}
+
+	.schedule-filter button,
+	.player-search button,
+	.matchup-form button {
+		min-height: 34px;
+		padding: 0 13px;
+		border: 0;
+		border-radius: 9px;
+		background: var(--color-navy);
+		color: #fff;
+		font-size: 11px;
+		font-weight: 650;
+		cursor: pointer;
+		transition: background-color 140ms ease;
+	}
+
+	.browse-teams {
+		color: var(--color-blue);
+		font-size: 10px;
+		font-weight: 650;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+
+	.browse-teams:hover {
 		text-decoration: underline;
 		text-underline-offset: 3px;
 	}
 
-	.explore-section {
-		margin-top: 54px;
+	.schedule-filter button:hover,
+	.player-search button:hover,
+	.matchup-form button:hover {
+		background: #294577;
 	}
 
-	.explore-section__heading {
-		margin-bottom: 18px;
+	.game-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 12px;
 	}
 
-	.explore-section__heading .eyebrow {
-		margin-bottom: 7px;
+	.stale-note {
+		margin: 0 0 13px;
+		color: #98611d;
+		font-size: 12px;
 	}
 
-	.explore-section__heading h2 {
-		margin: 0;
-		font-size: 23px;
+	.section-empty {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		padding: 20px 22px;
+		border: 1px solid #e9eafa;
+		border-radius: 16px;
+		background: linear-gradient(105deg, #fff, #f7f7ff);
+	}
+
+	.empty-orb {
+		display: grid;
+		width: 42px;
+		height: 42px;
+		flex: 0 0 auto;
+		place-items: center;
+		border-radius: 13px;
+		background: #eeedff;
+		color: #6656ad;
+		font-size: 11px;
+		font-weight: 800;
+	}
+
+	.section-empty strong {
+		font-size: 12px;
+	}
+
+	.section-empty p {
+		margin: 4px 0 0;
+		color: var(--color-muted);
+		font-size: 11px;
+	}
+
+	.players-feature {
+		padding: 25px;
+		border: 1px solid #e5e8f1;
+		border-radius: 20px;
+		background:
+			radial-gradient(ellipse at 98% 4%, rgb(211 218 255 / 43%), transparent 35%),
+			linear-gradient(110deg, #fff, #fafaff);
+	}
+
+	.players-feature .section-heading {
+		margin-bottom: 16px;
+	}
+
+	.text-link {
+		color: var(--color-blue);
+		font-size: 11px;
 		font-weight: 650;
-		letter-spacing: -0.04em;
+		text-decoration: none;
 	}
 
-	@media (max-width: 480px) {
-		.content-card__header {
-			gap: 10px;
+	.text-link:hover {
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
+
+	.player-search {
+		display: flex;
+		max-width: 650px;
+		min-height: 48px;
+		align-items: center;
+		gap: 10px;
+		margin-bottom: 13px;
+		padding: 5px 6px 5px 13px;
+		border: 1px solid #e0e3eb;
+		border-radius: 13px;
+		background: #fff;
+		box-shadow: 0 3px 12px rgb(30 40 70 / 4%);
+	}
+
+	.player-search > span {
+		color: #7772b7;
+		font-size: 22px;
+		line-height: 1;
+	}
+
+	.player-search input {
+		width: 100%;
+		min-width: 0;
+		border: 0;
+		outline: 0;
+		background: transparent;
+		font-size: 12px;
+	}
+
+	.player-search input::placeholder {
+		color: #9b9eaa;
+	}
+
+	.player-search button {
+		flex: 0 0 auto;
+		background: #4e488e;
+	}
+
+	.player-search button:hover {
+		background: #39346e;
+	}
+
+	.results-caption {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin: 15px 0 10px;
+		color: var(--color-muted);
+		font-size: 11px;
+	}
+
+	.player-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 9px;
+	}
+
+	.player-card {
+		display: flex;
+		min-height: 106px;
+		align-items: center;
+		gap: 11px;
+		padding: 13px;
+		border: 1px solid #e8e7f1;
+		border-radius: 13px;
+		background: rgb(255 255 255 / 85%);
+		text-decoration: none;
+		transition: border-color 140ms ease;
+	}
+
+	.player-card:hover {
+		border-color: #b8b0df;
+	}
+
+	.player-card__details {
+		display: grid;
+		min-width: 0;
+		gap: 6px;
+	}
+
+	.position-pill {
+		width: fit-content;
+		padding: 3px 6px;
+		border-radius: 6px;
+		background: #eeedff;
+		color: #6157a0;
+		font-size: 9px;
+		font-weight: 750;
+	}
+
+	.position-pill--qb {
+		background: #e8efff;
+		color: #345cb1;
+	}
+
+	.position-pill--rb,
+	.position-pill--fb {
+		background: #e8f6ef;
+		color: #2e7654;
+	}
+
+	.position-pill--wr,
+	.position-pill--te {
+		background: #fff2e7;
+		color: #9c5a26;
+	}
+
+	.player-card strong {
+		font-size: 12px;
+	}
+
+	.player-card__details > span:last-child {
+		overflow: hidden;
+		color: var(--color-muted);
+		font-size: 10px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.inline-message {
+		margin: 12px 0 0;
+		color: var(--color-muted);
+		font-size: 12px;
+	}
+
+	.matchup-mark {
+		display: grid;
+		width: 38px;
+		height: 38px;
+		place-items: center;
+		border-radius: 12px;
+		background: #e9f7f0;
+		color: #32825e;
+		font-size: 10px;
+		font-weight: 850;
+		letter-spacing: 0.06em;
+	}
+
+	.matchup-form {
+		display: flex;
+		align-items: flex-end;
+		gap: 13px;
+		padding: 19px;
+		border: 1px solid var(--color-border);
+		border-radius: 17px;
+		background: linear-gradient(100deg, #fff, #f8fcf9);
+	}
+
+	.matchup-form label {
+		display: grid;
+		flex: 1 1 0;
+		gap: 6px;
+		color: var(--color-muted);
+		font-size: 10px;
+		font-weight: 650;
+	}
+
+	.matchup-form select {
+		max-width: none;
+		min-height: 40px;
+		font-size: 12px;
+	}
+
+	.matchup-vs {
+		padding-bottom: 11px;
+		color: #7f8998;
+		font-size: 9px;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+	}
+
+	.matchup-form button {
+		min-height: 40px;
+		padding: 0 16px;
+		background: #327957;
+		white-space: nowrap;
+	}
+
+	.matchup-form button:hover {
+		background: #246544;
+	}
+
+	.matchup-result {
+		margin-top: 13px;
+		padding: 18px 20px;
+		border: 1px solid #d8ebdf;
+		border-radius: 15px;
+		background: #f4fbf6;
+		text-align: center;
+	}
+
+	.matchup-result__eyebrow {
+		margin: 0;
+		color: #428064;
+		font-size: 9px;
+		font-weight: 800;
+		letter-spacing: 0.1em;
+	}
+
+	.matchup-result__score {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 13px;
+		margin: 8px 0 5px;
+	}
+
+	.matchup-result__score strong {
+		color: #1b6845;
+		font-size: 30px;
+		letter-spacing: -0.05em;
+	}
+
+	.matchup-result__score span {
+		font-size: 12px;
+		font-weight: 750;
+	}
+
+	.matchup-result__score i {
+		color: #92a79b;
+		font-style: normal;
+	}
+
+	.matchup-result > p:last-child {
+		margin: 0;
+		color: var(--color-muted);
+		font-size: 10px;
+	}
+
+	@media (max-width: 820px) {
+		.dashboard-hero {
+			min-height: 220px;
+			padding: 30px 34px;
 		}
 
-		.section-link {
-			font-size: 12px;
+		.game-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.schedule-toolbar {
+			align-items: flex-start;
+			flex-direction: column;
+		}
+
+		.schedule-filter {
+			flex-wrap: wrap;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.dashboard-hero {
+			min-height: 205px;
+			padding: 27px 23px;
+			border-radius: 19px 19px 0 0;
+		}
+
+		.dashboard-hero__copy {
+			max-width: 100%;
+		}
+
+		.dashboard-hero__copy > p:last-child {
+			max-width: 320px;
+			font-size: 13px;
+		}
+
+		.dashboard-shortcuts {
+			margin: 14px -16px 38px;
+			padding: 0 16px 4px;
+		}
+
+		.dashboard-section {
+			margin-top: 40px;
+		}
+
+		.section-heading {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 8px;
+		}
+
+		.game-grid,
+		.player-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.schedule-filter {
+			display: grid;
+			width: 100%;
+			grid-template-columns: auto minmax(0, 1fr);
+		}
+
+		.schedule-filter select {
+			width: 100%;
+			max-width: none;
+		}
+
+		.schedule-filter button {
+			grid-column: 1 / -1;
+		}
+
+		.players-feature {
+			padding: 18px 14px;
+		}
+
+		.player-search {
+			gap: 6px;
+			padding-left: 9px;
+		}
+
+		.player-search button {
+			padding: 0 9px;
+			font-size: 10px;
+		}
+
+		.results-caption {
+			align-items: flex-start;
+			flex-direction: column;
+			gap: 5px;
+		}
+
+		.matchup-form {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+			gap: 10px;
+			padding: 13px;
+		}
+
+		.matchup-form select {
+			min-width: 0;
+			font-size: 10px;
+		}
+
+		.matchup-vs {
+			align-self: end;
+			padding-bottom: 13px;
+		}
+
+		.matchup-form button {
+			grid-column: 1 / -1;
 		}
 	}
 </style>

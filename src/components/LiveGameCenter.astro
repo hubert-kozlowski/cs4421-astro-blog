@@ -1,0 +1,392 @@
+---
+interface Props {
+	homeTeam?: string;
+	awayTeam?: string;
+}
+
+const { homeTeam, awayTeam } = Astro.props;
+const isGamePage = Boolean(homeTeam && awayTeam);
+---
+
+<section
+	class="live-center"
+	aria-label={isGamePage ? 'Live game updates' : 'NFL games happening now'}
+	data-live-center
+	data-game-home={homeTeam}
+	data-game-away={awayTeam}
+	hidden
+>
+	<div class="live-center__header">
+		<span class="live-center__indicator"><i aria-hidden="true"></i> LIVE NOW</span>
+		<span class="live-center__label">SCORES & GAME UPDATES</span>
+		<span class="live-center__freshness" data-live-freshness></span>
+	</div>
+	<div class="live-center__games" data-live-games-list></div>
+</section>
+
+{isGamePage && (
+	<section
+		class="live-boxscore"
+		data-live-boxscore
+		data-game-home={homeTeam}
+		data-game-away={awayTeam}
+		hidden
+		aria-label="Live game statistics"
+	>
+		<div class="live-boxscore__header">
+			<div>
+				<p class="eyebrow">LIVE BOX SCORE</p>
+				<h2>How the game is unfolding</h2>
+			</div>
+			<span class="live-boxscore__updated" data-live-updated></span>
+		</div>
+		<div data-live-stats></div>
+	</section>
+)}
+
+<script>
+	import '../scripts/live-game-updates';
+</script>
+
+<style>
+	.live-center {
+		margin: 12px 0 16px;
+		overflow: hidden;
+		border: 1px solid #e7e9ed;
+		border-radius: 12px;
+		background: linear-gradient(110deg, #fff, #fcfcfd);
+		color: #292d35;
+	}
+
+	.live-center[hidden],
+	.live-boxscore[hidden] {
+		display: none;
+	}
+
+	.live-center__header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		min-height: 32px;
+		padding: 5px 11px;
+		border-bottom: 1px solid #f0f1f3;
+	}
+
+	.live-center__indicator {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		color: #c33440;
+		font-size: 9px;
+		font-weight: 800;
+		letter-spacing: 0.08em;
+	}
+
+	.live-center__indicator i {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #dc4953;
+	}
+
+	.live-center__label {
+		color: #777d88;
+		font-size: 9px;
+		font-weight: 600;
+	}
+
+	.live-center__freshness {
+		margin-left: auto;
+		color: #858b95;
+		font-size: 9px;
+	}
+
+	.live-center__games {
+		display: grid;
+	}
+
+	.live-center :global(.live-game-row) {
+		display: grid;
+		grid-template-columns: minmax(110px, 1fr) auto minmax(82px, 0.6fr);
+		align-items: center;
+		gap: 12px;
+		min-height: 38px;
+		padding: 5px 11px;
+		border-bottom: 1px solid #f1f2f4;
+	}
+
+	.live-center :global(.live-game-row:last-child) {
+		border-bottom: 0;
+	}
+
+	.live-center :global(.live-game-row__teams) {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		font-size: 11px;
+		font-weight: 750;
+	}
+
+	.live-center :global(.live-game-row__teams span) {
+		color: #8a909a;
+		font-size: 9px;
+	}
+
+	.live-center :global(.live-game-row__team) {
+		padding-bottom: 1px;
+	}
+
+	.live-center :global(.live-game-row__team--possession) {
+		border-bottom: 2px solid #bd3540;
+	}
+
+	.live-center :global(.live-game-row__score) {
+		display: flex;
+		align-items: center;
+		gap: 7px;
+		font-size: 15px;
+		font-variant-numeric: tabular-nums;
+		font-weight: 800;
+	}
+
+	.live-center :global(.live-game-row__score--changed) {
+		animation: live-score-bump 700ms ease-out;
+	}
+
+	.live-center :global(.live-game-row__score span) {
+		color: #a0a4ab;
+		font-size: 10px;
+	}
+
+	.live-center :global(.live-game-row__clock) {
+		color: #777d88;
+		font-size: 9px;
+		font-weight: 650;
+		text-align: right;
+	}
+
+	.live-center :global(.live-game-row__situation) {
+		grid-column: 1 / -1;
+		margin: -2px 0 0;
+		color: #868b94;
+		font-size: 9px;
+		line-height: 1.3;
+	}
+
+	.live-center :global(.live-game-row__play) {
+		grid-column: 1 / -1;
+		margin: 0;
+		padding: 4px 7px;
+		border-left: 2px solid #e0a8ad;
+		background: #fff8f8;
+		color: #626771;
+		font-size: 9px;
+		line-height: 1.35;
+	}
+
+	.live-center :global(.live-game-row__play--key) {
+		border-left-color: #d94b55;
+		background: #fff7f7;
+		color: #42464f;
+	}
+
+	.live-center :global(.live-event-alert) {
+		display: flex;
+		grid-column: 1 / -1;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 4px 8px;
+		margin: 1px 0 2px;
+		padding: 7px 9px;
+		border: 1px solid #f0d1d3;
+		border-left: 3px solid #c33440;
+		border-radius: 7px;
+		background: linear-gradient(100deg, #fff6f5, #fffdfd);
+		animation: live-event-arrive 220ms ease-out both;
+	}
+
+	.live-center :global(.live-event-alert__title) {
+		color: #ad2e39;
+		font-size: 9px;
+		font-weight: 850;
+		letter-spacing: 0.06em;
+	}
+
+	.live-center :global(.live-event-alert__score) {
+		color: #282d36;
+		font-size: 10px;
+		font-weight: 800;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.live-center :global(.live-event-alert__detail) {
+		flex-basis: 100%;
+		color: #636973;
+		font-size: 9px;
+		line-height: 1.35;
+	}
+
+	.live-boxscore {
+		margin-top: 17px;
+		padding: 22px;
+		border: 1px solid #dfe5ef;
+		border-radius: 18px;
+		background: linear-gradient(145deg, #fff, #f8faff);
+		box-shadow: var(--shadow-card);
+	}
+
+	.live-boxscore__header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 16px;
+	}
+
+	.live-boxscore__header .eyebrow {
+		margin-bottom: 4px;
+		color: #bd343e;
+		font-size: 9px;
+	}
+
+	.live-boxscore__header h2 {
+		margin: 0;
+		font-size: 20px;
+		letter-spacing: -0.04em;
+	}
+
+	.live-boxscore__updated {
+		color: var(--color-muted);
+		font-size: 10px;
+	}
+
+	.live-boxscore :global(.live-boxscore__teams) {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 14px;
+	}
+
+	.live-boxscore :global(.live-boxscore__team) {
+		min-width: 0;
+		padding: 14px;
+		border: 1px solid var(--color-border);
+		border-radius: 13px;
+		background: #fff;
+	}
+
+	.live-boxscore :global(.live-boxscore__team h3) {
+		margin: 0 0 10px;
+		font-size: 13px;
+	}
+
+	.live-boxscore :global(.live-boxscore__totals) {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-bottom: 12px;
+	}
+
+	.live-boxscore :global(.live-boxscore__total) {
+		padding: 5px 7px;
+		border-radius: 7px;
+		background: #f1f4fa;
+		color: #374865;
+		font-size: 9px;
+	}
+
+	.live-boxscore :global(details) {
+		padding: 8px 0;
+		border-top: 1px solid #eef0f4;
+	}
+
+	.live-boxscore :global(summary) {
+		color: #304769;
+		font-size: 11px;
+		font-weight: 750;
+		text-transform: capitalize;
+		cursor: pointer;
+	}
+
+	.live-boxscore :global(table) {
+		width: 100%;
+		margin-top: 8px;
+		border-collapse: collapse;
+		font-size: 10px;
+		text-align: left;
+	}
+
+	.live-boxscore :global(th),
+	.live-boxscore :global(td) {
+		padding: 5px 4px;
+		border-bottom: 1px solid #f0f1f4;
+	}
+
+	.live-boxscore :global(td:not(:first-child)),
+	.live-boxscore :global(th:not(:first-child)) {
+		text-align: right;
+	}
+
+	.live-boxscore :global(.live-boxscore__empty) {
+		margin: 0;
+		color: var(--color-muted);
+		font-size: 12px;
+	}
+
+	@keyframes live-score-bump {
+		45% {
+			color: #bd3540;
+			transform: scale(1.15);
+		}
+	}
+
+	@keyframes live-event-arrive {
+		0% {
+			opacity: 0;
+			transform: translateY(-4px);
+		}
+		100% {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.live-center :global(.live-game-row__score--changed),
+		.live-center :global(.live-event-alert) {
+			animation: none;
+		}
+	}
+
+	@media (max-width: 600px) {
+		.live-center :global(.live-game-row) {
+			grid-template-columns: minmax(75px, 1fr) auto auto;
+			gap: 8px;
+		}
+
+		.live-center :global(.live-game-row__teams) {
+			grid-column: 1;
+		}
+
+		.live-center :global(.live-game-row__score) {
+			grid-column: 2;
+			grid-row: 1;
+		}
+
+		.live-center :global(.live-game-row__clock) {
+			grid-column: 3;
+			grid-row: 1;
+		}
+
+		.live-center :global(.live-game-row__play) {
+			grid-column: 1 / -1;
+		}
+
+		.live-boxscore {
+			padding: 16px;
+		}
+
+		.live-boxscore :global(.live-boxscore__teams) {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

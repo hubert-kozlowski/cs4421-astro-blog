@@ -1,34 +1,604 @@
 ---
+import DataFreshness from '../../components/DataFreshness.astro';
 import DataState from '../../components/DataState.astro';
+import PlayerAvatar from '../../components/PlayerAvatar.astro';
 import SiteLayout from '../../layouts/SiteLayout.astro';
+import {
+	getPlayer,
+	getPlayerSeasonStats,
+	selectPlayerSeasonStats,
+	type ApiResult,
+	type NflPlayer,
+	type NflPlayerSeasonStats,
+} from '../../utils/nfl-data';
 
-const player = (Astro.params.player ?? 'player').split('-').join(' ');
+const playerId = Astro.params.player ?? '';
+let playerResult: ApiResult<NflPlayer> | undefined;
+let statsResult: ApiResult<{ data: NflPlayerSeasonStats[]; total: number; limit: number; offset: number }> | undefined;
+let profileUnavailable = false;
+let statsUnavailable = false;
+
+try {
+	playerResult = await getPlayer(playerId);
+	try {
+		statsResult = await getPlayerSeasonStats(playerId);
+	} catch (error) {
+		statsUnavailable = true;
+		console.error(
+			JSON.stringify({
+				level: 'error',
+				event: 'player_stats_unavailable',
+				error: error instanceof Error ? error.name : 'UnknownError',
+			}),
+		);
+	}
+} catch (error) {
+	profileUnavailable = true;
+	console.error(
+		JSON.stringify({
+			level: 'error',
+			event: 'player_profile_unavailable',
+			error: error instanceof Error ? error.name : 'UnknownError',
+		}),
+	);
+}
+
+const player = playerResult?.value;
+const stats = statsResult ? selectPlayerSeasonStats(statsResult.value.data) : undefined;
+const position = player?.position?.toUpperCase() ?? '';
+const isQuarterback = position === 'QB';
+const isRunningBack = position === 'RB' || position === 'FB';
+const isReceiver = position === 'WR' || position === 'TE';
+const isDefender = ['CB', 'DB', 'DE', 'DL', 'DT', 'EDGE', 'ILB', 'LB', 'MLB', 'NT', 'OLB', 'S'].includes(position);
+const statTiles: { label: string; value: string; color: string }[] = [];
+const addStat = (label: string, value: number | null | undefined, color: string) => {
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		statTiles.push({ label, value: value.toLocaleString(), color });
+	}
+};
+
+if (stats) {
+	addStat('Games played', stats.games, 'blue');
+	if (isQuarterback) {
+		if (typeof stats.completions === 'number' && typeof stats.attempts === 'number' && stats.attempts > 0) {
+			statTiles.push({
+				label: 'Completion rate',
+				value: `${((stats.completions / stats.attempts) * 100).toFixed(1)}%`,
+				color: 'purple',
+			});
+		}
+		addStat('Passing yards', stats.passing_yards, 'purple');
+		addStat('Passing TDs', stats.passing_tds, 'green');
+		addStat('Interceptions', stats.passing_interceptions, 'orange');
+		addStat('Rushing yards', stats.rushing_yards, 'blue');
+	} else if (isRunningBack) {
+		addStat('Carries', stats.carries, 'purple');
+		addStat('Rushing yards', stats.rushing_yards, 'green');
+		addStat('Rushing TDs', stats.rushing_tds, 'orange');
+		addStat('Receptions', stats.receptions, 'blue');
+		addStat('Receiving yards', stats.receiving_yards, 'purple');
+	} else if (isReceiver) {
+		addStat('Receptions', stats.receptions, 'purple');
+		addStat('Targets', stats.targets, 'blue');
+		addStat('Receiving yards', stats.receiving_yards, 'green');
+		addStat('Receiving TDs', stats.receiving_tds, 'orange');
+	} else if (isDefender) {
+		addStat('Solo tackles', stats.def_tackles_solo, 'purple');
+		addStat('Sacks', stats.def_sacks, 'green');
+		addStat('QB hits', stats.def_qb_hits, 'orange');
+		addStat('Interceptions', stats.def_interceptions, 'blue');
+		addStat('Forced fumbles', stats.def_fumbles_forced, 'purple');
+	}
+}
+const featuredLabel = isQuarterback
+	? 'Passing yards'
+	: isRunningBack
+		? 'Rushing yards'
+		: isReceiver
+			? 'Receiving yards'
+			: isDefender
+				? (statTiles.find((tile) => tile.label === 'Sacks' && tile.value !== '0')?.label ?? 'Solo tackles')
+				: statTiles[1]?.label ?? statTiles[0]?.label;
+const featuredStat = statTiles.find((tile) => tile.label === featuredLabel) ?? statTiles[0];
+const supportingStats = statTiles.filter((tile) => tile !== featuredStat);
+const completionRate =
+	stats && typeof stats.completions === 'number' && typeof stats.attempts === 'number' && stats.attempts > 0
+		? (stats.completions / stats.attempts) * 100
+		: undefined;
 ---
 
 <SiteLayout
-	title="Player profile"
-	description="Player profile, team, and season statistics."
+	title={player?.display_name ?? 'Player profile'}
+	description="NFL player bio and current-season statistics."
 >
-	<div class="page-heading">
-		<p class="eyebrow"><a href="/players">PLAYERS</a> · PLAYER PROFILE</p>
-		<h1>Player profile</h1>
-		<p>Player details, team, and season performance at a glance.</p>
-	</div>
-	<section class="content-card" aria-label="Player data status">
+	{player ? (
+		<>
+			<div class="profile-topline">
+				<a href="/#players">← Back to player search</a>
+				{playerResult && <DataFreshness fetchedAt={playerResult.fetchedAt} stale={playerResult.stale} />}
+			</div>
+			<section class="player-hero">
+				<PlayerAvatar name={player.display_name} size="large" />
+				<div class="player-hero__text">
+					<p class="eyebrow">PLAYER PROFILE · {player.position_group ?? player.position ?? 'NFL'}</p>
+					<h1>{player.display_name}</h1>
+					<p>
+						{player.college ?? 'College not listed'}
+						{player.years_exp ? ` · ${player.years_exp} seasons` : ''}
+						{player.draft_year ? ` · Drafted ${player.draft_year}` : ''}
+					</p>
+				</div>
+				<span class:list={['status-pill', { 'status-pill--inactive': player.status && player.status !== 'ACT' }]}>
+					{player.status ?? 'NFL player'}
+				</span>
+			</section>
+			<section class="stats-section" aria-labelledby="stats-heading" data-player-stats>
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">SEASON {stats?.season ?? 'STATS'}</p>
+						<h2 id="stats-heading">The season, in numbers.</h2>
+					</div>
+					{statsResult && <DataFreshness fetchedAt={statsResult.fetchedAt} stale={statsResult.stale} />}
+				</div>
+				{stats && featuredStat ? (
+					<div class="season-overview">
+						<article class="performance-feature" data-featured-stat>
+							<div class="performance-feature__copy">
+								<div class="performance-feature__eyebrow">
+									<span class="performance-feature__pulse" aria-hidden="true"></span>
+									<span>{position || 'PLAYER'} SPOTLIGHT</span>
+								</div>
+								<p class="performance-feature__label">{featuredStat.label}</p>
+								<p class="performance-feature__value">{featuredStat.value}</p>
+								<p class="performance-feature__caption">
+									{featuredStat.label.toLowerCase()} through {stats.games} game{stats.games === 1 ? '' : 's'}
+								</p>
+							</div>
+							{
+								completionRate !== undefined && (
+									<div class="completion-ring" role="img" aria-label={`Completion rate ${completionRate.toFixed(1)} percent`}>
+										<svg viewBox="0 0 120 120" aria-hidden="true">
+											<circle class="completion-ring__track" cx="60" cy="60" r="48" pathLength="100" />
+											<circle
+												class="completion-ring__value"
+												cx="60"
+												cy="60"
+												r="48"
+												pathLength="100"
+												stroke-dasharray="100"
+												stroke-dashoffset={100 - completionRate}
+												data-completion-ring
+											/>
+										</svg>
+										<div class="completion-ring__center">
+											<strong>{completionRate.toFixed(1)}%</strong>
+											<span>COMPLETE</span>
+										</div>
+									</div>
+								)
+							}
+							<span class="performance-feature__season">REGULAR SEASON · {stats.season}</span>
+						</article>
+						{
+							supportingStats.length > 0 && (
+								<dl class="stat-list" aria-label={`${stats.season} player statistics`}>
+									{supportingStats.map((tile) => (
+										<div class="stat-list__item" data-stat-entry>
+											<dt>
+												<span class:list={['stat-list__dot', `stat-list__dot--${tile.color}`]} aria-hidden="true"></span>
+												{tile.label}
+											</dt>
+											<dd>{tile.value}</dd>
+										</div>
+									))}
+								</dl>
+							)
+						}
+					</div>
+				) : statsUnavailable ? (
+					<DataState
+						state="error"
+						title="Season statistics could not load"
+						description="The player profile is available, but the current-season stat service could not be reached."
+					/>
+				) : (
+					<DataState
+						title="No current-season stats yet"
+						description={`The provider has no regular-season stats available for ${player.display_name}.`}
+					/>
+				)}
+			</section>
+		</>
+	) : profileUnavailable ? (
 		<DataState
-			title="Player data is not available"
-			description={`Verified profile and season information for ${player} will appear here when roster and statistics data is connected.`}
+			state="error"
+			title="Player profile could not load"
+			description="The player could not be found in the NFL directory or the provider is temporarily unavailable."
 		/>
-	</section>
+	) : (
+		<DataState state="error" title="Player not found" description="Search for a player by name to open a profile." />
+	)}
 </SiteLayout>
 
 <style>
-	.eyebrow a {
-		color: inherit;
+	.profile-topline {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 18px;
+	}
+
+	.profile-topline > a {
+		color: var(--color-blue);
+		font-size: 12px;
+		font-weight: 650;
 		text-decoration: none;
 	}
 
-	.eyebrow a:hover {
-		color: var(--color-blue);
+	.profile-topline > a:hover {
+		text-decoration: underline;
+	}
+
+	.player-hero {
+		display: flex;
+		align-items: center;
+		gap: 20px;
+		padding: 26px 30px;
+		border-radius: 22px;
+		background:
+			radial-gradient(ellipse at 84% 0%, rgb(149 129 226 / 26%), transparent 35%),
+			linear-gradient(115deg, #252344, #494574);
+		color: #fff;
+	}
+
+	.player-hero__text {
+		min-width: 0;
+	}
+
+	.player-hero .eyebrow {
+		margin-bottom: 4px;
+		color: #c9c2ee;
+	}
+
+	.player-hero h1 {
+		overflow-wrap: anywhere;
+		margin: 0;
+		color: #fff;
+		font-size: clamp(25px, 5vw, 37px);
+		letter-spacing: -0.055em;
+	}
+
+	.player-hero__text > p:last-child {
+		margin: 6px 0 0;
+		color: #ddd9ef;
+		font-size: 12px;
+	}
+
+	.status-pill {
+		margin-left: auto;
+		padding: 6px 9px;
+		border-radius: 999px;
+		background: #d8f3e4;
+		color: #2e7654;
+		font-size: 9px;
+		font-weight: 750;
+		white-space: nowrap;
+	}
+
+	.status-pill--inactive {
+		background: #f0e3e4;
+		color: #85535b;
+	}
+
+	.stats-section {
+		margin-top: 44px;
+	}
+
+	.section-heading {
+		display: flex;
+		align-items: flex-end;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 17px;
+	}
+
+	.section-heading .eyebrow {
+		margin-bottom: 5px;
+	}
+
+	.section-heading h2 {
+		margin: 0;
+		font-size: clamp(24px, 4vw, 29px);
+		letter-spacing: -0.05em;
+	}
+
+	.season-overview {
+		overflow: hidden;
+		border: 1px solid #e5e7ed;
+		border-radius: 22px;
+		background: #fff;
+		box-shadow: var(--shadow-card);
+	}
+
+	.performance-feature {
+		position: relative;
+		display: flex;
+		min-height: 236px;
+		align-items: center;
+		justify-content: space-between;
+		gap: 24px;
+		overflow: hidden;
+		padding: 32px 38px;
+		background:
+			radial-gradient(ellipse at 82% 50%, rgb(119 145 225 / 23%), transparent 38%),
+			linear-gradient(115deg, #171b31 0%, #2b3156 62%, #414977 100%);
+		color: #fff;
+	}
+
+	.performance-feature__copy {
+		position: relative;
+		z-index: 1;
+	}
+
+	.performance-feature__eyebrow {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		color: #c9cbed;
+		font-size: 10px;
+		font-weight: 750;
+		letter-spacing: 0.13em;
+	}
+
+	.performance-feature__pulse {
+		width: 7px;
+		height: 7px;
+		border-radius: 50%;
+		background: #a99cff;
+		box-shadow: 0 0 12px rgb(169 156 255 / 70%);
+	}
+
+	.performance-feature__label {
+		margin: 22px 0 0;
+		color: #e1e3f2;
+		font-size: 14px;
+		font-weight: 600;
+	}
+
+	.performance-feature__value {
+		margin: 0;
+		font-size: clamp(64px, 10vw, 96px);
+		font-weight: 760;
+		letter-spacing: -0.085em;
+		line-height: 1.04;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.performance-feature__caption {
+		margin: 8px 0 0;
+		color: #c2c7df;
+		font-size: 12px;
+	}
+
+	.performance-feature__season {
+		position: absolute;
+		right: 38px;
+		bottom: 20px;
+		color: rgb(224 228 247 / 65%);
+		font-size: 9px;
+		font-weight: 700;
+		letter-spacing: 0.13em;
+	}
+
+	.completion-ring {
+		position: relative;
+		z-index: 1;
+		width: 130px;
+		height: 130px;
+		flex: 0 0 auto;
+	}
+
+	.completion-ring svg {
+		width: 100%;
+		height: 100%;
+		transform: rotate(-90deg);
+	}
+
+	.completion-ring circle {
+		fill: none;
+		stroke-width: 7px;
+	}
+
+	.completion-ring__track {
+		stroke: rgb(255 255 255 / 15%);
+	}
+
+	.completion-ring__value {
+		stroke: #b7aaff;
+		stroke-linecap: round;
+	}
+
+	.completion-ring__center {
+		position: absolute;
+		inset: 0;
+		display: grid;
+		align-content: center;
+		justify-items: center;
+		gap: 2px;
+	}
+
+	.completion-ring__center strong {
+		font-size: 25px;
+		font-weight: 730;
+		letter-spacing: -0.06em;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.completion-ring__center span {
+		color: #c2c7df;
+		font-size: 8px;
+		font-weight: 700;
+		letter-spacing: 0.13em;
+	}
+
+	.stat-list {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		column-gap: 34px;
+		margin: 0;
+		padding: 8px 30px 20px;
+	}
+
+	.stat-list__item {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 15px 0;
+		border-bottom: 1px solid #eef0f4;
+	}
+
+	.stat-list__item dt {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 9px;
+		color: #555d6b;
+		font-size: 12px;
+	}
+
+	.stat-list__item dd {
+		margin: 0;
+		color: #17191f;
+		font-size: 16px;
+		font-weight: 720;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.stat-list__dot {
+		width: 7px;
+		height: 7px;
+		flex: 0 0 auto;
+		border-radius: 50%;
+		background: #5574c8;
+	}
+
+	.stat-list__dot--purple {
+		background: #8b72d6;
+	}
+
+	.stat-list__dot--green {
+		background: #48a477;
+	}
+
+	.stat-list__dot--orange {
+		background: #d9904c;
+	}
+
+	@media (max-width: 600px) {
+		.performance-feature {
+			min-height: 215px;
+			gap: 12px;
+			padding: 26px 23px 42px;
+		}
+
+		.performance-feature__label {
+			margin-top: 18px;
+		}
+
+		.performance-feature__value {
+			font-size: clamp(52px, 14vw, 76px);
+		}
+
+		.performance-feature__season {
+			right: 23px;
+			bottom: 16px;
+			font-size: 8px;
+		}
+
+		.completion-ring {
+			width: 98px;
+			height: 98px;
+		}
+
+		.completion-ring__center strong {
+			font-size: 20px;
+		}
+
+		.stat-list {
+			column-gap: 20px;
+			padding-right: 22px;
+			padding-left: 22px;
+		}
+	}
+
+	@media (max-width: 520px) {
+		.stat-list {
+			grid-template-columns: 1fr;
+		}
+
+		.player-hero {
+			gap: 13px;
+			padding: 21px 16px;
+		}
+
+		.status-pill {
+			align-self: flex-start;
+			padding: 5px 7px;
+		}
+
+		.section-heading {
+			align-items: flex-start;
+			flex-direction: column;
+		}
 	}
 </style>
+
+<script>
+	import { animate, inView, stagger } from 'motion';
+
+	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+	if (!reduceMotion) {
+		document.querySelectorAll<HTMLElement>('[data-player-stats]').forEach((section) => {
+			const feature = section.querySelector<HTMLElement>('[data-featured-stat]');
+			if (feature) {
+				inView(
+					feature,
+					(element) => {
+						const entrance = animate(
+							element,
+							{ opacity: [0, 1], y: [14, 0], scale: [0.985, 1] },
+							{ duration: 0.55, ease: 'easeOut' },
+						);
+						const progress = element.querySelector<SVGCircleElement>('[data-completion-ring]');
+						if (progress) {
+							const target = Number(progress.getAttribute('stroke-dashoffset'));
+							animate(progress, { strokeDashoffset: [100, target] }, { duration: 0.9, delay: 0.12, ease: 'easeOut' });
+						}
+						return () => entrance.stop();
+					},
+					{ amount: 0.15 },
+				);
+			}
+
+			const list = section.querySelector<HTMLElement>('.stat-list');
+			if (list) {
+				inView(
+					list,
+					(element) => {
+						const items = element.querySelectorAll<HTMLElement>('[data-stat-entry]');
+						const entrance = animate(
+							items,
+							{ opacity: [0, 1], y: [8, 0] },
+							{ duration: 0.35, delay: stagger(0.045), ease: 'easeOut' },
+						);
+						return () => entrance.stop();
+					},
+					{ amount: 0.1 },
+				);
+			}
+		});
+	}
+</script>

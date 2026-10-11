@@ -1,34 +1,199 @@
 ---
+import DataFreshness from '../../components/DataFreshness.astro';
 import DataState from '../../components/DataState.astro';
+import GameCard from '../../components/GameCard.astro';
+import TeamMark from '../../components/TeamMark.astro';
 import SiteLayout from '../../layouts/SiteLayout.astro';
+import {
+	buildTeamRecords,
+	currentNflSeason,
+	getApiMetadata,
+	getSeasonGames,
+	type NflGame,
+	type NflTeam,
+	type TeamRecord,
+} from '../../utils/nfl-data';
 
-const team = (Astro.params.team ?? 'team').split('-').join(' ');
+const teamAbbr = (Astro.params.team ?? '').toUpperCase();
+let team: NflTeam | undefined;
+let activeTeams: NflTeam[] = [];
+let record: TeamRecord | undefined;
+let teamGames: NflGame[] = [];
+let fetchedAt = '';
+let stale = false;
+let dataUnavailable = false;
+
+try {
+	const [gamesResult, metadataResult] = await Promise.all([
+		getSeasonGames(currentNflSeason()),
+		getApiMetadata(),
+	]);
+	const activeAbbreviations = new Set(
+		gamesResult.value.data.flatMap((game) => [game.home_team, game.away_team]).filter(Boolean),
+	);
+	activeTeams = metadataResult.value.teams.filter((candidate) => activeAbbreviations.has(candidate.abbr));
+	team = metadataResult.value.teams.find((candidate) => candidate.abbr === teamAbbr);
+	fetchedAt = [gamesResult.fetchedAt, metadataResult.fetchedAt].sort().at(-1) ?? gamesResult.fetchedAt;
+	stale = gamesResult.stale || metadataResult.stale;
+	if (team) {
+		record = buildTeamRecords(gamesResult.value.data, metadataResult.value.teams).find(
+			(candidate) => candidate.abbr === teamAbbr,
+		);
+		const now = Date.now();
+		teamGames = gamesResult.value.data
+			.filter((game) => game.game_type === 'REG' && (game.home_team === teamAbbr || game.away_team === teamAbbr))
+			.sort((left, right) => {
+				const leftTime = left.gameday ? new Date(`${left.gameday}T12:00:00Z`).getTime() : 0;
+				const rightTime = right.gameday ? new Date(`${right.gameday}T12:00:00Z`).getTime() : 0;
+				return Math.abs(leftTime - now) - Math.abs(rightTime - now);
+			})
+			.slice(0, 6)
+			.sort((left, right) => (left.gameday ?? '').localeCompare(right.gameday ?? ''));
+	}
+} catch (error) {
+	dataUnavailable = true;
+	console.error(
+		JSON.stringify({
+			level: 'error',
+			event: 'team_profile_unavailable',
+			team: teamAbbr,
+			error: error instanceof Error ? error.name : 'UnknownError',
+		}),
+	);
+}
+
+if (!dataUnavailable && !team) {
+	Astro.response.status = 404;
+}
 ---
 
 <SiteLayout
-	title="Team overview"
-	description="Team profile, schedule, standings, and statistics."
+	title={team ? `${team.name} team profile` : 'Team profile'}
+	description="Current season record, schedule, and game results for this NFL team."
 >
-	<div class="page-heading">
-		<p class="eyebrow"><a href="/teams">TEAMS</a> · TEAM OVERVIEW</p>
-		<h1>Team overview</h1>
-		<p>Schedule, standings, roster, and season performance in one place.</p>
-	</div>
-	<section class="content-card" aria-label="Team data status">
+	{team ? (
+		<>
+			<div class="team-hero">
+				<TeamMark abbr={team.abbr} conference={team.conf} size="large" />
+				<div>
+					<p class="eyebrow">{team.conf} · {team.division}</p>
+					<h1>{team.name}</h1>
+					<p>{record ? `${record.wins} wins · ${record.losses} losses${record.ties ? ` · ${record.ties} ties` : ''}` : 'No completed regular-season games yet'}</p>
+				</div>
+			</div>
+			<div class="profile-meta">
+				<a href="/teams">← All teams</a>
+				{fetchedAt && <DataFreshness fetchedAt={fetchedAt} stale={stale} />}
+			</div>
+			<section aria-labelledby="team-schedule">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">THIS SEASON</p>
+						<h2 id="team-schedule">Games around the corner.</h2>
+					</div>
+				</div>
+				{teamGames.length > 0 ? (
+					<div class="game-grid">
+						{teamGames.map((game) => <GameCard game={game} teams={activeTeams} />)}
+					</div>
+				) : (
+					<DataState title="No team schedule found" description="There are no regular-season games listed for this team." />
+				)}
+			</section>
+		</>
+	) : dataUnavailable ? (
 		<DataState
-			title="Team data is not available"
-			description={`Verified profile and season information for ${team} will appear here when the league data source is connected.`}
+			state="error"
+			title="This team profile could not load"
+			description="The NFL data provider is temporarily unavailable. Please try again."
 		/>
-	</section>
+	) : (
+		<DataState state="error" title="Team not found" description="Choose a team from the NFL team directory." />
+	)}
 </SiteLayout>
 
 <style>
-	.eyebrow a {
-		color: inherit;
+	.team-hero {
+		display: flex;
+		align-items: center;
+		gap: 22px;
+		padding: 27px 30px;
+		border-radius: 22px;
+		background: linear-gradient(115deg, #17233b, #2d4775);
+		color: #fff;
+	}
+
+	.team-hero .eyebrow {
+		margin-bottom: 5px;
+		color: #b9c9e4;
+	}
+
+	.team-hero h1 {
+		margin: 0;
+		color: #fff;
+		font-size: clamp(25px, 5vw, 36px);
+		letter-spacing: -0.05em;
+	}
+
+	.team-hero div > p:last-child {
+		margin: 6px 0 0;
+		color: #dae2f0;
+		font-size: 13px;
+	}
+
+	.profile-meta {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin: 16px 2px 40px;
+	}
+
+	.profile-meta > a {
+		color: var(--color-blue);
+		font-size: 12px;
+		font-weight: 650;
 		text-decoration: none;
 	}
 
-	.eyebrow a:hover {
-		color: var(--color-blue);
+	.profile-meta > a:hover {
+		text-decoration: underline;
+	}
+
+	.section-heading {
+		margin-bottom: 18px;
+	}
+
+	.section-heading .eyebrow {
+		margin-bottom: 6px;
+	}
+
+	.section-heading h2 {
+		margin: 0;
+		font-size: 25px;
+		letter-spacing: -0.05em;
+	}
+
+	.game-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 12px;
+	}
+
+	@media (max-width: 800px) {
+		.game-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 560px) {
+		.team-hero {
+			gap: 15px;
+			padding: 21px 18px;
+		}
+
+		.game-grid {
+			grid-template-columns: 1fr;
+		}
 	}
 </style>
