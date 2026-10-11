@@ -11,6 +11,10 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
 	await expect(page.locator('[data-countdown]')).toHaveText(/^\d+:\d{2}:\d{2}$/);
 	await expect(page.locator('[data-session-matchups]')).not.toHaveText(/^\d+ games?$/);
+	const completedCard = page.locator('.game-card').filter({ has: page.locator('.game-status--final') });
+	await expect(completedCard).toHaveCount(1);
+	await expect(completedCard.locator('.game-card__kickoff')).toHaveText('Final');
+	await expect(page.locator('.game-card').filter({ hasText: 'Kickoff time pending' })).toHaveCount(0);
 	const scheduleKickoff = page.locator('.game-card__kickoff').first();
 	await expect(scheduleKickoff).toHaveCSS('text-align', 'right');
 	expect(await scheduleKickoff.evaluate((element) => {
@@ -902,6 +906,10 @@ test('game, team, player, and directory routes respond', async ({ page }) => {
 			page.getByRole('heading', { level: 1 }).or(page.getByRole('alert').getByRole('heading')),
 		).toBeVisible();
 	}
+
+	await page.goto('/games/past-game-no-kickoff');
+	await expect(page.locator('.game-hero__date')).toHaveText('Final');
+	await expect(page.locator('.game-hero__date')).not.toContainText('Kickoff time pending');
 
 	await page.goto('/teams');
 	const availableTeam = page.locator('main a[href^="/teams/"]').first();

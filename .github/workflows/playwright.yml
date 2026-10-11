@@ -40,6 +40,10 @@ jobs:
 
       - name: Run Playwright Tests
         run: npx playwright test
+        env:
+          NFL_DATA_API_BASE_URL: http://127.0.0.1:4322/v1
+          NFL_ESPN_SCOREBOARD_URL: http://127.0.0.1:4322/espn/scoreboard
+          NFL_LIVE_ESPN_BASE_URL: http://127.0.0.1:4322/espn
 
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4

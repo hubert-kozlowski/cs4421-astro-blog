@@ -26,7 +26,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('')`. */
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4321',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4331',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
@@ -62,8 +62,13 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
-    url: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:4321',
-    reuseExistingServer: !process.env.CI,
+    command: 'node tests/start-playwright.mjs',
+    url: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4331',
+    env: {
+      NFL_DATA_API_BASE_URL: 'http://127.0.0.1:4322/v1',
+      NFL_ESPN_SCOREBOARD_URL: 'http://127.0.0.1:4322/espn/scoreboard',
+      NFL_LIVE_ESPN_BASE_URL: 'http://127.0.0.1:4322/espn',
+    },
+    reuseExistingServer: false,
   },
 });

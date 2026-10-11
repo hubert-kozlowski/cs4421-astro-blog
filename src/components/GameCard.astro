@@ -16,6 +16,7 @@ const gameStatus = getGameStatus(game);
 const isFinal = gameStatus === 'Final';
 const upset = getGameUpset(game);
 const kickoffAt = isAbsoluteTimestamp(game.kickoff_at ?? undefined) ? game.kickoff_at : undefined;
+const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' : gameStatus;
 ---
 
 <a
@@ -50,7 +51,7 @@ const kickoffAt = isAbsoluteTimestamp(game.kickoff_at ?? undefined) ? game.kicko
 				data-device-time="time"
 			>Kickoff time</time>
 		) : (
-			<span class="game-card__kickoff">Kickoff time pending</span>
+			<span class="game-card__kickoff">{missingKickoffLabel}</span>
 		)}
 	</div>
 	<div class="game-card__team">

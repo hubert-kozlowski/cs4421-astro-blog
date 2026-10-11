@@ -42,6 +42,7 @@ const gameStatus = game ? getGameStatus(game) : 'Scheduled';
 const isFinal = gameStatus === 'Final';
 const kickoffCandidate = game?.kickoff_at;
 const kickoffAt = isAbsoluteTimestamp(kickoffCandidate ?? undefined) ? kickoffCandidate : undefined;
+const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' : gameStatus;
 ---
 
 <SiteLayout
@@ -55,12 +56,13 @@ const kickoffAt = isAbsoluteTimestamp(kickoffCandidate ?? undefined) ? kickoffCa
 				{gameResult && <DataFreshness fetchedAt={gameResult.fetchedAt} stale={gameResult.stale} />}
 			</div>
 			<section class="game-hero">
+				<h1 class="game-hero__title">{awayTeam?.name ?? game.away_team} at {homeTeam?.name ?? game.home_team}</h1>
 				<p class="eyebrow">WEEK {game.week ?? '—'} · {game.season ?? 'NFL'} {game.game_type ?? ''}</p>
 				<p class="game-hero__date">
 					{kickoffAt ? (
 						<time datetime={kickoffAt} data-device-time="time">Kickoff time</time>
 					) : (
-						<>Kickoff time pending</>
+						<>{missingKickoffLabel}</>
 					)}
 				</p>
 				<div class="game-matchup">
@@ -150,6 +152,14 @@ const kickoffAt = isAbsoluteTimestamp(kickoffCandidate ?? undefined) ? kickoffCa
 			linear-gradient(120deg, #111a2e, #243d69);
 		color: #fff;
 		text-align: center;
+	}
+
+	.game-hero__title {
+		margin: 0 0 10px;
+		color: #fff;
+		font-size: clamp(18px, 3vw, 25px);
+		font-weight: 800;
+		letter-spacing: -0.025em;
 	}
 
 	.game-hero .eyebrow {
