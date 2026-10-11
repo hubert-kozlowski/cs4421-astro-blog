@@ -119,7 +119,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 	expect(
 		await liveCenter.locator('.live-center__indicator i').evaluate((element) => getComputedStyle(element).animationName),
 	).toBe('none');
-	await expect(liveCenter.locator('.live-game-row')).toHaveCSS('height', '108px');
+	await expect(liveCenter.locator('.live-game-row')).toHaveCSS('height', '111px');
 	expect(await liveCenter.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(150);
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
 	expect(
@@ -306,6 +306,7 @@ test('live game center clearly labels the two-minute warning and halftime', asyn
 		status: '2nd Quarter',
 		period: 2,
 		clock: '2:00',
+		notice: 'flag',
 		boxScoreUpdatedAt: null,
 		lastPlay: null,
 		situation: null,
@@ -323,6 +324,20 @@ test('live game center clearly labels the two-minute warning and halftime', asyn
 	await expect(liveCenter.locator('.live-game-row__phase')).toHaveText('TWO-MINUTE WARNING');
 	await expect(liveCenter.locator('.live-game-row__clock')).toHaveText('Q2 · 2:00');
 	await expect(liveCenter.locator('.live-game-row')).toHaveAttribute('aria-label', /two-minute warning/);
+	await expect(liveCenter.locator('.live-game-row')).toHaveAttribute('data-has-context', 'true');
+	await page.setViewportSize({ width: 390, height: 844 });
+	await expect(liveCenter.locator('.live-game-row')).toHaveCSS('height', '111px');
+	expect(await liveCenter.locator('.live-game-row').evaluate((row) => {
+		const context = row.querySelector('.live-game-row__context')?.getBoundingClientRect();
+		const notice = row.querySelector('.live-game-row__notice')?.getBoundingClientRect();
+		return context && notice ? notice.top >= context.bottom : false;
+	})).toBe(true);
+	const row = liveCenter.locator('.live-game-row');
+	const collapseToggle = row.locator('.live-game-row__collapse-toggle');
+	await collapseToggle.click();
+	await expect(row).toHaveCSS('height', '36px');
+	await collapseToggle.click();
+	await expect(collapseToggle).toHaveAttribute('aria-expanded', 'true');
 
 	game.state = 'halftime';
 	game.moment = null;

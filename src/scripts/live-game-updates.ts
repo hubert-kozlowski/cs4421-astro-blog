@@ -512,7 +512,12 @@ function renderLiveRow(
 	const content: HTMLElement = link ?? row;
 	if (game.notice) row.dataset.hasNotice = 'true';
 	if (event) row.dataset.hasEvent = 'true';
-	if (game.situation?.downDistance || game.state === 'halftime' || game.state === 'final') {
+	if (
+		game.situation?.downDistance ||
+		game.state === 'halftime' ||
+		game.state === 'final' ||
+		game.moment === 'two_minute_warning'
+	) {
 		row.dataset.hasContext = 'true';
 	}
 	if (link && detailHref) {

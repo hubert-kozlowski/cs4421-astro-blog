@@ -147,20 +147,20 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 
 	.live-center[data-live-layout="ticker"] :global(.live-game-row) {
 		box-sizing: border-box;
-		height: 108px;
+		height: 111px;
 		gap: 1px 8px;
 		padding: 2px 11px;
 		grid-template-rows: 24px 36px 44px;
 		align-content: start;
 	}
 
-	.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-notice="true"][data-has-event="true"]) {
-		height: 114px;
+	.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-notice="true"][data-has-event="true"]:not(.live-game-row--compact)) {
+		height: 117px;
 		grid-template-rows: 24px 36px 50px;
 	}
 
-	.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-notice="true"][data-has-context="true"][data-has-event="true"]) {
-		height: 130px;
+	.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-notice="true"][data-has-context="true"][data-has-event="true"]:not(.live-game-row--compact)) {
+		height: 133px;
 		grid-template-rows: 24px 36px 66px;
 	}
 
@@ -972,8 +972,8 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 			grid-template-rows: 24px 24px;
 		}
 
-		.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-notice="true"][data-has-event="true"]) {
-			height: 114px;
+		.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-notice="true"][data-has-event="true"]:not(.live-game-row--compact)) {
+			height: 117px;
 			grid-template-rows: 24px 36px 50px;
 		}
 
@@ -997,8 +997,8 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 			grid-row: 2;
 		}
 
-		.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-context="true"][data-has-notice="true"]) {
-			height: 108px;
+		.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-context="true"][data-has-notice="true"]:not(.live-game-row--compact)) {
+			height: 111px;
 			grid-template-rows: 24px 36px 44px;
 		}
 
@@ -1012,8 +1012,8 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 			grid-row: 3;
 		}
 
-		.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-context="true"][data-has-notice="true"][data-has-event="true"]) {
-			height: 130px;
+		.live-center[data-live-layout="ticker"] :global(.live-game-row[data-has-context="true"][data-has-notice="true"][data-has-event="true"]:not(.live-game-row--compact)) {
+			height: 133px;
 			grid-template-rows: 24px 36px 66px;
 		}
 		.live-center :global(.live-game-row__situation) {
