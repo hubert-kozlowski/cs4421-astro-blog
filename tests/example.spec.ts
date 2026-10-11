@@ -72,7 +72,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-game-row__team--possession')).toHaveCSS('border-bottom-color', 'rgb(215, 162, 42)');
 	await expect(liveCenter.locator('.live-game-row__field')).toHaveAttribute(
 		'aria-label',
-		'Offense advances from own end zone toward opponent end zone; JAX possession, opponent 1-yard line',
+		'Offense-relative field view, with OWN on the left and OPP on the right; JAX possession, opponent 1-yard line',
 	);
 	await expect(liveCenter.locator('.live-game-row__field-mark')).toHaveCount(11);
 	await expect(liveCenter.locator('.live-game-row__field-direction')).toHaveAttribute(
@@ -173,13 +173,13 @@ test('live field hides an unknown spot and fits narrow screens', async ({ page }
 	await expect(rows).toHaveCount(2);
 	await expect(rows.nth(0).locator('.live-game-row__field')).toHaveAttribute(
 		'aria-label',
-		'Offense advances from own end zone toward opponent end zone; provider field position unavailable',
+		'Offense-relative field view, with OWN on the left and OPP on the right; provider field position unavailable',
 	);
 	await expect(rows.nth(0).locator('.live-game-row__field-direction')).toHaveCount(0);
 	await expect(rows.nth(0).locator('.live-game-row__field-ball')).toHaveCount(0);
 	await expect(rows.nth(1).locator('.live-game-row__field')).toHaveAttribute(
 		'aria-label',
-		'Offense advances from own end zone toward opponent end zone; JAX possession, midfield',
+		'Offense-relative field view, with OWN on the left and OPP on the right; JAX possession, midfield',
 	);
 	await expect(rows.nth(1).locator('.live-game-row__field-ball')).toHaveCount(1);
 	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);

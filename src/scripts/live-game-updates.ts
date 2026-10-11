@@ -234,7 +234,7 @@ function appendFieldGraphic(parent: HTMLElement, game: LiveGame, possessionTeam:
 						: `opponent ${100 - yardLine}-yard line`;
 	svg.setAttribute(
 		'aria-label',
-		`Offense advances from own end zone toward opponent end zone; ${possessionTeam ? `${possessionTeam} possession, ` : ''}${spot}`,
+		`Offense-relative field view, with OWN on the left and OPP on the right; ${possessionTeam ? `${possessionTeam} possession, ` : ''}${spot}`,
 	);
 
 	const appendSvg = (tag: string, attributes: Record<string, string>) => {
