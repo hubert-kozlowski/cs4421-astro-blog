@@ -63,9 +63,9 @@ jobs:
         run: npm run test:unit
 
   build:
-    name: Build
+    name: Build & SSR Deployment Validation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     needs: [lint-and-typecheck, unit-tests]
     steps:
       - name: Checkout Source Code
@@ -82,6 +82,55 @@ jobs:
 
       - name: Build Site
         run: npm run build
+
+      - name: Install CDK Dependencies
+        working-directory: ./cdk
+        run: npm ci
+
+      - name: Test CDK Stack
+        working-directory: ./cdk
+        run: npm test
+
+      - name: Build CDK Application
+        working-directory: ./cdk
+        run: npm run build
+
+      - name: Synthesize SSR Infrastructure
+        working-directory: ./cdk
+        run: npx cdk synth --quiet
+
+      - name: Build SSR Container Image
+        run: docker build --tag gridiron-atlas-ssr:ci .
+
+      - name: Smoke Test SSR Container
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_name=gridiron-atlas-ssr-smoke
+          cleanup() {
+            docker logs "$container_name" || true
+            docker rm --force "$container_name" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach --name "$container_name" --publish 4321:4321 gridiron-atlas-ssr:ci
+
+          ready=false
+          for attempt in {1..30}; do
+            if curl --fail --silent --max-time 3 http://127.0.0.1:4321/api/ready >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 2
+          done
+          if [[ "$ready" != true ]]; then
+            echo "SSR container did not become ready within 60 seconds" >&2
+            exit 1
+          fi
+
+          curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/api/health | jq --exit-status '.status == "ok" and .uptimeSeconds >= 0'
+          curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/api/live | jq --exit-status '.status == "ok"'
+          curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/ | grep --quiet '<html'
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4

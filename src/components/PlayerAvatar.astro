@@ -1,0 +1,65 @@
+---
+interface Props {
+	name: string;
+	size?: 'small' | 'large';
+}
+
+const { name, size = 'small' } = Astro.props;
+const initials =
+	name
+		.trim()
+		.split(/\s+/)
+		.slice(0, 2)
+		.map((part) => part[0] ?? '')
+		.join('')
+		.toUpperCase() || 'P';
+---
+
+<svg
+	class:list={['player-avatar', `player-avatar--${size}`]}
+	viewBox="0 0 64 64"
+	aria-hidden="true"
+	focusable="false"
+>
+	<circle class="player-avatar__background" cx="32" cy="32" r="31" />
+	<path class="player-avatar__shape" d="M8 55c3-11 12-17 24-17s21 6 24 17" />
+	<circle class="player-avatar__shape" cx="32" cy="24" r="10" />
+	<text x="32" y="59" text-anchor="middle">{initials}</text>
+</svg>
+
+<style>
+	.player-avatar {
+		display: block;
+		flex: 0 0 auto;
+	}
+
+	.player-avatar--small {
+		width: 42px;
+		height: 42px;
+	}
+
+	.player-avatar--large {
+		width: 76px;
+		height: 76px;
+	}
+
+	.player-avatar__background {
+		fill: #eeeafe;
+	}
+
+	.player-avatar__shape {
+		fill: #aaa0d9;
+	}
+
+	.player-avatar text {
+		fill: #fff;
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		font-size: 11px;
+		font-weight: 800;
+		letter-spacing: 0.25px;
+	}
+
+	.player-avatar--large text {
+		font-size: 10px;
+	}
+</style>

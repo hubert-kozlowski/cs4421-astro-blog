@@ -1,67 +1,213 @@
 ---
 import { SITE_TITLE } from '../consts';
-import HeaderLink from './HeaderLink.astro';
+
+const sections = [
+	{ href: '#schedule', label: 'Games' },
+	{ href: '#standings', label: 'Standings' },
+	{ href: '#players', label: 'Players' },
+	{ href: '#matchups', label: 'Matchups' },
+];
+const onHome = Astro.url.pathname === '/';
 ---
 
-<header>
-	<nav>
-		<h2><a href="/">{SITE_TITLE}</a></h2>
-		<div class="internal-links">
-			<HeaderLink href="/">Home</HeaderLink>
-			<HeaderLink href="/blog">About</HeaderLink>
-			<HeaderLink href="/about">Settings</HeaderLink>
-		</div>
-		<div class="social-links">
-			<a href="https://github.com/hubert-kozlowski" target="_blank">
-				<span class="sr-only">Go to Hubert Kozlowski's GitHub repo</span>
-				<svg viewBox="0 0 16 16" aria-hidden="true" width="32" height="32"
-					><path
-						fill="currentColor"
-						d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-					></path></svg
-				>
-			</a>
-		</div>
-	</nav>
+<header class="site-header">
+	<div class="site-header__inner">
+		<a class="brand" href="/" aria-label={`${SITE_TITLE} home`}>
+			<span class="brand__mark" aria-hidden="true">GA</span>
+			<span class="brand__name">GRIDIRON <span>ATLAS</span></span>
+		</a>
+		<nav class="quick-nav" aria-label="Dashboard sections">
+			{
+				sections.map(({ href, label }) => (
+					<a class="quick-nav__link" href={onHome ? href : `/${href}`}>
+						{label}
+					</a>
+				))
+			}
+		</nav>
+		<form class="header-search" action="/players#player-search-form" method="get" role="search">
+			<label class="sr-only" for="header-player-search">Find an NFL player</label>
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<circle cx="10.8" cy="10.8" r="6.3" />
+				<path d="m15.4 15.4 4.2 4.2" />
+			</svg>
+			<input id="header-player-search" type="search" name="name" placeholder="Find a player" />
+			<button type="submit" aria-label="Search players">Search</button>
+		</form>
+	</div>
 </header>
+
 <style>
-	header {
-		margin: 0;
-		padding: 0 1em;
-		background: white;
-		box-shadow: 0 2px 8px rgba(var(--black), 5%);
-	}
-	h2 {
-		margin: 0;
-		font-size: 1em;
+	.site-header {
+		position: sticky;
+		z-index: 10;
+		top: 0;
+		border-bottom: 1px solid rgb(230 232 236 / 80%);
+		background: rgb(255 255 255 / 93%);
+		backdrop-filter: saturate(180%) blur(20px);
 	}
 
-	h2 a,
-	h2 a.active {
-		text-decoration: none;
-	}
-	nav {
+	.site-header__inner {
 		display: flex;
+		width: min(100% - 48px, 1180px);
+		min-height: 72px;
 		align-items: center;
 		justify-content: space-between;
+		gap: 22px;
+		margin: 0 auto;
 	}
-	nav a {
-		padding: 1em 0.5em;
-		color: var(--black);
-		border-bottom: 4px solid transparent;
+
+	.brand {
+		display: inline-flex;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 10px;
+		color: var(--color-ink);
 		text-decoration: none;
 	}
-	nav a.active {
-		text-decoration: none;
-		border-bottom-color: var(--accent);
+
+	.brand__mark {
+		display: grid;
+		width: 35px;
+		height: 35px;
+		place-items: center;
+		border-radius: 11px;
+		background: linear-gradient(145deg, #17233b, #304e80);
+		box-shadow: 0 4px 10px rgb(28 50 88 / 20%);
+		color: #fff;
+		font-size: 16px;
+		font-weight: 800;
+		letter-spacing: -0.07em;
 	}
-	.social-links,
-	.social-links a {
+
+	.brand__name {
+		font-size: 12px;
+		font-weight: 800;
+		letter-spacing: 0.04em;
+		white-space: nowrap;
+	}
+
+	.brand__name span {
+		color: var(--color-muted);
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+	}
+
+	.quick-nav {
 		display: flex;
+		align-items: center;
+		gap: 4px;
 	}
-	@media (max-width: 720px) {
-		.social-links {
+
+	.quick-nav__link {
+		display: inline-flex;
+		min-height: 36px;
+		align-items: center;
+		padding: 0 12px;
+		border-radius: 10px;
+		color: var(--color-muted);
+		font-size: 12px;
+		font-weight: 600;
+		text-decoration: none;
+		transition:
+			background-color 150ms ease,
+			color 150ms ease;
+	}
+
+	.quick-nav__link:hover {
+		background: #f0f3f8;
+		color: var(--color-blue);
+	}
+
+	.header-search {
+		display: flex;
+		width: 238px;
+		height: 38px;
+		flex: 0 0 auto;
+		align-items: center;
+		gap: 8px;
+		padding: 0 6px 0 11px;
+		border: 1px solid var(--color-border);
+		border-radius: 12px;
+		background: #f8f9fb;
+		color: var(--color-muted);
+	}
+
+	.header-search svg {
+		width: 16px;
+		height: 16px;
+		flex: 0 0 auto;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-width: 1.7;
+	}
+
+	.header-search input {
+		width: 100%;
+		min-width: 0;
+		border: 0;
+		outline: 0;
+		background: transparent;
+		color: var(--color-ink);
+		font-size: 12px;
+	}
+
+	.header-search input::placeholder {
+		color: var(--color-faint);
+	}
+
+	.header-search button {
+		padding: 6px 9px;
+		border: 0;
+		border-radius: 8px;
+		background: #e8edf8;
+		color: var(--color-blue);
+		font-size: 11px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+
+	.header-search button:hover {
+		background: #dce5f7;
+	}
+
+	@media (max-width: 900px) {
+		.site-header__inner {
+			width: min(100% - 32px, 1180px);
+			flex-wrap: wrap;
+			gap: 8px 14px;
+			padding: 12px 0;
+		}
+
+		.quick-nav {
+			order: 3;
+			width: 100%;
+			overflow-x: auto;
+			margin: 0 -6px;
+			scrollbar-width: none;
+		}
+
+		.quick-nav::-webkit-scrollbar {
 			display: none;
+		}
+
+		.quick-nav__link {
+			min-height: 32px;
+			padding: 0 10px;
+			font-size: 11px;
+			white-space: nowrap;
+		}
+	}
+
+	@media (max-width: 520px) {
+		.header-search {
+			width: min(52vw, 205px);
+		}
+
+		.header-search button {
+			padding: 6px;
 		}
 	}
 </style>

@@ -1,0 +1,74 @@
+---
+import { teamPalette } from '../utils/team-colors';
+
+interface Props {
+	abbr: string | null | undefined;
+	conference?: string;
+	size?: 'small' | 'medium' | 'large';
+}
+
+const { abbr, conference, size = 'small' } = Astro.props;
+const label = abbr?.slice(0, 4).toUpperCase() || 'NFL';
+const teamColors = teamPalette(label);
+---
+
+<svg
+	class:list={['team-mark', `team-mark--${size}`, { 'team-mark--afc': conference === 'AFC' }]}
+	viewBox="0 0 64 64"
+	style={teamColors
+		? `--team-primary: ${teamColors.primary}; --team-accent: ${teamColors.accent}; --team-ink: ${teamColors.ink ?? '#ffffff'}`
+		: undefined}
+	aria-hidden="true"
+	focusable="false"
+>
+	<path class="team-mark__plate" d="M32 4 56 13v17c0 14-9.8 24.8-24 30C17.8 54.8 8 44 8 30V13z" />
+	<path class="team-mark__stripe" d="M13 17h38v5H13z" />
+	<text x="32" y="42" text-anchor="middle">{label}</text>
+</svg>
+
+<style>
+	.team-mark {
+		display: block;
+		flex: 0 0 auto;
+		overflow: visible;
+		color: #fff;
+	}
+
+	.team-mark--small {
+		width: 34px;
+		height: 34px;
+	}
+
+	.team-mark--medium {
+		width: 44px;
+		height: 44px;
+	}
+
+	.team-mark--large {
+		width: 76px;
+		height: 76px;
+	}
+
+	.team-mark__plate {
+		fill: var(--team-primary, #285b9f);
+		stroke: rgb(255 255 255 / 27%);
+		stroke-width: 2;
+	}
+
+	.team-mark__stripe {
+		fill: var(--team-accent, rgb(255 255 255 / 30%));
+		opacity: 0.65;
+	}
+
+	.team-mark text {
+		fill: var(--team-ink, currentColor);
+		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+		font-size: 15px;
+		font-weight: 800;
+		letter-spacing: -0.5px;
+	}
+
+	.team-mark--large text {
+		font-size: 14px;
+	}
+</style>
