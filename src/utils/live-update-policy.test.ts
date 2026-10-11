@@ -9,7 +9,7 @@ import {
 describe('getLivePollInterval', () => {
 	const now = Date.parse('2026-10-11T14:00:00Z');
 
-	it('polls live games every 15 seconds', () => {
+	it('polls live games every 10 seconds', () => {
 		expect(getLivePollInterval([{ state: 'in_progress', kickoffAt: '2026-10-11T13:00:00Z' }], now))
 			.toBe(ACTIVE_LIVE_POLL_INTERVAL_MS);
 	});

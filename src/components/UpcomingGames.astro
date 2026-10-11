@@ -1,26 +1,12 @@
 ---
 import { getGameBroadcastLabel, type NflGame } from '../utils/nfl-data';
+import { isAbsoluteTimestamp } from '../utils/local-game-time';
 
 interface Props {
 	games: NflGame[];
 }
 
 const { games } = Astro.props;
-const today = new Date().toISOString().slice(0, 10);
-const todayTime = Date.parse(`${today}T00:00:00Z`);
-
-function dateLabel(gameday: string | null | undefined): string {
-	if (!gameday) return 'Date pending';
-	const dayOffset = (Date.parse(`${gameday}T00:00:00Z`) - todayTime) / 86_400_000;
-	if (dayOffset === 0) return 'Today';
-	if (dayOffset === 1) return 'Tomorrow';
-	return new Date(`${gameday}T00:00:00Z`).toLocaleDateString('en-US', {
-		weekday: 'short',
-		month: 'short',
-		day: 'numeric',
-		timeZone: 'UTC',
-	});
-}
 ---
 
 <section class="upcoming" aria-labelledby="upcoming-heading">
@@ -29,18 +15,24 @@ function dateLabel(gameday: string | null | undefined): string {
 		<h3 id="upcoming-heading">The soonest games</h3>
 	</div>
 	<div class="upcoming__ticker" role="list">
-		{games.map((game) => (
-			<a
-				class="upcoming-game"
-				href={`/games/${encodeURIComponent(game.game_id)}`}
-				aria-label={`${dateLabel(game.gameday)}: ${game.away_team} at ${game.home_team}${getGameBroadcastLabel(game) ? `, ${getGameBroadcastLabel(game)}` : ''}`}
-				role="listitem"
-			>
-				<span class="upcoming-game__date">{dateLabel(game.gameday)}</span>
-				<strong>{game.away_team} <i>@</i> {game.home_team}</strong>
-				{getGameBroadcastLabel(game) && <span class="upcoming-game__broadcast">{getGameBroadcastLabel(game)}</span>}
-			</a>
-		))}
+		{games.map((game) => {
+			const kickoffAt = game.kickoff_at && isAbsoluteTimestamp(game.kickoff_at) ? game.kickoff_at : undefined;
+			return (
+				<a
+					class="upcoming-game"
+					href={`/games/${encodeURIComponent(game.game_id)}`}
+					role="listitem"
+				>
+					{kickoffAt ? (
+						<time class="upcoming-game__date" datetime={kickoffAt} data-device-time="time">Kickoff time</time>
+					) : (
+						<span class="upcoming-game__date">Kickoff time pending</span>
+					)}
+					<strong>{game.away_team} <i>@</i> {game.home_team}</strong>
+					{getGameBroadcastLabel(game) && <span class="upcoming-game__broadcast">{getGameBroadcastLabel(game)}</span>}
+				</a>
+			);
+		})}
 	</div>
 </section>
 

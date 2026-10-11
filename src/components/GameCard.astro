@@ -1,5 +1,6 @@
 ---
 import { getGameStatus, getGameUpset, type NflGame, type NflTeam } from '../utils/nfl-data';
+import { isAbsoluteTimestamp } from '../utils/local-game-time';
 import TeamMark from './TeamMark.astro';
 
 interface Props {
@@ -14,13 +15,7 @@ const hasScore = typeof game.home_score === 'number' && typeof game.away_score =
 const gameStatus = getGameStatus(game);
 const isFinal = gameStatus === 'Final';
 const upset = getGameUpset(game);
-const gameDate = game.gameday
-	? new Date(`${game.gameday}T12:00:00Z`).toLocaleDateString('en-US', {
-			weekday: 'short',
-			month: 'short',
-			day: 'numeric',
-		})
-	: 'Date pending';
+const kickoffAt = isAbsoluteTimestamp(game.kickoff_at ?? undefined) ? game.kickoff_at : undefined;
 ---
 
 <a
@@ -33,7 +28,14 @@ const gameDate = game.gameday
 >
 	<div class="game-card__meta">
 		<span class="game-card__labels">
-			<span>{gameDate}</span>
+			<span class:list={['game-status', {
+				'game-status--final': isFinal,
+				'game-status--score': gameStatus === 'Score posted',
+				'game-status--pending': gameStatus === 'Result pending',
+			}]}>
+				<span class="game-status__dot" aria-hidden="true"></span>
+				{gameStatus}
+			</span>
 			{upset && (
 				<span class="game-card__upset" title={`${upset.team} won as a ${upset.spread}-point underdog`}>
 					<strong>UPSET WIN</strong>
@@ -41,14 +43,15 @@ const gameDate = game.gameday
 				</span>
 			)}
 		</span>
-		<span class:list={['game-status', {
-			'game-status--final': isFinal,
-			'game-status--score': gameStatus === 'Score posted',
-			'game-status--pending': gameStatus === 'Result pending',
-		}]}>
-			<span class="game-status__dot" aria-hidden="true"></span>
-			{gameStatus}
-		</span>
+		{kickoffAt ? (
+			<time
+				class="game-card__kickoff"
+				datetime={kickoffAt}
+				data-device-time="time"
+			>Kickoff time</time>
+		) : (
+			<span class="game-card__kickoff">Kickoff time pending</span>
+		)}
 	</div>
 	<div class="game-card__team">
 		<TeamMark abbr={game.away_team} conference={awayTeam?.conf} />
@@ -99,9 +102,18 @@ const gameDate = game.gameday
 	}
 
 	.game-card__labels {
-		display: inline-flex;
+		display: flex;
+		min-width: 0;
 		align-items: center;
 		gap: 7px;
+	}
+
+	.game-card__kickoff {
+		margin-left: auto;
+		color: var(--color-muted);
+		font-size: 11px;
+		text-align: right;
+		white-space: nowrap;
 	}
 
 	.game-card__upset {

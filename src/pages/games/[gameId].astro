@@ -12,6 +12,7 @@ import {
 	type NflGame,
 	type NflTeam,
 } from '../../utils/nfl-data';
+import { isAbsoluteTimestamp } from '../../utils/local-game-time';
 
 const gameId = Astro.params.gameId ?? '';
 let gameResult: ApiResult<NflGame> | undefined;
@@ -39,14 +40,8 @@ const awayTeam = teams.find((team) => team.abbr === game?.away_team);
 const hasScore = typeof game?.home_score === 'number' && typeof game.away_score === 'number';
 const gameStatus = game ? getGameStatus(game) : 'Scheduled';
 const isFinal = gameStatus === 'Final';
-const formattedDate = game?.gameday
-	? new Date(`${game.gameday}T12:00:00Z`).toLocaleDateString('en-US', {
-			weekday: 'long',
-			month: 'long',
-			day: 'numeric',
-			year: 'numeric',
-		})
-	: 'Date to be announced';
+const kickoffCandidate = game?.kickoff_at;
+const kickoffAt = isAbsoluteTimestamp(kickoffCandidate ?? undefined) ? kickoffCandidate : undefined;
 ---
 
 <SiteLayout
@@ -61,7 +56,13 @@ const formattedDate = game?.gameday
 			</div>
 			<section class="game-hero">
 				<p class="eyebrow">WEEK {game.week ?? '—'} · {game.season ?? 'NFL'} {game.game_type ?? ''}</p>
-				<p class="game-hero__date">{formattedDate}{game.gametime ? ` · ${game.gametime}` : ''}</p>
+				<p class="game-hero__date">
+					{kickoffAt ? (
+						<time datetime={kickoffAt} data-device-time="time">Kickoff time</time>
+					) : (
+						<>Kickoff time pending</>
+					)}
+				</p>
 				<div class="game-matchup">
 					<a class="game-side" href={awayTeam ? `/teams/${awayTeam.abbr}` : '/teams'}>
 						<TeamMark abbr={game.away_team} conference={awayTeam?.conf} size="large" />

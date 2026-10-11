@@ -1,5 +1,5 @@
 const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
-export const LIVE_SCOREBOARD_CACHE_TTL_MS = 15_000;
+export const LIVE_SCOREBOARD_CACHE_TTL_MS = 10_000;
 export const LIVE_SUMMARY_CACHE_TTL_MS = 60_000;
 const LIVE_REQUEST_TIMEOUT_MS = 8_000;
 const LIVE_WINDOW_BEFORE_MS = 12 * 60 * 60 * 1000;
@@ -7,6 +7,7 @@ const LIVE_WINDOW_AFTER_MS = 8 * 24 * 60 * 60 * 1000;
 
 export type LiveGameState = 'scheduled' | 'in_progress' | 'halftime' | 'final' | 'delayed';
 export type LiveGameNotice = 'flag' | 'under_review';
+export type LiveGameMoment = 'two_minute_warning';
 
 export interface LiveStatAthlete {
 	name: string;
@@ -34,6 +35,7 @@ export interface LiveGame {
 	homeScore: number;
 	awayScore: number;
 	state: LiveGameState;
+	moment: LiveGameMoment | null;
 	status: string;
 	period: number | null;
 	clock: string | null;
@@ -104,6 +106,14 @@ function identifier(value: unknown): string | undefined {
 	return undefined;
 }
 
+function isPositiveAdvance(play: Record<string, unknown>): boolean {
+	const type = isRecord(play.type) ? stringValue(play.type.text) : undefined;
+	const text = stringValue(play.text) ?? '';
+	if (/penalt|no play|incomplete|sack|loss of/i.test(`${type ?? ''} ${text}`)) return false;
+	const yards = text.match(/\bfor\s+(\d+)\s+yards?\b/i);
+	return Boolean(yards && Number(yards[1]) > 0);
+}
+
 function getEventTeams(event: Record<string, unknown>): {
 	homeTeam: string;
 	homeTeamId: string | undefined;
@@ -151,6 +161,30 @@ function classifyState(status: Record<string, unknown>): LiveGameState {
 	return 'scheduled';
 }
 
+function classifyMoment(
+	status: Record<string, unknown>,
+	period: number | undefined,
+	clock: string | undefined,
+	playType: string | undefined,
+	playText: string | undefined,
+): LiveGameMoment | null {
+	const type = isRecord(status.type) ? status.type : {};
+	const statusAndPlayText = [
+		stringValue(status.name),
+		stringValue(status.detail),
+		stringValue(status.description),
+		stringValue(type.name),
+		stringValue(type.detail),
+		stringValue(type.description),
+		playType,
+		playText,
+	].filter(Boolean).join(' ');
+	if (/\b(?:two|2)[ -]minute warning\b/i.test(statusAndPlayText)) return 'two_minute_warning';
+	return (period === 2 || period === 4) && clock?.trim() === '2:00'
+		? 'two_minute_warning'
+		: null;
+}
+
 function classifyLiveNotice(
 	status: Record<string, unknown>,
 	playType: string | undefined,
@@ -183,6 +217,7 @@ function liveFieldDirection(
 	possessionId: string | undefined,
 ): 'left' | 'right' | null {
 	const play = situation && isRecord(situation.lastPlay) ? situation.lastPlay : undefined;
+	if (!play || !isPositiveAdvance(play)) return null;
 	const start = play && isRecord(play.start) ? numberValue(play.start.yardLine) : undefined;
 	const end = play && isRecord(play.end) ? numberValue(play.end.yardLine) : undefined;
 	if (
@@ -200,11 +235,8 @@ function liveFieldDirection(
 	const teamRecord = play && isRecord(play.team) ? play.team : undefined;
 	const startRecord = play && isRecord(play.start) && isRecord(play.start.team) ? play.start.team : undefined;
 	const playTeamId = identifier(teamRecord?.id) ?? identifier(startRecord?.id);
-	if (possessionId && !playTeamId) return null;
+	if (!possessionId || !playTeamId || possessionId !== playTeamId) return null;
 	const playMovesRight = end > start;
-	if (possessionId && playTeamId && possessionId !== playTeamId) {
-		return playMovesRight ? 'left' : 'right';
-	}
 	return playMovesRight ? 'right' : 'left';
 }
 
@@ -222,34 +254,29 @@ function summaryFieldDirection(summary: unknown, possession: string | null): 'le
 
 	const drives = isRecord(summary.drives) ? summary.drives : undefined;
 	const currentDrive = drives && isRecord(drives.current) ? drives.current : undefined;
-	const previousDrives = recordArray(drives?.previous);
-	const playGroups = [currentDrive, ...previousDrives].filter(isRecord);
-	for (const drive of playGroups) {
-		const plays = recordArray(drive.plays);
-		for (let index = plays.length - 1; index >= 0; index -= 1) {
-			const play = plays[index];
-			const start = isRecord(play.start) ? numberValue(play.start.yardLine) : undefined;
-			const end = isRecord(play.end) ? numberValue(play.end.yardLine) : undefined;
-			if (
-				start === undefined ||
-				end === undefined ||
-				!Number.isInteger(start) ||
-				!Number.isInteger(end) ||
-				start < 0 ||
-				start > 100 ||
-				end < 0 ||
-				end > 100 ||
-				start === end
-			) continue;
-			const offense = recordArray(play.teamParticipants).find((participant) => participant.type === 'offense');
-			const offenseId = identifier(offense?.id) ??
-				(isRecord(play.start) && isRecord(play.start.team) ? identifier(play.start.team.id) : undefined);
-			if (!offenseId) continue;
-			const playMovesRight = end > start;
-			return offenseId !== possessionTeamId
-				? playMovesRight ? 'left' : 'right'
-				: playMovesRight ? 'right' : 'left';
-		}
+	if (!currentDrive) return null;
+	const plays = recordArray(currentDrive.plays);
+	for (let index = plays.length - 1; index >= 0; index -= 1) {
+		const play = plays[index];
+		if (!isPositiveAdvance(play)) continue;
+		const start = isRecord(play.start) ? numberValue(play.start.yardLine) : undefined;
+		const end = isRecord(play.end) ? numberValue(play.end.yardLine) : undefined;
+		if (
+			start === undefined ||
+			end === undefined ||
+			!Number.isInteger(start) ||
+			!Number.isInteger(end) ||
+			start < 0 ||
+			start > 100 ||
+			end < 0 ||
+			end > 100 ||
+			start === end
+		) continue;
+		const offense = recordArray(play.teamParticipants).find((participant) => participant.type === 'offense');
+		const offenseId = identifier(offense?.id) ??
+			(isRecord(play.start) && isRecord(play.start.team) ? identifier(play.start.team.id) : undefined);
+		if (!offenseId || offenseId !== possessionTeamId) continue;
+		return end > start ? 'right' : 'left';
 	}
 	return null;
 }
@@ -335,6 +362,7 @@ function parseLiveEvent(event: Record<string, unknown>, now: number): LiveGame |
 		: undefined;
 	const playText = stringValue(lastPlay?.text);
 	const playType = lastPlay && isRecord(lastPlay.type) ? stringValue(lastPlay.type.text) : undefined;
+	const moment = classifyMoment(status, period, clock, playType, playText);
 	const scoreValue = numberValue(lastPlay?.scoreValue) ?? 0;
 	const statusText =
 		stringValue(type.detail) ??
@@ -365,6 +393,7 @@ function parseLiveEvent(event: Record<string, unknown>, now: number): LiveGame |
 		homeScore: match.homeScore,
 		awayScore: match.awayScore,
 		state,
+		moment,
 		status: statusText,
 		period: period ?? null,
 		clock: clock ?? null,

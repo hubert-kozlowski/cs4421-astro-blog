@@ -27,6 +27,7 @@ interface LiveGame {
 	homeScore: number;
 	awayScore: number;
 	state: 'scheduled' | 'in_progress' | 'halftime' | 'final' | 'delayed';
+	moment?: 'two_minute_warning' | null;
 	status: string;
 	period: number | null;
 	clock: string | null;
@@ -54,12 +55,36 @@ const previousStates = new Map<string, {
 	homeScore: number;
 	awayScore: number;
 	lastPlayId: string | null;
-	possession: string | null;
-	direction: 'left' | 'right' | null;
 }>();
-const recentEvents = new Map<string, { title: string; score: string; detail: string; expiresAt: number }>();
+const teamScoringDirections = new Map<string, Map<string, 'left' | 'right'>>();
+const recentEvents = new Map<string, {
+	title: string;
+	score: string;
+	detail: string;
+	scoringTeam?: string;
+	touchdown: boolean;
+	expiresAt: number;
+}>();
+const gameOrderByCenter = new WeakMap<HTMLElement, string[]>();
+const compactGamesByCenter = new WeakMap<HTMLElement, Set<string>>();
+const liveCenterInteractions = new WeakSet<HTMLElement>();
+let suppressedClickRow: HTMLElement | null = null;
+let suppressedClickUntil = 0;
 let pollTimer: number | undefined;
 let polling = false;
+
+interface LiveRowDrag {
+	row: HTMLElement;
+	pointerId: number;
+	startY: number;
+	startX: number;
+	timer: number;
+	dragging: boolean;
+}
+
+function oppositeDirection(direction: 'left' | 'right'): 'left' | 'right' {
+	return direction === 'left' ? 'right' : 'left';
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -98,6 +123,19 @@ function appendText(parent: ParentNode, tag: string, text: string, className?: s
 	return element;
 }
 
+function liveStatusLabel(game: LiveGame): string {
+	if (game.state === 'halftime') return 'HALFTIME';
+	if (game.moment === 'two_minute_warning') {
+		return `TWO-MINUTE WARNING${game.period ? ` · Q${game.period}` : ''}${game.clock ? ` ${game.clock}` : ''}`;
+	}
+	if (game.state === 'in_progress') {
+		return `LIVE${game.period ? ` · Q${game.period}${game.clock ? ` ${game.clock}` : ''}` : ''}`;
+	}
+	if (game.state === 'final') return 'FINAL';
+	if (game.state === 'delayed') return 'DELAYED';
+	return game.status.toUpperCase();
+}
+
 function isRelevantGameForCard(card: HTMLElement, game: LiveGame): boolean {
 	const home = normalizedTeam(card.dataset.liveHome);
 	const away = normalizedTeam(card.dataset.liveAway);
@@ -116,21 +154,162 @@ function gameDetailHref(game: LiveGame): string | undefined {
 	return scheduleCard?.href;
 }
 
+function directLiveRows(list: HTMLElement): HTMLElement[] {
+	return [...list.children].filter((child): child is HTMLElement =>
+		child instanceof HTMLElement && child.classList.contains('live-game-row'),
+	);
+}
+
+function moveLiveRow(center: HTMLElement, row: HTMLElement, destination: number): boolean {
+	const list = center.querySelector<HTMLElement>('[data-live-games-list]');
+	if (!list) return false;
+	const rows = directLiveRows(list);
+	const current = rows.indexOf(row);
+	if (current < 0 || destination < 0 || destination >= rows.length || destination === current) return false;
+	const previousPositions = new Map(rows.map((item) => [item, item.getBoundingClientRect().top]));
+	const remaining = rows.filter((item) => item !== row);
+	const reference = remaining[destination];
+	if (reference) list.insertBefore(row, reference);
+	else list.append(row);
+	for (const item of directLiveRows(list)) {
+		const shift = previousPositions.get(item);
+		if (shift === undefined) continue;
+		const offset = shift - item.getBoundingClientRect().top;
+		if (offset === 0) continue;
+		item.classList.remove('live-game-row--move-animated');
+		item.style.transform = `translateY(${offset}px)`;
+		void item.offsetHeight;
+		requestAnimationFrame(() => {
+			item.classList.add('live-game-row--move-animated');
+			item.style.transform = '';
+			window.setTimeout(() => item.classList.remove('live-game-row--move-animated'), 220);
+		});
+	}
+	gameOrderByCenter.set(center, directLiveRows(list).map((item) => item.dataset.eventId ?? ''));
+	return true;
+}
+
+function announceLiveRowPosition(center: HTMLElement, row: HTMLElement) {
+	const list = center.querySelector<HTMLElement>('[data-live-games-list]');
+	const status = center.querySelector<HTMLElement>('[data-live-reorder-status]');
+	if (!list || !status) return;
+	const position = directLiveRows(list).indexOf(row) + 1;
+	const teams = row.dataset.gameTeams ?? 'Live game';
+	status.textContent = `${teams} moved to position ${position} of ${directLiveRows(list).length}.`;
+}
+
+function startLiveRowDrag(center: HTMLElement, list: HTMLElement) {
+	let drag: LiveRowDrag | undefined;
+	const reorderAt = (clientY: number) => {
+		if (!drag?.dragging) return;
+		const rows = directLiveRows(list).filter((row) => row !== drag?.row);
+		const destination = rows.findIndex((row) =>
+			clientY < row.getBoundingClientRect().top + row.getBoundingClientRect().height / 2,
+		);
+		const targetIndex = destination < 0 ? rows.length : destination;
+		const currentIndex = directLiveRows(list).indexOf(drag.row);
+		if (targetIndex !== currentIndex) moveLiveRow(center, drag.row, targetIndex);
+	};
+	const cancelDrag = () => {
+		if (!drag) return;
+		window.clearTimeout(drag.timer);
+		drag.row.classList.remove('live-game-row--dragging');
+		drag = undefined;
+	};
+	const finishDrag = (event?: PointerEvent) => {
+		if (!drag) return;
+		window.clearTimeout(drag.timer);
+		if (drag.dragging) {
+			if (event?.type === 'pointerup' && event.pointerId === drag.pointerId) reorderAt(event.clientY);
+			drag.row.classList.remove('live-game-row--dragging');
+			suppressedClickRow = drag.row;
+			suppressedClickUntil = Date.now() + 500;
+			announceLiveRowPosition(center, drag.row);
+			window.setTimeout(() => {
+				if (Date.now() >= suppressedClickUntil) suppressedClickRow = null;
+			}, 510);
+		}
+		drag = undefined;
+	};
+
+	list.addEventListener('pointerdown', (event) => {
+		if (event.button !== 0 || !(event.target instanceof Element)) return;
+		if (event.target.closest('.live-game-row__collapse-toggle')) return;
+		const row = event.target.closest<HTMLElement>('.live-game-row');
+		if (!row || !list.contains(row) || !row.classList.contains('live-game-row--draggable')) return;
+		cancelDrag();
+		const pointerId = event.pointerId;
+		drag = {
+			row,
+			pointerId,
+			startY: event.clientY,
+			startX: event.clientX,
+			timer: window.setTimeout(() => {
+				if (!drag || drag.pointerId !== pointerId) return;
+				drag.dragging = true;
+				row.classList.add('live-game-row--dragging');
+			}, 220),
+			dragging: false,
+		};
+	});
+
+	document.addEventListener('pointermove', (event) => {
+		if (!drag || event.pointerId !== drag.pointerId) return;
+		if (!drag.dragging) {
+			if (Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) > 8) cancelDrag();
+			return;
+		}
+		event.preventDefault();
+		reorderAt(event.clientY);
+	}, { passive: false });
+
+	document.addEventListener('pointerup', (event) => finishDrag(event));
+	document.addEventListener('pointercancel', finishDrag);
+	list.addEventListener('click', (event) => {
+		if (!(event.target instanceof Element) || Date.now() > suppressedClickUntil) return;
+		if (event.target.closest('.live-game-row') !== suppressedClickRow) return;
+		event.preventDefault();
+		event.stopPropagation();
+		suppressedClickRow = null;
+	}, true);
+	list.addEventListener('keydown', (event) => {
+		if (!event.altKey || !['ArrowUp', 'ArrowDown'].includes(event.key) || !(event.target instanceof Element)) return;
+		if (event.target.closest('button')) return;
+		const row = event.target.closest<HTMLElement>('.live-game-row--draggable');
+		if (!row) return;
+		const rows = directLiveRows(list);
+		const current = rows.indexOf(row);
+		const destination = current + (event.key === 'ArrowUp' ? -1 : 1);
+		if (moveLiveRow(center, row, destination)) {
+			event.preventDefault();
+			announceLiveRowPosition(center, row);
+		}
+	});
+}
+
+function orderLiveGames(center: HTMLElement, games: LiveGame[]): LiveGame[] {
+	const storedOrder = gameOrderByCenter.get(center) ?? [];
+	const rank = new Map(storedOrder.map((eventId, index) => [eventId, index]));
+	return [...games].sort((left, right) =>
+		(rank.get(left.eventId) ?? Number.MAX_SAFE_INTEGER) - (rank.get(right.eventId) ?? Number.MAX_SAFE_INTEGER),
+	);
+}
+
+function initializeLiveCenter(center: HTMLElement) {
+	if (liveCenterInteractions.has(center)) return;
+	liveCenterInteractions.add(center);
+	compactGamesByCenter.set(center, new Set());
+	const list = center.querySelector<HTMLElement>('[data-live-games-list]');
+	if (center.dataset.liveLayout === 'ticker' && list) startLiveRowDrag(center, list);
+}
+
 function updateScheduleCard(game: LiveGame, changed: boolean) {
 	document.querySelectorAll<HTMLElement>('[data-live-home][data-live-away]').forEach((card) => {
 		if (!isRelevantGameForCard(card, game)) return;
 		const status = card.querySelector<HTMLElement>('.game-status');
 		if (status) {
 			status.classList.remove('game-status--final', 'game-status--score', 'game-status--pending', 'game-status--live');
-			const label = game.state === 'in_progress'
-				? `LIVE${game.period ? ` · Q${game.period}${game.clock ? ` ${game.clock}` : ''}` : ''}`
-				: game.state === 'halftime'
-					? 'HALFTIME'
-					: game.state === 'final'
-						? 'FINAL'
-						: game.state === 'delayed'
-							? 'DELAYED'
-							: game.status.toUpperCase();
+			const label = liveStatusLabel(game);
 			status.textContent = '';
 			if (game.state === 'in_progress' || game.state === 'halftime') {
 				status.classList.add('game-status--live');
@@ -148,7 +327,7 @@ function updateScheduleCard(game: LiveGame, changed: boolean) {
 				if (team === normalizedTeam(game.homeTeam)) score.textContent = String(game.homeScore);
 				if (team === normalizedTeam(game.awayTeam)) score.textContent = String(game.awayScore);
 			});
-			card.setAttribute('aria-label', `${game.awayTeam} ${game.awayScore}, ${game.homeTeam} ${game.homeScore}, ${game.status}`);
+			card.setAttribute('aria-label', `${game.awayTeam} ${game.awayScore}, ${game.homeTeam} ${game.homeScore}, ${liveStatusLabel(game)}`);
 		}
 		if (changed) {
 			card.classList.remove('game-card--live-change');
@@ -186,15 +365,7 @@ function updateGameDetail(game: LiveGame, changed: boolean) {
 	const status = document.querySelector<HTMLElement>('[data-game-live-status]');
 	if (status) {
 		status.classList.remove('game-status--final', 'game-status--score', 'game-status--pending', 'game-status--live');
-		const label = game.state === 'in_progress'
-			? `LIVE${game.period ? ` · Q${game.period}${game.clock ? ` ${game.clock}` : ''}` : ''}`
-			: game.state === 'halftime'
-				? 'HALFTIME'
-				: game.state === 'final'
-					? 'FINAL'
-					: game.state === 'delayed'
-						? 'DELAYED'
-						: game.status.toUpperCase();
+		const label = liveStatusLabel(game);
 		status.replaceChildren();
 		const dot = document.createElement('span');
 		dot.setAttribute('aria-hidden', 'true');
@@ -226,6 +397,7 @@ function appendFieldGraphic(parent: HTMLElement, game: LiveGame, possessionTeam:
 	const svgNamespace = 'http://www.w3.org/2000/svg';
 	const svg = document.createElementNS(svgNamespace, 'svg');
 	svg.setAttribute('class', 'live-game-row__field');
+	svg.id = `live-field-${game.eventId.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
 	svg.setAttribute('viewBox', '0 0 280 40');
 	svg.setAttribute('role', 'img');
 	const offenseYardLine = yardLine === null || direction === null || direction === undefined
@@ -233,8 +405,10 @@ function appendFieldGraphic(parent: HTMLElement, game: LiveGame, possessionTeam:
 		: direction === 'right'
 			? yardLine
 			: 100 - yardLine;
-	const spot = yardLine === null || offenseYardLine === null
+	const spot = yardLine === null
 		? 'provider field position unavailable'
+		: offenseYardLine === null
+			? `provider coordinate ${yardLine} from left goal line`
 		: offenseYardLine === 50
 			? 'midfield'
 			: offenseYardLine === 0
@@ -286,7 +460,7 @@ function appendFieldGraphic(parent: HTMLElement, game: LiveGame, possessionTeam:
 		}
 	}
 
-	if (yardLine !== null && direction) {
+	if (yardLine !== null) {
 		const ballPosition = 20 + yardLine * 2.4;
 		const x = ballPosition.toFixed(1);
 		const ball = appendSvg('circle', {
@@ -296,34 +470,58 @@ function appendFieldGraphic(parent: HTMLElement, game: LiveGame, possessionTeam:
 			class: 'live-game-row__field-ball',
 		});
 		ball.setAttribute('aria-hidden', 'true');
-		const arrowStart = offenseMovesRight
-			? Math.min(ballPosition + 3, 266)
-			: Math.max(ballPosition - 3, 14);
-		const arrowEnd = offenseMovesRight
-			? Math.min(arrowStart + 9, 277)
-			: Math.max(arrowStart - 9, 3);
-		const start = arrowStart.toFixed(1);
-		const end = arrowEnd.toFixed(1);
-		appendSvg('path', {
-			d: offenseMovesRight
-				? `M ${start} 20 H ${end} M ${(arrowEnd - 3).toFixed(1)} 17 L ${end} 20 L ${(arrowEnd - 3).toFixed(1)} 23`
-				: `M ${start} 20 H ${end} M ${(arrowEnd + 3).toFixed(1)} 17 L ${end} 20 L ${(arrowEnd + 3).toFixed(1)} 23`,
-			class: 'live-game-row__field-direction',
-		});
+		if (direction) {
+			const arrowStart = offenseMovesRight
+				? Math.min(ballPosition + 3, 266)
+				: Math.max(ballPosition - 3, 14);
+			const arrowEnd = offenseMovesRight
+				? Math.min(arrowStart + 9, 277)
+				: Math.max(arrowStart - 9, 3);
+			const start = arrowStart.toFixed(1);
+			const end = arrowEnd.toFixed(1);
+			appendSvg('path', {
+				d: offenseMovesRight
+					? `M ${start} 20 H ${end} M ${(arrowEnd - 3).toFixed(1)} 17 L ${end} 20 L ${(arrowEnd - 3).toFixed(1)} 23`
+					: `M ${start} 20 H ${end} M ${(arrowEnd + 3).toFixed(1)} 17 L ${end} 20 L ${(arrowEnd + 3).toFixed(1)} 23`,
+				class: 'live-game-row__field-direction',
+			});
+		}
 	}
 	parent.append(svg);
 }
 
 function renderLiveRow(
+	center: HTMLElement,
 	game: LiveGame,
-	event: { title: string; score: string; detail: string } | undefined,
+	event: {
+		title: string;
+		score: string;
+		detail: string;
+		scoringTeam?: string;
+		touchdown: boolean;
+	} | undefined,
 	scoreChanged: boolean,
 	showField: boolean,
 ): HTMLElement {
 	const detailHref = showField ? gameDetailHref(game) : undefined;
-	const row = document.createElement(detailHref ? 'a' : 'article');
-	if (detailHref && row instanceof HTMLAnchorElement) row.href = detailHref;
+	const row = document.createElement('article');
 	row.className = 'live-game-row';
+	row.dataset.eventId = game.eventId;
+	row.dataset.gameTeams = `${game.awayTeam} at ${game.homeTeam}`;
+	const link = detailHref ? document.createElement('a') : undefined;
+	const content: HTMLElement = link ?? row;
+	if (link && detailHref) {
+		link.href = detailHref;
+		link.className = 'live-game-row__link';
+		row.append(link);
+	}
+	if (showField) {
+		row.classList.add('live-game-row--draggable');
+		const keyboardTarget = link ?? row;
+		if (!link) row.tabIndex = 0;
+		keyboardTarget.setAttribute('aria-keyshortcuts', 'Alt+ArrowUp Alt+ArrowDown');
+		keyboardTarget.setAttribute('aria-description', 'Hold and drag to reorder, or press Alt+ArrowUp or Alt+ArrowDown.');
+	}
 	const possession = game.situation?.possession;
 	const possessionTeam = possessionMatchesTeam(possession, game.awayTeam)
 		? game.awayTeam
@@ -332,11 +530,18 @@ function renderLiveRow(
 			: undefined;
 	if (game.situation?.redZone) row.classList.add('live-game-row--red-zone');
 	const noticeLabel = game.notice === 'under_review' ? 'under review' : game.notice === 'flag' ? 'flag' : '';
-	row.setAttribute(
-		'aria-label',
-		`${game.awayTeam} ${game.awayScore}, ${game.homeTeam} ${game.homeScore}, ${game.status}${possessionTeam ? `, ${possessionTeam} has possession` : ''}${noticeLabel ? `, ${noticeLabel}` : ''}`,
-	);
-	const teams = appendText(row, 'div', '', 'live-game-row__teams');
+	const noticeDetail = game.notice === 'flag' && game.lastPlay?.text
+		? game.lastPlay.text.replace(/^Penalty:\s*/i, '')
+		: '';
+	const phaseLabel = game.state === 'halftime'
+		? 'HALFTIME'
+		: game.moment === 'two_minute_warning'
+			? 'TWO-MINUTE WARNING'
+			: '';
+	const accessibleLabel = `${game.awayTeam} ${game.awayScore}, ${game.homeTeam} ${game.homeScore}, ${liveStatusLabel(game)}${possessionTeam ? `, ${possessionTeam} has possession` : ''}${phaseLabel ? `, ${phaseLabel.toLowerCase()}` : ''}${noticeLabel ? `, ${noticeLabel}${noticeDetail ? `: ${noticeDetail}` : ''}` : ''}`;
+	row.setAttribute('aria-label', accessibleLabel);
+	link?.setAttribute('aria-label', accessibleLabel);
+	const teams = appendText(content, 'div', '', 'live-game-row__teams');
 	const away = appendText(teams, 'strong', game.awayTeam, 'live-game-row__team');
 	if (possessionTeam === game.awayTeam) {
 		away.classList.add('live-game-row__team--possession');
@@ -352,9 +557,12 @@ function renderLiveRow(
 		const accent = teamPalette(game.homeTeam)?.accent;
 		if (accent) home.style.setProperty('--possession-accent', accent);
 	}
-	if (showField) appendFieldGraphic(row, game, possessionTeam);
+	const compactGames = compactGamesByCenter.get(center);
+	const isCompact = compactGames?.has(game.eventId) ?? false;
+	if (isCompact) row.classList.add('live-game-row--compact');
+	if (showField) appendFieldGraphic(content, game, possessionTeam);
 	const score = appendText(
-		row,
+		content,
 		'div',
 		'',
 		`live-game-row__score${scoreChanged ? ' live-game-row__score--changed' : ''}`,
@@ -367,32 +575,103 @@ function renderLiveRow(
 		: game.state === 'final'
 			? 'FINAL'
 			: game.status;
-	appendText(row, 'div', clock, 'live-game-row__clock');
+	appendText(content, 'div', clock, 'live-game-row__clock');
+	const details = appendText(content, 'div', '', 'live-game-row__details');
+	if (phaseLabel) {
+		appendText(
+			details,
+			'div',
+			phaseLabel,
+			`live-game-row__phase${game.state === 'halftime' ? ' live-game-row__phase--halftime' : ''}`,
+		);
+	}
 	if (game.situation?.downDistance) {
 		appendText(
-			row,
+			details,
 			'p',
 			`${game.situation.downDistance}${game.situation.redZone ? ' · RED ZONE' : ''}`,
 			'live-game-row__situation',
 		);
 	}
 	if (event) {
-		const alert = appendText(row, 'div', '', 'live-event-alert');
+		const alert = appendText(
+			details,
+			'div',
+			'',
+			`live-event-alert${event.touchdown ? ' live-event-alert--touchdown' : ''}`,
+		);
+		if (event.scoringTeam) {
+			const accent = teamPalette(event.scoringTeam)?.primary;
+			if (accent) alert.style.setProperty('--scoring-team-accent', accent);
+		}
 		alert.setAttribute('role', 'status');
 		alert.setAttribute('aria-live', 'assertive');
 		appendText(alert, 'strong', event.title, 'live-event-alert__title');
+		if (event.touchdown && event.scoringTeam) {
+			appendText(alert, 'span', `${event.scoringTeam} SCORES`, 'live-event-alert__team');
+		}
 		appendText(alert, 'span', event.score, 'live-event-alert__score');
 		if (event.detail) appendText(alert, 'span', event.detail, 'live-event-alert__detail');
 	}
 	if (game.notice) {
 		const notice = game.notice === 'under_review' ? 'UNDER REVIEW' : 'FLAG';
-		appendText(row, 'div', notice, `live-game-row__notice live-game-row__notice--${game.notice}`);
+		const banner = appendText(
+			details,
+			'div',
+			'',
+			`live-game-row__notice live-game-row__notice--${game.notice}`,
+		);
+		banner.setAttribute('role', 'status');
+		appendText(banner, 'strong', notice, 'live-game-row__notice-label');
+		if (noticeDetail) {
+			appendText(banner, 'span', noticeDetail, 'live-game-row__notice-detail');
+		}
+	}
+	if (showField) {
+		const collapseToggle = document.createElement('button');
+		collapseToggle.className = 'live-game-row__collapse-toggle';
+		collapseToggle.type = 'button';
+		collapseToggle.setAttribute('aria-expanded', String(!isCompact));
+		collapseToggle.setAttribute('aria-controls', `live-field-${game.eventId.replace(/[^a-zA-Z0-9_-]/g, '-')}`);
+		collapseToggle.setAttribute(
+			'aria-label',
+			`${isCompact ? 'Expand' : 'Collapse'} ${game.awayTeam} at ${game.homeTeam} live game details`,
+		);
+		collapseToggle.title = `${isCompact ? 'Expand' : 'Collapse'} this live game card`;
+		const updateCollapseToggle = (compact: boolean) => {
+			const chevron = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+			chevron.setAttribute('viewBox', '0 0 16 16');
+			chevron.setAttribute('aria-hidden', 'true');
+			const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+			path.setAttribute('d', compact ? 'm6 3 5 5-5 5' : 'm3 6 5 5 5-5');
+			chevron.append(path);
+			collapseToggle.replaceChildren(chevron);
+			collapseToggle.setAttribute('aria-expanded', String(!compact));
+			collapseToggle.setAttribute(
+				'aria-label',
+				`${compact ? 'Expand' : 'Collapse'} ${game.awayTeam} at ${game.homeTeam} live game details`,
+			);
+			collapseToggle.title = `${compact ? 'Expand' : 'Collapse'} this live game card`;
+		};
+		updateCollapseToggle(isCompact);
+		collapseToggle.addEventListener('pointerdown', (event) => event.stopPropagation());
+		collapseToggle.addEventListener('click', (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			const compact = compactGames?.has(game.eventId) ?? false;
+			if (compact) compactGames?.delete(game.eventId);
+			else compactGames?.add(game.eventId);
+			row.classList.toggle('live-game-row--compact', !compact);
+			updateCollapseToggle(!compact);
+		});
+		row.append(collapseToggle);
 	}
 	return row;
 }
 
 function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChangedIds: Set<string>) {
 	for (const center of liveCards) {
+		initializeLiveCenter(center);
 		const home = normalizedTeam(center.dataset.gameHome);
 		const away = normalizedTeam(center.dataset.gameAway);
 		const relevant = games.filter((game) => {
@@ -407,13 +686,15 @@ function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChange
 			continue;
 		}
 		const fragment = document.createDocumentFragment();
-		for (const game of relevant) {
+		const orderedGames = orderLiveGames(center, relevant);
+		for (const game of orderedGames) {
 			const recentEvent = recentEvents.get(game.eventId);
 			const event = recentEvent && recentEvent.expiresAt > Date.now()
 				? recentEvent
 				: undefined;
 			fragment.append(
 				renderLiveRow(
+					center,
 					game,
 					event,
 					scoreChangedIds.has(game.eventId),
@@ -515,12 +796,30 @@ async function pollLiveGames() {
 		const scoreChangedIds = new Set<string>();
 		for (const game of result.games) {
 			const previous = previousStates.get(game.eventId);
-			const possession = game.situation?.possession ?? null;
+			const possession = normalizedTeam(game.situation?.possession ?? undefined);
 			let direction = game.situation?.direction ?? null;
-			if (!direction && previous?.direction) {
-				direction = previous.possession !== possession
-					? previous.direction === 'right' ? 'left' : 'right'
-					: previous.direction;
+			if (possession && game.period !== null) {
+				let directions = teamScoringDirections.get(game.eventId);
+				if (!directions) {
+					directions = new Map();
+					teamScoringDirections.set(game.eventId, directions);
+				}
+				if (direction) {
+					if (!directions.has(possession)) {
+						const firstHalfDirection = game.period <= 2 ? direction : oppositeDirection(direction);
+						const otherTeam = normalizedTeam(game.homeTeam) === possession
+							? normalizedTeam(game.awayTeam)
+							: normalizedTeam(game.homeTeam);
+						directions.set(possession, firstHalfDirection);
+						if (!directions.has(otherTeam)) {
+							directions.set(otherTeam, oppositeDirection(firstHalfDirection));
+						}
+					}
+				}
+				const firstHalfDirection = directions.get(possession);
+				direction = firstHalfDirection
+					? game.period <= 2 ? firstHalfDirection : oppositeDirection(firstHalfDirection)
+					: null;
 			}
 			if (game.situation && direction) game.situation.direction = direction;
 			const scoreChanged = previous !== undefined &&
@@ -530,11 +829,21 @@ async function pollLiveGames() {
 				game.lastPlay.id !== previous.lastPlayId;
 			if (scoreChanged) scoreChangedIds.add(game.eventId);
 			if (scoreChanged || newKeyPlay) {
-				const title = scoreChanged
+				const touchdown = scoreChanged &&
+					game.lastPlay?.scoring === true &&
+					/touchdown/i.test(game.lastPlay.text);
+				const scoringTeam = scoreChanged && previous
+					? game.homeScore > previous.homeScore && game.awayScore <= previous.awayScore
+						? game.homeTeam
+						: game.awayScore > previous.awayScore && game.homeScore <= previous.homeScore
+							? game.awayTeam
+							: undefined
+					: undefined;
+				const title = touchdown
+					? 'TOUCHDOWN'
+					: scoreChanged
 					? game.lastPlay?.scoring
-						? /touchdown/i.test(game.lastPlay.text)
-							? 'TOUCHDOWN'
-							: /field goal/i.test(game.lastPlay.text)
+						? /field goal/i.test(game.lastPlay.text)
 								? 'FIELD GOAL'
 								: /safety/i.test(game.lastPlay.text)
 									? 'SAFETY'
@@ -545,6 +854,8 @@ async function pollLiveGames() {
 					title,
 					score: `${game.awayTeam} ${game.awayScore} – ${game.homeTeam} ${game.homeScore}`,
 					detail: game.lastPlay?.keyAction ? game.lastPlay.text : '',
+					scoringTeam,
+					touchdown,
 					expiresAt: Date.now() + 12_000,
 				});
 				eventIds.add(game.eventId);
@@ -553,8 +864,6 @@ async function pollLiveGames() {
 				homeScore: game.homeScore,
 				awayScore: game.awayScore,
 				lastPlayId: game.lastPlay?.id ?? null,
-				possession,
-				direction,
 			});
 			updateScheduleCard(game, scoreChanged || newKeyPlay);
 			updateGameDetail(game, scoreChanged);
@@ -592,6 +901,7 @@ async function pollLiveGames() {
 }
 
 if (liveCards.length > 0) {
+	liveCards.forEach(initializeLiveCenter);
 	void pollLiveGames();
 	document.addEventListener('visibilitychange', () => {
 		if (document.visibilityState === 'visible') {

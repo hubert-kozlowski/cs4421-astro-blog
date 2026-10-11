@@ -107,7 +107,7 @@ describe('getLiveGames', () => {
 			}],
 		});
 
-		expect(LIVE_SCOREBOARD_CACHE_TTL_MS).toBe(15_000);
+		expect(LIVE_SCOREBOARD_CACHE_TTL_MS).toBe(10_000);
 		expect(LIVE_SUMMARY_CACHE_TTL_MS).toBe(60_000);
 		expect(fetchMock).toHaveBeenCalledTimes(4);
 
@@ -121,6 +121,52 @@ describe('getLiveGames', () => {
 		vi.setSystemTime(new Date(date.getTime() + LIVE_SUMMARY_CACHE_TTL_MS + 1));
 		await getLiveGames(date);
 		expect(fetchMock).toHaveBeenCalledTimes(11);
+	});
+
+	it('identifies the two-minute warning from ESPN status, play text, or the period clock', async () => {
+		const date = new Date('2033-01-15T18:00:00.000Z');
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(date);
+		const makeEvent = (id: string, statusDetail: string, clock: string, playText?: string) => ({
+			id,
+			date: '2033-01-15T20:00:00.000Z',
+			competitions: [{
+				date: '2033-01-15T20:00:00.000Z',
+				status: {
+					type: { name: 'STATUS_IN_PROGRESS', state: 'in', detail: statusDetail },
+					period: 2,
+					displayClock: clock,
+				},
+				competitors: [
+					{ homeAway: 'home', score: '7', team: { abbreviation: 'KC' } },
+					{ homeAway: 'away', score: '3', team: { abbreviation: 'BUF' } },
+				],
+				situation: playText ? { lastPlay: { text: playText } } : {},
+			}],
+		});
+		const events = [
+			makeEvent('warning-status', 'Two-Minute Warning', '1:58'),
+			makeEvent('warning-play', '2nd Quarter', '1:58', 'Two-minute warning'),
+			makeEvent('warning-clock', '2nd Quarter', '2:00'),
+			makeEvent('ordinary-clock', '2nd Quarter', '1:59'),
+		];
+		vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input.toString());
+			if (url.pathname.endsWith('/scoreboard')) {
+				return new Response(JSON.stringify({
+					events: url.searchParams.get('dates') === '20330115' ? events : [],
+				}));
+			}
+			return new Response(JSON.stringify({ boxscore: {} }));
+		}));
+
+		const result = await getLiveGames(date);
+		expect(result.games.map((game) => game.moment)).toEqual([
+			'two_minute_warning',
+			'two_minute_warning',
+			'two_minute_warning',
+			null,
+		]);
 	});
 
 	it('uses ESPN possession team IDs instead of the yard-line team in possessionText', async () => {
@@ -193,7 +239,7 @@ describe('getLiveGames', () => {
 					yardLine: end,
 					lastPlay: {
 						id: `${id}-play`,
-						text: 'Live play',
+						text: 'Rush for 18 yards',
 						team: { id: playTeam },
 						start: { yardLine: start, team: { id: playTeam } },
 						end: { yardLine: end, team: { id: possession } },
@@ -216,7 +262,7 @@ describe('getLiveGames', () => {
 		}));
 
 		const result = await getLiveGames(date);
-		expect(result.games.map((game) => game.situation?.direction)).toEqual(['left', 'left']);
+		expect(result.games.map((game) => game.situation?.direction)).toEqual(['left', null]);
 	});
 
 	it('uses the recent drive movement when the latest scoreboard play did not advance', async () => {
@@ -265,6 +311,7 @@ describe('getLiveGames', () => {
 				drives: {
 					current: {
 						plays: [{
+							text: 'Rush for 2 yards',
 							start: { yardLine: 56, team: { id: '21' } },
 							end: { yardLine: 54, team: { id: '21' } },
 							teamParticipants: [{ id: '21', type: 'offense' }],
@@ -277,6 +324,130 @@ describe('getLiveGames', () => {
 
 		const result = await getLiveGames(date);
 		expect(result.games[0]?.situation?.direction).toBe('left');
+	});
+
+	it('does not let a penalty spot-backward establish the offense scoring direction', async () => {
+		const date = new Date('2039-01-08T18:00:00.000Z');
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(date);
+		const event = {
+			id: 'penalty-does-not-reverse-scoring-direction',
+			date: '2039-01-08T20:00:00.000Z',
+			competitions: [{
+				date: '2039-01-08T20:00:00.000Z',
+				status: { type: { name: 'STATUS_IN_PROGRESS', state: 'in' } },
+				competitors: [
+					{ id: '30', homeAway: 'home', score: '10', team: { abbreviation: 'JAX' } },
+					{ id: '21', homeAway: 'away', score: '14', team: { abbreviation: 'PHI' } },
+				],
+				situation: {
+					possession: '30',
+					yardLine: 52,
+					lastPlay: {
+						id: 'holding-penalty',
+						text: 'Penalty: Holding on offense',
+						type: { text: 'Penalty' },
+						team: { id: '30' },
+						start: { yardLine: 57, team: { id: '30' } },
+						end: { yardLine: 52, team: { id: '30' } },
+					},
+				},
+			}],
+		};
+		vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input.toString());
+			if (url.pathname.endsWith('/scoreboard')) {
+				return new Response(JSON.stringify({
+					events: url.searchParams.get('dates') === '20390108' ? [event] : [],
+				}));
+			}
+			return new Response(JSON.stringify({
+				header: {
+					competitions: [{
+						competitors: [
+							{ id: '30', team: { abbreviation: 'JAX' } },
+							{ id: '21', team: { abbreviation: 'PHI' } },
+						],
+					}],
+				},
+				drives: {
+					current: {
+						plays: [{
+							text: 'Penalty: Holding on offense',
+							type: { text: 'Penalty' },
+							start: { yardLine: 57, team: { id: '30' } },
+							end: { yardLine: 52, team: { id: '30' } },
+							teamParticipants: [{ id: '30', type: 'offense' }],
+						}],
+					},
+				},
+				boxscore: {},
+			}));
+		}));
+
+		const result = await getLiveGames(date);
+		expect(result.games[0]?.situation?.direction).toBeNull();
+	});
+
+	it('does not infer current direction from a previous drive after the current drive is unknown', async () => {
+		const date = new Date('2038-01-08T18:00:00.000Z');
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(date);
+		const event = {
+			id: 'unknown-current-drive-direction',
+			date: '2038-01-08T20:00:00.000Z',
+			competitions: [{
+				date: '2038-01-08T20:00:00.000Z',
+				status: { type: { name: 'STATUS_IN_PROGRESS', state: 'in' } },
+				competitors: [
+					{ id: '30', homeAway: 'home', score: '10', team: { abbreviation: 'JAX' } },
+					{ id: '21', homeAway: 'away', score: '14', team: { abbreviation: 'PHI' } },
+				],
+				situation: {
+					possession: '21',
+					yardLine: 54,
+					lastPlay: {
+						id: 'incomplete',
+						text: 'Pass incomplete',
+						team: { id: '21' },
+						start: { yardLine: 54, team: { id: '21' } },
+						end: { yardLine: 54, team: { id: '21' } },
+					},
+				},
+			}],
+		};
+		vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input.toString());
+			if (url.pathname.endsWith('/scoreboard')) {
+				return new Response(JSON.stringify({
+					events: url.searchParams.get('dates') === '20380108' ? [event] : [],
+				}));
+			}
+			return new Response(JSON.stringify({
+				header: {
+					competitions: [{
+						competitors: [
+							{ id: '30', team: { abbreviation: 'JAX' } },
+							{ id: '21', team: { abbreviation: 'PHI' } },
+						],
+					}],
+				},
+				drives: {
+					current: { plays: [] },
+					previous: [{
+						plays: [{
+							start: { yardLine: 56, team: { id: '21' } },
+							end: { yardLine: 54, team: { id: '21' } },
+							teamParticipants: [{ id: '21', type: 'offense' }],
+						}],
+					}],
+				},
+				boxscore: {},
+			}));
+		}));
+
+		const result = await getLiveGames(date);
+		expect(result.games[0]?.situation?.direction).toBeNull();
 	});
 
 	it('marks explicit penalties and replay reviews without flagging ordinary plays', async () => {

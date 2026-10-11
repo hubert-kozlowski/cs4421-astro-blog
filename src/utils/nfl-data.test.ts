@@ -19,6 +19,7 @@ import {
 	type NflTeam,
 } from './nfl-data';
 import { TEAM_COLORS, teamPalette } from './team-colors';
+import { formatLocalGameTime, isAbsoluteTimestamp } from './local-game-time';
 
 const teams: NflTeam[] = [
 	{ abbr: 'BUF', name: 'Buffalo Bills', conf: 'AFC', division: 'AFC East' },
@@ -200,6 +201,71 @@ describe('NFL season data helpers', () => {
 			home_score: 16,
 			away_score: 24,
 		});
+	});
+
+	it('uses only an absolute provider timestamp for kickoff time', () => {
+		const game = {
+			...games[0],
+			gameday: '2026-10-08',
+			kickoff_at: null,
+		};
+		const validScoreboard = {
+			events: [
+				{
+					date: '2026-10-09T00:15:00Z',
+					competitions: [
+						{
+							date: '2026-10-09T00:15:00Z',
+							status: { type: { completed: false, name: 'STATUS_SCHEDULED' } },
+							competitors: [
+								{ team: { abbreviation: 'KC' }, score: '0', homeAway: 'home' },
+								{ team: { abbreviation: 'BUF' }, score: '0', homeAway: 'away' },
+							],
+						},
+					],
+				},
+			],
+		};
+		const invalidScoreboard = {
+			events: [
+				{
+					date: '2026-10-09',
+					competitions: [
+						{
+							date: '2026-10-09 00:15',
+							status: { type: { completed: false, name: 'STATUS_SCHEDULED' } },
+							competitors: [
+								{ team: { abbreviation: 'KC' }, score: '0', homeAway: 'home' },
+								{ team: { abbreviation: 'BUF' }, score: '0', homeAway: 'away' },
+							],
+						},
+					],
+				},
+			],
+		};
+
+		expect(mergeEspnFinalScores([game], validScoreboard)[0]?.kickoff_at).toBe('2026-10-09T00:15:00Z');
+		expect(mergeEspnFinalScores([game], invalidScoreboard)[0]?.kickoff_at).toBeNull();
+		expect(isAbsoluteTimestamp('2026-10-09T00:15:00Z')).toBe(true);
+		expect(isAbsoluteTimestamp('2026-10-09 00:15')).toBe(false);
+		expect(isAbsoluteTimestamp(undefined)).toBe(false);
+	});
+
+	it('formats kickoff time in the requested device timezone across local date boundaries', () => {
+		const timezone = 'America/Los_Angeles';
+		const kickoff = '2026-10-12T00:30:00Z';
+		const expectedLocalTime = new Intl.DateTimeFormat(undefined, {
+			timeZone: timezone,
+			hour: 'numeric',
+			minute: '2-digit',
+		}).format(new Date(kickoff));
+		const localTime = formatLocalGameTime(kickoff, timezone);
+
+		expect(localTime).toBe(expectedLocalTime);
+		expect(localTime).not.toMatch(/Oct|Sun|GMT|UTC|EDT|EST|PDT|PST/);
+		expect(() => formatLocalGameTime('2026-10-12 00:30', timezone)).toThrow(
+			'Invalid absolute game kickoff timestamp.',
+		);
 	});
 
 	it('does not apply scores from unfinished or mismatched games', () => {

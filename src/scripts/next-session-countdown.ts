@@ -1,3 +1,5 @@
+import { formatLocalGameTime } from '../utils/local-game-time';
+
 interface CountdownSession {
 	kickoffAt: string;
 	matchups: string[];
@@ -53,11 +55,7 @@ document.querySelectorAll<HTMLElement>('[data-next-session]').forEach((element) 
 		const seconds = Math.floor((remaining % 60_000) / 1000);
 		const clock = [totalHours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
 		countdown.textContent = clock;
-		kickoffTime.textContent = new Date(next.kickoffAt).toLocaleString(undefined, {
-			weekday: 'short',
-			hour: 'numeric',
-			minute: '2-digit',
-		});
+		kickoffTime.textContent = formatLocalGameTime(next.kickoffAt);
 		kickoffTime.dateTime = next.kickoffAt;
 		matchups.textContent = next.matchups.join(' · ');
 	};

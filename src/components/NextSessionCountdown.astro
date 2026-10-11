@@ -1,5 +1,6 @@
 ---
 import type { NflGame } from '../utils/nfl-data';
+import { isAbsoluteTimestamp } from '../utils/local-game-time';
 
 interface Props {
 	games: NflGame[];
@@ -8,11 +9,12 @@ interface Props {
 const { games } = Astro.props;
 const sessionsByKickoff = new Map<string, string[]>();
 for (const game of games) {
-	if (!game.kickoff_at) continue;
+	const kickoffAt = game.kickoff_at ?? undefined;
+	if (!isAbsoluteTimestamp(kickoffAt)) continue;
 	const teams = `${game.away_team ?? 'Away'} @ ${game.home_team ?? 'Home'}`;
-	const teamsAtKickoff = sessionsByKickoff.get(game.kickoff_at) ?? [];
+	const teamsAtKickoff = sessionsByKickoff.get(kickoffAt) ?? [];
 	teamsAtKickoff.push(teams);
-	sessionsByKickoff.set(game.kickoff_at, teamsAtKickoff);
+	sessionsByKickoff.set(kickoffAt, teamsAtKickoff);
 }
 
 const sessions = [...sessionsByKickoff]
@@ -43,12 +45,7 @@ const initialCountdown = [
 		<div class="next-session__timing" data-next-session data-sessions={JSON.stringify(sessions)}>
 			<strong class="next-session__countdown" data-countdown>{initialCountdown}</strong>
 			<span class="next-session__details">
-				<time data-kickoff-time datetime={firstSession.kickoffAt}>
-					{new Date(firstSession.kickoffAt).toLocaleTimeString('en-US', {
-						hour: 'numeric',
-						minute: '2-digit',
-					})}
-				</time>
+				<time data-kickoff-time data-device-time="time" datetime={firstSession.kickoffAt}>Kickoff time</time>
 				<span> · </span>
 				<span data-session-matchups>
 					{firstSession.matchups.length} game{firstSession.matchups.length === 1 ? '' : 's'}

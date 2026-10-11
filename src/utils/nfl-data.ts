@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { isAbsoluteTimestamp } from './local-game-time';
 
 const API_BASE_URL = 'https://api.nfldata.org/v1';
 const ESPN_SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
@@ -178,6 +179,10 @@ function isNullableString(value: unknown): value is string | null {
 
 function isNullableNumber(value: unknown): value is number | null {
 	return value === null || (typeof value === 'number' && Number.isFinite(value));
+}
+
+function isAbsoluteDateTime(value: string | undefined): value is string {
+	return isAbsoluteTimestamp(value);
 }
 
 function isGame(value: unknown): value is NflGame {
@@ -538,15 +543,19 @@ export function mergeEspnFinalScores(games: NflGame[], scoreboard: unknown): Nfl
 				) {
 					continue;
 				}
-				const kickoffAt = competition.date ?? event.date;
+				const kickoffAt = isAbsoluteDateTime(competition.date)
+					? competition.date
+					: isAbsoluteDateTime(event.date)
+						? event.date
+						: undefined;
 				if (typeof game.home_score === 'number' || typeof game.away_score === 'number') {
-					return { ...game, kickoff_at: kickoffAt };
+					return kickoffAt ? { ...game, kickoff_at: kickoffAt } : game;
 				}
 				if (
 					competition.status?.type?.completed !== true &&
 					competition.status?.type?.name !== 'STATUS_FINAL'
 				) {
-					return { ...game, kickoff_at: kickoffAt };
+					return kickoffAt ? { ...game, kickoff_at: kickoffAt } : game;
 				}
 				const homeScore = Number(home?.score);
 				const awayScore = Number(away?.score);
@@ -558,9 +567,14 @@ export function mergeEspnFinalScores(games: NflGame[], scoreboard: unknown): Nfl
 					homeScore >= 0 &&
 					awayScore >= 0
 				) {
-					return { ...game, home_score: homeScore, away_score: awayScore, kickoff_at: kickoffAt };
+					return {
+						...game,
+						home_score: homeScore,
+						away_score: awayScore,
+						...(kickoffAt ? { kickoff_at: kickoffAt } : {}),
+					};
 				}
-				return { ...game, kickoff_at: kickoffAt };
+				return kickoffAt ? { ...game, kickoff_at: kickoffAt } : game;
 			}
 		}
 		return game;
@@ -581,6 +595,7 @@ async function getEspnScoreboard(gameday: string): Promise<ApiResult<EspnScorebo
 async function enrichGames(
 	games: NflGame[],
 	baseResult: ApiResult<unknown>,
+	includeUpcomingGameDate = false,
 ): Promise<ApiResult<NflGame[]>> {
 	const today = new Date().toISOString().slice(0, 10);
 	const missingPastGames = games.filter(
@@ -592,7 +607,9 @@ async function enrichGames(
 	const now = Date.now();
 	const kickoffDays = games
 		.filter((game) => game.game_type === 'REG' && game.gameday && game.gameday >= today)
-		.filter((game) => Date.parse(`${game.gameday}T00:00:00Z`) <= now + 8 * 86_400_000)
+		.filter((game) =>
+			includeUpcomingGameDate || Date.parse(`${game.gameday}T00:00:00Z`) <= now + 8 * 86_400_000,
+		)
 		.flatMap((game) => (game.gameday ? [game.gameday] : []));
 	const gamedays = [
 		...new Set([
@@ -653,7 +670,7 @@ async function enrichGameResults(
 }
 
 async function enrichSingleGame(result: ApiResult<NflGame>): Promise<ApiResult<NflGame>> {
-	const enriched = await enrichGames([result.value], result);
+	const enriched = await enrichGames([result.value], result, true);
 	return { ...result, value: enriched.value[0]!, fetchedAt: enriched.fetchedAt, stale: enriched.stale };
 }
 
@@ -911,7 +928,10 @@ export function getCountdownGames(games: NflGame[], date = new Date(), days = 8)
 	const end = now + Math.max(0, days) * 86_400_000;
 	return games
 		.filter((game) => {
-			const kickoff = game.kickoff_at ? Date.parse(game.kickoff_at) : Number.NaN;
+			const kickoffAt = game.kickoff_at ?? undefined;
+			const kickoff = isAbsoluteDateTime(kickoffAt)
+				? Date.parse(kickoffAt)
+				: Number.NaN;
 			const hasFinalScore =
 				typeof game.home_score === 'number' &&
 				typeof game.away_score === 'number' &&
