@@ -3,8 +3,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isAbsoluteTimestamp } from './local-game-time';
 
-const API_BASE_URL = 'https://api.nfldata.org/v1';
-const ESPN_SCOREBOARD_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
+const API_BASE_URL = process.env.NFL_DATA_API_BASE_URL ?? 'https://api.nfldata.org/v1';
+const ESPN_SCOREBOARD_URL =
+	process.env.NFL_ESPN_SCOREBOARD_URL ?? 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard';
 const CACHE_TTL_MS = 15 * 60 * 1000;
 const METADATA_TTL_MS = 24 * 60 * 60 * 1000;
 const SCOREBOARD_TTL_MS = 15 * 60 * 1000;

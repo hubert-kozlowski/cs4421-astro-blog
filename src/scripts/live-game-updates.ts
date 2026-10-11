@@ -499,6 +499,7 @@ function renderLiveRow(
 		detail: string;
 		scoringTeam?: string;
 		touchdown: boolean;
+		announce: boolean;
 	} | undefined,
 	scoreChanged: boolean,
 	showField: boolean,
@@ -510,6 +511,16 @@ function renderLiveRow(
 	row.dataset.gameTeams = `${game.awayTeam} at ${game.homeTeam}`;
 	const link = detailHref ? document.createElement('a') : undefined;
 	const content: HTMLElement = link ?? row;
+	if (game.notice) row.dataset.hasNotice = 'true';
+	if (event) row.dataset.hasEvent = 'true';
+	if (
+		game.situation?.downDistance ||
+		game.state === 'halftime' ||
+		game.state === 'final' ||
+		game.moment === 'two_minute_warning'
+	) {
+		row.dataset.hasContext = 'true';
+	}
 	if (link && detailHref) {
 		link.href = detailHref;
 		link.className = 'live-game-row__link';
@@ -577,9 +588,10 @@ function renderLiveRow(
 			: game.status;
 	appendText(content, 'div', clock, 'live-game-row__clock');
 	const details = appendText(content, 'div', '', 'live-game-row__details');
+	const context = appendText(details, 'div', '', 'live-game-row__context');
 	if (phaseLabel) {
 		appendText(
-			details,
+			context,
 			'div',
 			phaseLabel,
 			`live-game-row__phase${game.state === 'halftime' ? ' live-game-row__phase--halftime' : ''}`,
@@ -587,25 +599,26 @@ function renderLiveRow(
 	}
 	if (game.situation?.downDistance) {
 		appendText(
-			details,
+			context,
 			'p',
 			`${game.situation.downDistance}${game.situation.redZone ? ' · RED ZONE' : ''}`,
 			'live-game-row__situation',
 		);
 	}
+	if (!context.childElementCount) context.remove();
 	if (event) {
 		const alert = appendText(
 			details,
 			'div',
 			'',
-			`live-event-alert${event.touchdown ? ' live-event-alert--touchdown' : ''}`,
+			`live-event-alert${event.touchdown ? ' live-event-alert--touchdown' : ''}${event.announce ? ' live-event-alert--new' : ''}`,
 		);
 		if (event.scoringTeam) {
 			const accent = teamPalette(event.scoringTeam)?.primary;
 			if (accent) alert.style.setProperty('--scoring-team-accent', accent);
 		}
 		alert.setAttribute('role', 'status');
-		alert.setAttribute('aria-live', 'assertive');
+		alert.setAttribute('aria-live', event.announce ? 'assertive' : 'off');
 		appendText(alert, 'strong', event.title, 'live-event-alert__title');
 		if (event.touchdown && event.scoringTeam) {
 			appendText(alert, 'span', `${event.scoringTeam} SCORES`, 'live-event-alert__team');
@@ -690,7 +703,7 @@ function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChange
 		for (const game of orderedGames) {
 			const recentEvent = recentEvents.get(game.eventId);
 			const event = recentEvent && recentEvent.expiresAt > Date.now()
-				? recentEvent
+				? { ...recentEvent, announce: eventIds.has(game.eventId) }
 				: undefined;
 			fragment.append(
 				renderLiveRow(
@@ -703,7 +716,7 @@ function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChange
 			);
 		}
 		list.replaceChildren(fragment);
-		center.setAttribute('aria-live', eventIds.size > 0 ? 'polite' : 'off');
+		center.setAttribute('aria-live', 'off');
 	}
 }
 

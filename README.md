@@ -53,8 +53,11 @@ The local site is available at <http://localhost:4321>. Useful project commands:
 | `npm run check` | Type-check with Astro |
 | `npm run lint` | Run ESLint |
 | `npm run test:unit` | Run unit tests |
+| `npm run test:e2e` | Run Playwright tests against a local NFL API fixture |
 | `npm run build` | Build the production application |
 | `npm run preview` | Preview the production build |
+
+Playwright starts an isolated local fixture server for NFL and ESPN data, so browser tests are repeatable and do not depend on external provider availability.
 
 ## Docker
 

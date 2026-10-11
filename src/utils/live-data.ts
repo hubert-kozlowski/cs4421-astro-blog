@@ -1,4 +1,5 @@
-const ESPN_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
+const ESPN_BASE_URL =
+	process.env.NFL_LIVE_ESPN_BASE_URL ?? 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
 export const LIVE_SCOREBOARD_CACHE_TTL_MS = 10_000;
 export const LIVE_SUMMARY_CACHE_TTL_MS = 60_000;
 const LIVE_REQUEST_TIMEOUT_MS = 8_000;
