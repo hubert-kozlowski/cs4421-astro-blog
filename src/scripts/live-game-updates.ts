@@ -1,3 +1,4 @@
+import { animate } from 'motion';
 import { getLivePollInterval } from '../utils/live-update-policy';
 import { teamPalette } from '../utils/team-colors';
 
@@ -72,6 +73,58 @@ let suppressedClickRow: HTMLElement | null = null;
 let suppressedClickUntil = 0;
 let pollTimer: number | undefined;
 let polling = false;
+
+function animateTouchdown(row: HTMLElement) {
+	if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		delete row.dataset.touchdownMotion;
+		return;
+	}
+
+	const alert = row.querySelector<HTMLElement>('.live-event-alert--touchdown');
+	if (!alert) return;
+
+	row.dataset.touchdownMotion = 'impact';
+	const impact = animate(
+		alert,
+		{ opacity: [0, 1], y: [10, 0], scale: [0.93, 1] },
+		{ type: 'spring', stiffness: 390, damping: 24 },
+	);
+
+	void impact.finished.then(() => {
+		if (!row.isConnected || row.dataset.touchdownMotion !== 'impact') return;
+		row.dataset.touchdownMotion = 'score-reveal';
+
+		const scoringTeam = row.dataset.scoringTeam;
+		const scoringValue = scoringTeam
+			? [...row.querySelectorAll<HTMLElement>('[data-score-team]')]
+				.find((score) => score.dataset.scoreTeam === scoringTeam)
+			: undefined;
+		const accent = scoringTeam ? teamPalette(scoringTeam)?.primary : undefined;
+		if (scoringValue) {
+			const originalColor = getComputedStyle(scoringValue).color;
+			animate(
+				scoringValue,
+				{ scale: [1, 1.38, 1], color: accent ? [accent, originalColor] : ['#b52f3b', originalColor] },
+				{ type: 'spring', stiffness: 420, damping: 19 },
+			);
+		}
+
+		const detailScore = [...document.querySelectorAll<HTMLElement>('[data-live-game-score][data-touchdown-event-id]')]
+			.find((score) => score.dataset.touchdownEventId === row.dataset.eventId);
+		if (detailScore) {
+			const detailValue = [...detailScore.querySelectorAll<HTMLElement>('[data-score-team]')]
+				.find((score) => score.dataset.scoreTeam === scoringTeam);
+			if (detailValue) {
+				const originalColor = getComputedStyle(detailValue).color;
+				animate(
+					detailValue,
+					{ scale: [1, 1.32, 1], color: accent ? [accent, originalColor] : ['#b52f3b', originalColor] },
+					{ type: 'spring', stiffness: 390, damping: 20 },
+				);
+			}
+		}
+	});
+}
 
 interface LiveRowDrag {
 	row: HTMLElement;
@@ -338,7 +391,7 @@ function updateScheduleCard(game: LiveGame, changed: boolean) {
 	});
 }
 
-function updateGameDetail(game: LiveGame, changed: boolean) {
+function updateGameDetail(game: LiveGame, changed: boolean, touchdown: boolean, scoringTeam?: string) {
 	const scoreboard = document.querySelector<HTMLElement>('[data-detail-home][data-detail-away]');
 	if (
 		!scoreboard ||
@@ -351,10 +404,18 @@ function updateGameDetail(game: LiveGame, changed: boolean) {
 	const score = scoreboard.querySelector<HTMLElement>('[data-live-game-score]');
 	if (score && (game.state === 'in_progress' || game.state === 'halftime' || game.state === 'final')) {
 		score.classList.remove('game-score__versus');
+		score.classList.toggle('live-score--touchdown', touchdown);
+		delete score.dataset.touchdownEventId;
 		score.replaceChildren();
-		appendText(score, 'span', String(game.awayScore), 'live-score__value');
+		const awayScore = appendText(score, 'span', String(game.awayScore), 'live-score__value');
+		awayScore.dataset.scoreTeam = game.awayTeam;
 		appendText(score, 'i', '–');
-		appendText(score, 'span', String(game.homeScore), 'live-score__value');
+		const homeScore = appendText(score, 'span', String(game.homeScore), 'live-score__value');
+		homeScore.dataset.scoreTeam = game.homeTeam;
+		if (touchdown && scoringTeam) {
+			score.dataset.touchdownEventId = game.eventId;
+			score.dataset.touchdownScoringTeam = scoringTeam;
+		}
 		if (changed) {
 			score.classList.remove('live-score--changed');
 			void score.offsetWidth;
@@ -600,11 +661,13 @@ function renderLiveRow(
 		content,
 		'div',
 		'',
-		`live-game-row__score${scoreChanged ? ' live-game-row__score--changed' : ''}`,
+		`live-game-row__score${event?.touchdown ? ' live-game-row__score--touchdown' : scoreChanged ? ' live-game-row__score--changed' : ''}`,
 	);
-	appendText(score, 'strong', String(game.awayScore));
+	const awayScore = appendText(score, 'strong', String(game.awayScore));
+	awayScore.dataset.scoreTeam = game.awayTeam;
 	appendText(score, 'span', '–');
-	appendText(score, 'strong', String(game.homeScore));
+	const homeScore = appendText(score, 'strong', String(game.homeScore));
+	homeScore.dataset.scoreTeam = game.homeTeam;
 	const clock = game.state === 'in_progress' || game.state === 'halftime'
 		? `${game.state === 'halftime' ? 'HALFTIME' : game.period ? `Q${game.period}` : 'LIVE'}${game.clock && game.state === 'in_progress' ? ` · ${game.clock}` : ''}`
 		: game.state === 'final'
@@ -631,6 +694,10 @@ function renderLiveRow(
 	}
 	if (!context.childElementCount) context.remove();
 	if (event) {
+		if (event.touchdown) {
+			row.dataset.scoringTeam = event.scoringTeam ?? '';
+			if (event.announce) row.dataset.touchdownMotion = 'pending';
+		}
 		const alert = appendText(
 			details,
 			'div',
@@ -740,6 +807,7 @@ function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChange
 			);
 		}
 		list.replaceChildren(fragment);
+		list.querySelectorAll<HTMLElement>('[data-touchdown-motion="pending"]').forEach(animateTouchdown);
 		center.setAttribute('aria-live', 'off');
 	}
 }
@@ -880,17 +948,17 @@ async function pollLiveGames() {
 				game.lastPlay?.keyAction === true &&
 				game.lastPlay.id !== previous.lastPlayId;
 			if (scoreChanged) scoreChangedIds.add(game.eventId);
+			const touchdown = scoreChanged &&
+				game.lastPlay?.scoring === true &&
+				/\btouchdown\b/i.test(game.lastPlay.text);
+			const scoringTeam = scoreChanged && previous
+				? game.homeScore > previous.homeScore && game.awayScore <= previous.awayScore
+					? game.homeTeam
+					: game.awayScore > previous.awayScore && game.homeScore <= previous.homeScore
+						? game.awayTeam
+						: undefined
+				: undefined;
 			if (scoreChanged || newKeyPlay) {
-				const touchdown = scoreChanged &&
-					game.lastPlay?.scoring === true &&
-					/touchdown/i.test(game.lastPlay.text);
-				const scoringTeam = scoreChanged && previous
-					? game.homeScore > previous.homeScore && game.awayScore <= previous.awayScore
-						? game.homeTeam
-						: game.awayScore > previous.awayScore && game.homeScore <= previous.homeScore
-							? game.awayTeam
-							: undefined
-					: undefined;
 				const title = touchdown
 					? 'TOUCHDOWN'
 					: scoreChanged
@@ -918,7 +986,7 @@ async function pollLiveGames() {
 				lastPlayId: game.lastPlay?.id ?? null,
 			});
 			updateScheduleCard(game, scoreChanged || newKeyPlay);
-			updateGameDetail(game, scoreChanged);
+			updateGameDetail(game, scoreChanged, touchdown, scoringTeam);
 			renderBoxScore(game);
 		}
 		for (const [eventId, event] of recentEvents) {

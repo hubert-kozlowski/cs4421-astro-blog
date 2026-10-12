@@ -358,6 +358,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert')).toHaveClass(/live-event-alert--touchdown/);
 	await expect(liveCenter.locator('.live-event-alert__team')).toHaveText('JAX SCORES');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('min-height', '24px');
+	await expect(liveCenter.locator('.live-game-row')).toHaveAttribute('data-touchdown-motion', 'score-reveal');
 	const alertAlignment = await page.evaluate(() => {
 		const field = document.querySelector('.live-game-row__field')?.getBoundingClientRect();
 		const alert = document.querySelector('.live-event-alert')?.getBoundingClientRect();
@@ -370,10 +371,12 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('background-image', /linear-gradient/);
 	await expect(liveCenter.locator('.live-event-alert__score')).toHaveText('PHI 0 – JAX 7');
 	await expect(liveCenter.locator('.live-event-alert__detail')).toContainText('Touchdown');
-	await expect(liveCenter.locator('.live-game-row__score')).toHaveClass(/live-game-row__score--changed/);
+	await expect(liveCenter.locator('.live-game-row__score')).toHaveClass(/live-game-row__score--touchdown/);
+	await expect(liveCenter.locator('.live-game-row__score')).not.toHaveClass(/--changed/);
 	await expect(liveCenter).toHaveAttribute('aria-live', 'off');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveAttribute('aria-live', 'assertive');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveClass(/live-event-alert--new/);
+	await expect(liveCenter.locator('.live-game-row')).toHaveAttribute('data-touchdown-motion', 'score-reveal');
 
 	const requestsBeforeRepeatedPoll = apiRequests;
 	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -381,6 +384,112 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCount(1);
 	await expect(liveCenter.locator('.live-event-alert')).toHaveAttribute('aria-live', 'off');
 	await expect(liveCenter.locator('.live-event-alert')).not.toHaveClass(/live-event-alert--new/);
+	await expect(liveCenter.locator('.live-game-row')).not.toHaveAttribute('data-touchdown-motion', 'impact');
+	await expect(liveCenter.locator('.live-game-row')).not.toHaveAttribute('data-touchdown-motion', 'score-reveal');
+});
+
+test('game detail touchdown motion leads into the scoring team score reveal', async ({ page }) => {
+	let apiRequests = 0;
+	const game = {
+		eventId: 'live-phi-jax-touchdown-detail',
+		kickoffAt: '2026-10-14T13:00:00.000Z',
+		homeTeam: 'JAX',
+		awayTeam: 'PHI',
+		homeScore: 14,
+		awayScore: 10,
+		state: 'in_progress',
+		status: '3rd Quarter',
+		period: 3,
+		clock: '8:42',
+		boxScoreUpdatedAt: null,
+		lastPlay: { id: 'detail-play-1', text: 'Rush for 3 yards', scoring: false, keyAction: false },
+		situation: null,
+		moment: null,
+		notice: null,
+		boxScore: [],
+	};
+	await page.route('**/api/live/games?date=*', async (route) => {
+		apiRequests += 1;
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-14T14:00:00.000Z',
+				stale: false,
+				games: [game],
+			},
+		});
+	});
+
+	await page.goto('/games/example-game');
+	const liveCenter = page.locator('[data-live-center]');
+	await expect(liveCenter).toBeVisible();
+	await expect(page.locator('[data-live-game-score]')).toContainText('10');
+	await expect(page.locator('[data-live-game-score]')).toContainText('14');
+
+	game.homeScore = 21;
+	game.lastPlay = {
+		id: 'detail-play-2',
+		text: 'Touchdown pass to the end zone',
+		scoring: true,
+		keyAction: true,
+	};
+	const requestsBeforeTouchdown = apiRequests;
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => apiRequests).toBeGreaterThan(requestsBeforeTouchdown);
+	const row = liveCenter.locator('.live-game-row');
+	await expect(row.locator('.live-event-alert__title')).toHaveText('TOUCHDOWN');
+	await expect(row).toHaveAttribute('data-touchdown-motion', 'impact');
+	const heroScore = page.locator('[data-live-game-score]');
+	await expect(heroScore).toHaveAttribute('data-touchdown-scoring-team', 'JAX');
+	await expect(heroScore).toHaveAttribute('data-touchdown-event-id', 'live-phi-jax-touchdown-detail');
+	await expect(heroScore).toContainText('21');
+	await expect(row).toHaveAttribute('data-touchdown-motion', 'score-reveal');
+	await expect(heroScore.locator('[data-score-team="JAX"]')).toBeVisible();
+});
+
+test('touchdown content remains visible without motion for reduced-motion users', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	let apiRequests = 0;
+	const game = {
+		eventId: 'live-reduced-motion-touchdown',
+		kickoffAt: '2026-10-11T13:00:00.000Z',
+		homeTeam: 'JAX',
+		awayTeam: 'PHI',
+		homeScore: 0,
+		awayScore: 0,
+		state: 'in_progress',
+		status: '1st Quarter',
+		period: 1,
+		clock: '4:19',
+		boxScoreUpdatedAt: null,
+		lastPlay: { id: 'reduced-play-1', text: 'Rush for no gain', scoring: false, keyAction: false },
+		situation: null,
+		moment: null,
+		notice: null,
+		boxScore: [],
+	};
+	await page.route('**/api/live/games', async (route) => {
+		apiRequests += 1;
+		await route.fulfill({
+			json: { fetchedAt: '2026-10-11T14:00:00.000Z', stale: false, games: [game] },
+		});
+	});
+	await page.goto('/');
+
+	game.homeScore = 7;
+	game.lastPlay = {
+		id: 'reduced-play-2',
+		text: 'Touchdown run into the end zone',
+		scoring: true,
+		keyAction: true,
+	};
+	const requestsBeforeTouchdown = apiRequests;
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => apiRequests).toBeGreaterThan(requestsBeforeTouchdown);
+	const row = page.locator('.live-game-row');
+	await expect(row.locator('.live-event-alert__title')).toHaveText('TOUCHDOWN');
+	await expect(row.locator('.live-event-alert__score')).toHaveText('PHI 0 – JAX 7');
+	await expect(row).not.toHaveAttribute('data-touchdown-motion');
+	await expect(row.locator('.live-event-alert')).toHaveCSS('animation-name', 'none');
 });
 
 test('live mini-fields align across games with different score widths', async ({ page }) => {
