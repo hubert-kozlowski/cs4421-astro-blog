@@ -170,6 +170,24 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 		color: #aebfdf;
 	}
 
+	.game-hero :global(.calendar-actions) {
+		justify-content: center;
+		margin-top: 10px;
+	}
+
+	.game-hero :global(.calendar-actions__label),
+	.game-hero :global(.calendar-actions__link) {
+		color: #d3def0;
+	}
+
+	.game-hero :global(.calendar-actions__link:hover) {
+		color: #fff;
+	}
+
+	.game-hero :global(.calendar-actions__link + .calendar-actions__link::before) {
+		color: #8194b4;
+	}
+
 	.game-hero__date {
 		margin: 0;
 		color: #d1daea;

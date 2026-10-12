@@ -14,29 +14,23 @@ const { event, compact = false } = Astro.props;
 	role="group"
 	aria-label="Add this game to your calendar"
 >
-	<span class="calendar-actions__label">ADD TO CALENDAR</span>
+	<span class="calendar-actions__label">Add to calendar</span>
 	<div class="calendar-actions__links">
 		<a
 			class="calendar-actions__link calendar-actions__link--google"
 			href={event.googleCalendarUrl}
 			target="_blank"
 			rel="noopener noreferrer"
+			aria-label="Add to Google Calendar"
 		>
-			<svg viewBox="0 0 20 20" aria-hidden="true">
-				<rect x="3" y="4.5" width="14" height="13" rx="2" />
-				<path d="M6.5 2.5v4M13.5 2.5v4M3 8.5h14M6 11h2m4 0h2M6 14h2m4 0h2" />
-			</svg>
 			Google Calendar
 		</a>
 		<a
 			class="calendar-actions__link calendar-actions__link--apple"
 			href={event.icsUrl}
 			download={`nfl-game-${event.gameId}.ics`}
+			aria-label="Download Apple Calendar event"
 		>
-			<svg viewBox="0 0 20 20" aria-hidden="true">
-				<rect x="3" y="4.5" width="14" height="13" rx="2" />
-				<path d="M6.5 2.5v4M13.5 2.5v4M3 8.5h14M6.5 11.5l2 2 5-5" />
-			</svg>
 			Apple Calendar
 			<span class="calendar-actions__format">.ics</span>
 		</a>
@@ -48,14 +42,13 @@ const { event, compact = false } = Astro.props;
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: 8px 12px;
+		gap: 5px 10px;
 	}
 
 	.calendar-actions__label {
 		color: var(--color-muted);
-		font-size: 9px;
-		font-weight: 750;
-		letter-spacing: 0.08em;
+		font-size: 11px;
+		font-weight: 500;
 		white-space: nowrap;
 	}
 
@@ -63,60 +56,40 @@ const { event, compact = false } = Astro.props;
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: 7px;
+		gap: 0;
 	}
 
 	.calendar-actions__link {
 		display: inline-flex;
-		min-height: 31px;
 		align-items: center;
-		gap: 6px;
-		padding: 5px 9px;
-		border: 1px solid var(--color-border);
-		border-radius: 8px;
-		background: #fff;
-		color: var(--color-ink);
-		font-size: 10px;
-		font-weight: 650;
+		gap: 3px;
+		padding: 2px 5px;
+		color: var(--color-blue);
+		font-size: 11px;
+		font-weight: 600;
 		text-decoration: none;
 		white-space: nowrap;
-		transition: background-color 150ms ease, border-color 150ms ease;
+		text-underline-offset: 2px;
+	}
+
+	.calendar-actions__link + .calendar-actions__link::before {
+		margin-right: 5px;
+		color: var(--color-faint);
+		content: '·';
 	}
 
 	.calendar-actions__link:hover {
-		border-color: #c6d3e9;
-		background: #f7f9fd;
-	}
-
-	.calendar-actions__link svg {
-		width: 15px;
-		height: 15px;
-		fill: none;
-		stroke: currentColor;
-		stroke-linecap: round;
-		stroke-linejoin: round;
-		stroke-width: 1.5;
-	}
-
-	.calendar-actions__link--google svg {
-		color: #3c69c7;
+		text-decoration: underline;
 	}
 
 	.calendar-actions__format {
-		color: var(--color-muted);
+		color: inherit;
 		font-size: 9px;
 		font-weight: 500;
+		opacity: 0.75;
 	}
 
 	.calendar-actions--compact {
-		padding: 10px 18px 13px;
-		border-top: 1px solid #f0f1f4;
-	}
-
-	@media (max-width: 430px) {
-		.calendar-actions:not(.calendar-actions--compact) {
-			align-items: flex-start;
-			flex-direction: column;
-		}
+		padding: 0 18px 13px;
 	}
 </style>

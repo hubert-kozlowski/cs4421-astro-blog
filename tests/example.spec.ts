@@ -54,21 +54,21 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Set up a matchup.' })).toBeVisible();
 	await expect(page.getByRole('searchbox', { name: 'Search NFL player names' })).toBeVisible();
 	const upcomingCard = page.locator('.game-card').filter({ has: page.locator('.game-card__link[href="/games/example-game"]') });
-	const googleCalendarLink = upcomingCard.getByRole('link', { name: 'Google Calendar' });
-	const appleCalendarLink = upcomingCard.getByRole('link', { name: 'Apple Calendar .ics' });
+	const googleCalendarLink = upcomingCard.getByRole('link', { name: 'Add to Google Calendar' });
+	const appleCalendarLink = upcomingCard.getByRole('link', { name: 'Download Apple Calendar event' });
 	await expect(googleCalendarLink).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\/calendar\/render\?/);
 	await expect(appleCalendarLink).toHaveAttribute('download', 'nfl-game-example-game.ics');
 	const googleUrl = new URL((await googleCalendarLink.getAttribute('href'))!);
 	expect(googleUrl.searchParams.get('text')).toBe('Philadelphia Eagles at Jacksonville Jaguars');
-	await expect(completedCard.getByRole('link', { name: 'Google Calendar' })).toHaveCount(0);
+	await expect(completedCard.getByRole('link', { name: 'Add to Google Calendar' })).toHaveCount(0);
 	const calendarResponse = await page.request.get((await appleCalendarLink.getAttribute('href'))!);
 	expect(calendarResponse.ok()).toBe(true);
 	expect(calendarResponse.headers()['content-type']).toContain('text/calendar');
 	expect(await calendarResponse.text()).toContain('SUMMARY:Philadelphia Eagles at Jacksonville Jaguars');
 
 	await page.goto('/games/example-game');
-	await expect(page.getByRole('link', { name: 'Google Calendar' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Apple Calendar .ics' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Add to Google Calendar' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Download Apple Calendar event' })).toBeVisible();
 	await page.goto('/games/past-game-no-kickoff');
 	await expect(page.locator('.calendar-actions')).toHaveCount(0);
 
