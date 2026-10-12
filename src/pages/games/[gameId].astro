@@ -319,7 +319,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		display: inline-block;
 	}
 
-	.live-score--changed .live-score__value {
+	.live-score--changed:not(.live-score--touchdown) .live-score__value {
 		animation: live-score-flash 1.1s ease-out;
 	}
 
