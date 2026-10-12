@@ -1,0 +1,230 @@
+---
+import { getGameStatus, getGameUpset, type NflGame, type NflTeam } from '../utils/nfl-data';
+import { isAbsoluteTimestamp } from '../utils/local-game-time';
+import TeamMark from './TeamMark.astro';
+
+interface Props {
+	game: NflGame;
+	teams: NflTeam[];
+}
+
+const { game, teams } = Astro.props;
+const homeTeam = teams.find((team) => team.abbr === game.home_team);
+const awayTeam = teams.find((team) => team.abbr === game.away_team);
+const hasScore = typeof game.home_score === 'number' && typeof game.away_score === 'number';
+const gameStatus = getGameStatus(game);
+const isFinal = gameStatus === 'Final';
+const upset = getGameUpset(game);
+const kickoffAt = isAbsoluteTimestamp(game.kickoff_at ?? undefined) ? game.kickoff_at : undefined;
+const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' : gameStatus;
+---
+
+<a
+	class="game-card"
+	href={`/games/${encodeURIComponent(game.game_id)}`}
+	data-motion-hover
+	data-live-home={game.home_team}
+	data-live-away={game.away_team}
+	data-live-date={game.gameday}
+>
+	<div class="game-card__meta">
+		<span class="game-card__labels">
+			<span class:list={['game-status', {
+				'game-status--final': isFinal,
+				'game-status--score': gameStatus === 'Score posted',
+				'game-status--pending': gameStatus === 'Result pending',
+			}]}>
+				<span class="game-status__dot" aria-hidden="true"></span>
+				{gameStatus}
+			</span>
+			{upset && (
+				<span class="game-card__upset" title={`${upset.team} won as a ${upset.spread}-point underdog`}>
+					<strong>UPSET WIN</strong>
+					<span>{upset.team} · {upset.spread}-pt dog</span>
+				</span>
+			)}
+		</span>
+		{kickoffAt ? (
+			<time
+				class="game-card__kickoff"
+				datetime={kickoffAt}
+				data-device-time="time"
+			>Kickoff time</time>
+		) : (
+			<span class="game-card__kickoff">{missingKickoffLabel}</span>
+		)}
+	</div>
+	<div class="game-card__team">
+		<TeamMark abbr={game.away_team} conference={awayTeam?.conf} />
+		<span class="game-card__name">{awayTeam?.name ?? game.away_team}</span>
+		<strong class="game-card__score" data-score-team={game.away_team}>{hasScore ? game.away_score : '—'}</strong>
+	</div>
+	<div class="game-card__team">
+		<TeamMark abbr={game.home_team} conference={homeTeam?.conf} />
+		<span class="game-card__name">{homeTeam?.name ?? game.home_team}</span>
+		<strong class="game-card__score" data-score-team={game.home_team}>{hasScore ? game.home_score : '—'}</strong>
+	</div>
+	<div class="game-card__footer">
+		<span>{game.stadium ?? 'Venue to be announced'}</span>
+		<span aria-hidden="true">↗</span>
+	</div>
+</a>
+
+<style>
+	.game-card {
+		display: block;
+		padding: 17px 18px 15px;
+		border: 1px solid var(--color-border);
+		border-radius: 16px;
+		background: #fff;
+		color: inherit;
+		text-decoration: none;
+		transition: border-color 150ms ease, box-shadow 150ms ease;
+	}
+
+	.game-card:hover {
+		border-color: #cbd4e2;
+		box-shadow: 0 10px 24px rgb(25 42 72 / 8%);
+	}
+
+	.game-card--live-change {
+		border-color: #d8424a;
+		box-shadow: 0 0 0 3px rgb(216 66 74 / 15%), 0 10px 24px rgb(25 42 72 / 8%);
+	}
+
+	.game-card__meta,
+	.game-card__footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 10px;
+		color: var(--color-muted);
+		font-size: 11px;
+	}
+
+	.game-card__labels {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 7px;
+	}
+
+	.game-card__kickoff {
+		margin-left: auto;
+		color: var(--color-muted);
+		font-size: 11px;
+		text-align: right;
+		white-space: nowrap;
+	}
+
+	.game-card__upset {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		padding: 4px 7px;
+		border: 1px solid #f3d0b8;
+		border-radius: 6px;
+		background: linear-gradient(110deg, #fff0e3, #fff7eb);
+		color: #91431d;
+		font-size: 8px;
+		line-height: 1;
+		white-space: nowrap;
+	}
+
+	.game-card__upset strong {
+		font-size: 8px;
+		font-weight: 850;
+		letter-spacing: 0.05em;
+	}
+
+	.game-card__upset span {
+		color: #a95b31;
+		font-weight: 650;
+	}
+
+	.game-card__meta {
+		margin-bottom: 12px;
+	}
+
+	.game-status {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		color: #2c6e53;
+		font-size: 10px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
+	}
+
+	.game-status--final {
+		color: #6a7180;
+	}
+
+	.game-status--score {
+		color: #9a692a;
+	}
+
+	.game-status--pending {
+		color: #8a5b35;
+	}
+
+	.game-status--live {
+		color: #c72f3c;
+	}
+
+	.game-status__dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #47a577;
+	}
+
+	.game-status--final .game-status__dot {
+		background: #a2a7b0;
+	}
+
+	.game-status--score .game-status__dot {
+		background: #d0923a;
+	}
+
+	.game-status--pending .game-status__dot {
+		background: #c4864e;
+	}
+
+	.game-status--live .game-status__dot {
+		background: #e53c48;
+		box-shadow: 0 0 0 3px rgb(229 60 72 / 14%);
+	}
+
+	.game-card__team {
+		display: grid;
+		grid-template-columns: 32px minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 10px;
+		min-height: 38px;
+	}
+
+	.game-card__name {
+		overflow: hidden;
+		font-size: 12px;
+		font-weight: 600;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.game-card__score {
+		min-width: 16px;
+		text-align: right;
+		font-size: 15px;
+		font-weight: 750;
+	}
+
+	.game-card__footer {
+		margin-top: 10px;
+		padding-top: 10px;
+		border-top: 1px solid #f0f1f4;
+		font-size: 10px;
+	}
+
+</style>

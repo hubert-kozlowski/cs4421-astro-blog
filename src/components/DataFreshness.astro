@@ -1,0 +1,43 @@
+---
+interface Props {
+	fetchedAt: string;
+	stale?: boolean;
+}
+
+const { fetchedAt, stale = false } = Astro.props;
+const formattedTime = new Date(fetchedAt).toLocaleString('en-US', {
+	month: 'short',
+	day: 'numeric',
+	hour: 'numeric',
+	minute: '2-digit',
+});
+---
+
+<p class:list={['data-freshness', { 'data-freshness--stale': stale }]}>
+	<span class="data-freshness__dot" aria-hidden="true"></span>
+	{stale ? 'Showing saved data' : 'NFL data'}
+	<span>· Retrieved {formattedTime}</span>
+</p>
+
+<style>
+	.data-freshness {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		margin: 0;
+		color: var(--color-muted);
+		font-size: 10px;
+		line-height: 1.4;
+	}
+
+	.data-freshness__dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: #34a274;
+	}
+
+	.data-freshness--stale .data-freshness__dot {
+		background: #d18a30;
+	}
+</style>

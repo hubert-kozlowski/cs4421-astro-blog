@@ -12,15 +12,17 @@
     "check": "astro check",
     "astro": "astro",
     "lint": "eslint .",
-    "test:unit": "vitest run src/** --exclude tests/**",
+    "test:unit": "vitest run --passWithNoTests",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.2",
+    "@astrojs/node": "^11.1.6",
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.5",
     "astro-icon": "^1.2.0",
+    "motion": "^14.0.0",
     "sharp": "^0.35.5"
   },
   "allowScripts": {

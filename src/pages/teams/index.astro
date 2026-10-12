@@ -1,0 +1,132 @@
+---
+import DataFreshness from '../../components/DataFreshness.astro';
+import DataState from '../../components/DataState.astro';
+import TeamMark from '../../components/TeamMark.astro';
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import { getDashboardData, type ApiResult, type NflDashboardData } from '../../utils/nfl-data';
+
+let dashboardResult: ApiResult<NflDashboardData> | undefined;
+let dataUnavailable = false;
+try {
+	dashboardResult = await getDashboardData();
+} catch (error) {
+	dataUnavailable = true;
+	console.error(
+		JSON.stringify({
+			level: 'error',
+			event: 'team_directory_unavailable',
+			error: error instanceof Error ? error.name : 'UnknownError',
+		}),
+	);
+}
+
+const teams = dashboardResult?.value.teams ?? [];
+const records = new Map(dashboardResult?.value.records.map((record) => [record.abbr, record]) ?? []);
+---
+
+<SiteLayout title="Teams" description="Explore NFL teams, their current season records, and schedules.">
+	<div class="page-heading">
+		<p class="eyebrow">THE LEAGUE</p>
+		<h1>All 32 teams.</h1>
+		<p>Pick a team to see its upcoming games and real season record.</p>
+		{dashboardResult && <DataFreshness fetchedAt={dashboardResult.fetchedAt} stale={dashboardResult.stale} />}
+	</div>
+	{
+		teams.length > 0 ? (
+			<div class="team-grid">
+				{teams.map((team) => {
+					const record = records.get(team.abbr);
+					return (
+						<a class="team-tile" href={`/teams/${team.abbr}`}>
+							<TeamMark abbr={team.abbr} conference={team.conf} />
+							<span class="team-tile__main">
+								<strong>{team.name}</strong>
+								<span>{team.division}</span>
+							</span>
+							<span class="team-tile__record">
+								{record ? `${record.wins}-${record.losses}${record.ties ? `-${record.ties}` : ''}` : '—'}
+							</span>
+						</a>
+					);
+				})}
+			</div>
+		) : dataUnavailable ? (
+			<DataState
+				state="error"
+				title="The team list could not load"
+				description="The NFL data provider is unavailable and no saved team list could be loaded."
+			/>
+		) : (
+			<DataState title="No teams are available" description="Team information is not available for this season." />
+		)
+	}
+</SiteLayout>
+
+<style>
+	.team-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: 11px;
+	}
+
+	.team-tile {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 11px;
+		padding: 15px;
+		border: 1px solid var(--color-border);
+		border-radius: 15px;
+		background: #fff;
+		text-decoration: none;
+		transition:
+			transform 140ms ease,
+			border-color 140ms ease,
+			box-shadow 140ms ease;
+	}
+
+	.team-tile:hover {
+		transform: translateY(-2px);
+		border-color: #cbd4e2;
+		box-shadow: var(--shadow-card);
+	}
+
+	.team-tile__main {
+		display: grid;
+		min-width: 0;
+		gap: 2px;
+	}
+
+	.team-tile__main strong {
+		overflow: hidden;
+		font-size: 11px;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.team-tile__main > span {
+		color: var(--color-muted);
+		font-size: 9px;
+	}
+
+	.team-tile__record {
+		flex: 0 0 auto;
+		margin-left: auto;
+		color: var(--color-muted);
+		font-size: 10px;
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+	}
+
+	@media (max-width: 700px) {
+		.team-grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 480px) {
+		.team-grid {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
