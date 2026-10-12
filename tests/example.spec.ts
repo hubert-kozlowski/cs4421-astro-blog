@@ -78,7 +78,10 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await page.goto('/games/past-game-no-kickoff');
 	await expect(page.getByRole('heading', { name: 'Final result' })).toBeVisible();
 	await expect(page.locator('.game-snapshot__summary')).toContainText('Kansas City Chiefs won by 7');
-	await expect(page.locator('.venue-card')).toBeVisible();
+	await expect(page.locator('.venue-banner')).toBeVisible();
+	expect(await page.locator('.venue-banner').evaluate((element) =>
+		Boolean(element.compareDocumentPosition(document.querySelector('[data-live-boxscore]')!) & Node.DOCUMENT_POSITION_FOLLOWING),
+	)).toBe(true);
 	await expect(page.getByRole('img', { name: 'Top-down illustration of Arrowhead Stadium, home of the Kansas City Chiefs in Kansas City, Missouri' })).toBeVisible();
 	await expect(page.locator('.stadium-diagram').first()).toContainText('KC');
 	await expect(page.locator('.calendar-menu')).toHaveCount(0);
@@ -159,7 +162,15 @@ test('completed game details keep the final provider box score visible', async (
 
 	const boxScore = page.locator('[data-live-boxscore]');
 	await expect(boxScore).toBeVisible();
+	await expect(boxScore.locator('[data-boxscore-details]')).not.toHaveAttribute('open');
 	await expect(boxScore.getByRole('heading', { name: 'Final game stats' })).toBeVisible();
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(await boxScore.locator('summary').evaluate((element) => {
+		const title = element.querySelector('h2');
+		return title && title.scrollWidth <= title.clientWidth && element.scrollWidth <= element.clientWidth;
+	})).toBe(true);
+	await boxScore.locator('summary').click();
+	await expect(boxScore.locator('[data-boxscore-details]')).toHaveAttribute('open');
 	await expect(boxScore).toContainText('Total Yards');
 	await expect(boxScore).toContainText('Patrick Mahomes');
 	await expect(boxScore).toContainText('22/30');

@@ -37,14 +37,17 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 		hidden
 		aria-label="Game statistics"
 	>
-		<div class="live-boxscore__header">
-			<div>
-				<p class="eyebrow" data-boxscore-eyebrow>GAME STATS</p>
-				<h2 data-boxscore-title>Game statistics</h2>
-			</div>
-			<span class="live-boxscore__updated" data-live-updated></span>
-		</div>
-		<div data-live-stats></div>
+		<details class="live-boxscore__details" data-boxscore-details open>
+			<summary class="live-boxscore__header">
+				<div>
+					<p class="eyebrow" data-boxscore-eyebrow>GAME STATS</p>
+					<h2 data-boxscore-title>Game statistics</h2>
+				</div>
+				<span class="live-boxscore__toggle-hint" data-boxscore-hint>Hide game stats</span>
+				<span class="live-boxscore__updated" data-live-updated></span>
+			</summary>
+			<div class="live-boxscore__content" data-live-stats></div>
+		</details>
 	</section>
 )}
 
@@ -698,11 +701,14 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 
 	.live-boxscore {
 		margin-top: 17px;
-		padding: 24px;
 		border: 1px solid #e3e6eb;
 		border-radius: 18px;
 		background: #fff;
 		box-shadow: 0 10px 30px rgb(22 33 52 / 5%);
+	}
+
+	.live-boxscore__details {
+		min-width: 0;
 	}
 
 	.live-boxscore__header {
@@ -710,21 +716,60 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 		align-items: center;
 		justify-content: space-between;
 		gap: 12px;
-		margin-bottom: 20px;
-		padding-bottom: 14px;
-		border-bottom: 1px solid #eceef1;
+		padding: 18px 22px;
+		cursor: pointer;
+		list-style: none;
+	}
+
+	.live-boxscore__header::-webkit-details-marker {
+		display: none;
+	}
+
+	.live-boxscore__header::after {
+		width: 8px;
+		height: 8px;
+		flex: 0 0 auto;
+		border-right: 2px solid #788395;
+		border-bottom: 2px solid #788395;
+		content: "";
+		transform: rotate(45deg) translateY(-2px);
+		transition: transform 160ms ease;
+	}
+
+	.live-boxscore__details[open] > .live-boxscore__header::after {
+		transform: rotate(225deg) translate(-2px, -1px);
+	}
+
+	.live-boxscore__header:focus-visible {
+		border-radius: 17px;
+		outline: 2px solid #315f9a;
+		outline-offset: -3px;
+	}
+
+	.live-boxscore__content {
+		padding: 0 22px 22px;
+	}
+
+	.live-boxscore__toggle-hint {
+		margin-left: auto;
+		color: var(--color-muted);
+		font-size: 11px;
+		font-weight: 600;
+		white-space: nowrap;
 	}
 
 	.live-boxscore__header .eyebrow {
 		margin-bottom: 5px;
 		color: #bd343e;
 		font-size: 10px;
+		white-space: nowrap;
 	}
 
 	.live-boxscore__header h2 {
 		margin: 0;
-		font-size: 22px;
+		font-size: 18px;
 		letter-spacing: -0.04em;
+		white-space: nowrap;
 	}
 
 	.live-boxscore__updated {
@@ -1030,7 +1075,28 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 		}
 
 		.live-boxscore {
-			padding: 17px;
+			border-radius: 14px;
+		}
+
+		.live-boxscore__header {
+			gap: 10px;
+			padding: 14px 15px;
+		}
+
+		.live-boxscore__content {
+			padding: 0 12px 12px;
+		}
+
+		.live-boxscore__toggle-hint {
+			font-size: 9px;
+		}
+
+		.live-boxscore__updated {
+			display: none;
+		}
+
+		.live-boxscore__header h2 {
+			font-size: 17px;
 		}
 
 		.live-boxscore :global(.live-boxscore__teams) {

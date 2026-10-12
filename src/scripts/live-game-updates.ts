@@ -755,8 +755,15 @@ function renderBoxScore(game: LiveGame) {
 	if (container.hidden) return;
 	const eyebrow = container.querySelector<HTMLElement>('[data-boxscore-eyebrow]');
 	const title = container.querySelector<HTMLElement>('[data-boxscore-title]');
+	const hint = container.querySelector<HTMLElement>('[data-boxscore-hint]');
+	const details = container.querySelector<HTMLDetailsElement>('[data-boxscore-details]');
 	if (eyebrow) eyebrow.textContent = game.state === 'final' ? 'FINAL BOX SCORE' : 'LIVE BOX SCORE';
 	if (title) title.textContent = game.state === 'final' ? 'Final game stats' : 'Live game stats';
+	if (hint) hint.textContent = game.state === 'final' ? 'View stats' : 'Hide stats';
+	if (details && container.dataset.boxscoreState !== game.state) {
+		details.open = game.state !== 'final';
+		container.dataset.boxscoreState = game.state;
+	}
 
 	const fragment = document.createDocumentFragment();
 	const teams = appendText(fragment, 'div', '', 'live-boxscore__teams');
