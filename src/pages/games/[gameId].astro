@@ -2,11 +2,13 @@
 import DataFreshness from '../../components/DataFreshness.astro';
 import DataState from '../../components/DataState.astro';
 import LiveGameCenter from '../../components/LiveGameCenter.astro';
+import StadiumDiagram from '../../components/StadiumDiagram.astro';
 import TeamMark from '../../components/TeamMark.astro';
 import SiteLayout from '../../layouts/SiteLayout.astro';
 import {
 	getApiMetadata,
 	getGame,
+	getGameBroadcastLabel,
 	getGameStatus,
 	type ApiResult,
 	type NflGame,
@@ -46,6 +48,18 @@ const kickoffCandidate = game?.kickoff_at;
 const kickoffAt = isAbsoluteTimestamp(kickoffCandidate ?? undefined) ? kickoffCandidate : undefined;
 const calendarEvent = game ? createGameCalendarEvent(game, teams) : undefined;
 const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' : gameStatus;
+const broadcastLabel = game ? getGameBroadcastLabel(game) : undefined;
+const hasGameDate = Boolean(game?.gameday && Number.isFinite(Date.parse(`${game.gameday}T12:00:00Z`)));
+const gameDateTime = kickoffAt ?? (hasGameDate && game?.gameday ? `${game.gameday}T12:00:00Z` : undefined);
+const homeScore = typeof game?.home_score === 'number' ? game.home_score : undefined;
+const awayScore = typeof game?.away_score === 'number' ? game.away_score : undefined;
+const resultSummary = homeScore !== undefined && awayScore !== undefined && game
+	? homeScore === awayScore
+		? 'The teams finished level.'
+		: homeScore > awayScore
+			? `${homeTeam?.name ?? game.home_team} won by ${homeScore - awayScore}.`
+			: `${awayTeam?.name ?? game.away_team} won by ${awayScore - homeScore}.`
+	: undefined;
 ---
 
 <SiteLayout
@@ -108,13 +122,77 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 				</div>
 			</section>
 			<LiveGameCenter homeTeam={game.home_team ?? undefined} awayTeam={game.away_team ?? undefined} />
-			<section class="venue-card" aria-labelledby="venue-heading">
-				<div class="venue-icon" aria-hidden="true">⌖</div>
-				<div>
-					<p class="eyebrow">GAME DETAILS</p>
-					<h2 id="venue-heading">{game.stadium ?? 'Venue to be announced'}</h2>
-					<p>{game.overtime ? 'Overtime game' : 'Regular game time'}{game.div_game ? ' · Division matchup' : ''}</p>
+			<section class="game-information" aria-label="Game information">
+				<div class="game-snapshot">
+					<p class="eyebrow">{isFinal ? 'THE RESULT' : 'THE MATCHUP'}</p>
+					<h2>{isFinal ? 'Final result' : gameStatus === 'Scheduled' ? 'Before kickoff' : 'Game update'}</h2>
+					<p class="game-snapshot__summary">
+						{resultSummary ??
+							(gameStatus === 'Scheduled'
+								? 'The teams are set. Check the kickoff details and venue before game day.'
+								: gameStatus === 'Result pending'
+									? 'The scheduled kickoff has passed, but a final score has not been posted yet.'
+									: 'Follow the matchup here for the latest game status.')}
+					</p>
+					<dl class="game-facts">
+						{gameDateTime && (
+							<div>
+								<dt>Game day</dt>
+								<dd>
+									<time
+										datetime={gameDateTime}
+										data-device-date={kickoffAt ? '' : undefined}
+									>
+										{kickoffAt
+											? 'Game date and kickoff'
+											: new Intl.DateTimeFormat('en', {
+												weekday: 'long',
+												month: 'long',
+												day: 'numeric',
+												year: 'numeric',
+												timeZone: 'UTC',
+											}).format(new Date(gameDateTime))}
+									</time>
+								</dd>
+							</div>
+						)}
+						<div>
+							<dt>Week</dt>
+							<dd>{game.week ? `Week ${game.week}` : 'To be announced'} · {game.season ?? 'NFL'} season</dd>
+						</div>
+						{broadcastLabel && (
+							<div>
+								<dt>Broadcast</dt>
+								<dd>{broadcastLabel}</dd>
+							</div>
+						)}
+						<div>
+							<dt>Matchup</dt>
+							<dd>
+								{game.div_game
+									? 'Division game'
+									: game.game_type === 'POST'
+										? 'Postseason'
+										: game.game_type === 'PRE'
+											? 'Preseason'
+											: 'Regular season'}
+							</dd>
+						</div>
+					</dl>
 				</div>
+				<article class="venue-card" aria-labelledby="venue-heading">
+					<StadiumDiagram label={game.stadium ?? 'football stadium'} />
+					<div class="venue-card__copy">
+						<p class="eyebrow">THE VENUE</p>
+						<h2 id="venue-heading">{game.stadium ?? 'Stadium to be announced'}</h2>
+						<p>
+							{homeTeam?.name
+								? `Home of the ${homeTeam.name}.`
+								: 'The setting for this matchup.'}
+							{game.overtime ? ' · Decided in overtime.' : ''}
+						</p>
+					</div>
+				</article>
 			</section>
 		</>
 	) : unavailable ? (
@@ -168,24 +246,6 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 
 	.game-hero .eyebrow {
 		color: #aebfdf;
-	}
-
-	.game-hero :global(.calendar-actions) {
-		justify-content: center;
-		margin-top: 10px;
-	}
-
-	.game-hero :global(.calendar-actions__label),
-	.game-hero :global(.calendar-actions__link) {
-		color: #d3def0;
-	}
-
-	.game-hero :global(.calendar-actions__link:hover) {
-		color: #fff;
-	}
-
-	.game-hero :global(.calendar-actions__link + .calendar-actions__link::before) {
-		color: #8194b4;
 	}
 
 	.game-hero__date {
@@ -316,47 +376,113 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 		box-shadow: 0 0 0 3px rgb(255 79 91 / 16%);
 	}
 
-	.venue-card {
-		display: flex;
-		align-items: center;
-		gap: 15px;
+	.game-information {
+		display: grid;
+		grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+		gap: 16px;
 		margin-top: 17px;
-		padding: 20px;
+	}
+
+	.game-snapshot,
+	.venue-card {
 		border: 1px solid var(--color-border);
 		border-radius: 16px;
 		background: #fff;
 	}
 
-	.venue-icon {
-		display: grid;
-		width: 42px;
-		height: 42px;
-		place-items: center;
-		border-radius: 13px;
-		background: #fff1e9;
-		color: #b45b30;
-		font-size: 22px;
+	.game-snapshot {
+		padding: 21px 23px;
 	}
 
+	.game-snapshot .eyebrow,
 	.venue-card .eyebrow {
-		margin-bottom: 3px;
+		margin-bottom: 5px;
+		font-size: 9px;
 	}
 
+	.game-snapshot h2,
 	.venue-card h2 {
 		margin: 0;
-		font-size: 15px;
-		letter-spacing: -0.02em;
+		font-size: 17px;
+		letter-spacing: -0.025em;
 	}
 
-	.venue-card p:last-child {
-		margin: 4px 0 0;
+	.game-snapshot__summary {
+		margin: 7px 0 18px;
 		color: var(--color-muted);
+		font-size: 12px;
+		line-height: 1.6;
+	}
+
+	.game-facts {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 14px 20px;
+		margin: 0;
+		padding-top: 15px;
+		border-top: 1px solid #eef0f3;
+	}
+
+	.game-facts div {
+		min-width: 0;
+	}
+
+	.game-facts dt {
+		margin-bottom: 3px;
+		color: var(--color-muted);
+		font-size: 9px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.game-facts dd {
+		margin: 0;
 		font-size: 11px;
+		font-weight: 650;
+		line-height: 1.45;
+	}
+
+	.venue-card {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		justify-content: space-between;
+		overflow: hidden;
+		padding: 15px;
+	}
+
+	.venue-card .stadium-diagram {
+		width: min(100%, 330px);
+		align-self: center;
+	}
+
+	.venue-card__copy {
+		padding: 3px 5px 1px;
+	}
+
+	.venue-card__copy > p:last-child {
+		margin: 5px 0 0;
+		color: var(--color-muted);
+		font-size: 10px;
+		line-height: 1.5;
 	}
 
 	@media (max-width: 560px) {
 		.game-hero {
 			padding: 23px 15px 27px;
+		}
+
+		.game-information {
+			grid-template-columns: 1fr;
+		}
+
+		.game-snapshot {
+			padding: 18px;
+		}
+
+		.venue-card .stadium-diagram {
+			width: min(100%, 300px);
 		}
 
 		.game-matchup {
