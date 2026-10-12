@@ -333,6 +333,37 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 
 <script src="../scripts/dashboard-motion.ts"></script>
 <script>
+	import { animate, inView, stagger } from 'motion';
+
+	if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+		const heroCopy = document.querySelector<HTMLElement>('.dashboard-hero__copy');
+		if (heroCopy) {
+			heroCopy.dataset.motionPlayed = 'true';
+			animate(
+				heroCopy.querySelectorAll<HTMLElement>(':scope > .eyebrow, :scope > h1, :scope > p:last-child'),
+				{ opacity: [0, 1], y: [12, 0] },
+				{ duration: 0.5, delay: stagger(0.09), ease: 'easeOut' },
+			);
+		}
+
+		document.querySelectorAll<HTMLElement>('.matchup-result').forEach((result) => {
+			inView(
+				result,
+				(element) => {
+					if (!(element instanceof HTMLElement)) return;
+					if (element.dataset.motionPlayed) return;
+					element.dataset.motionPlayed = 'true';
+					animate(
+						element.querySelectorAll<HTMLElement>('.matchup-result__score strong, .matchup-result__score i'),
+						{ opacity: [0, 1], scale: [0.86, 1], y: [4, 0] },
+						{ duration: 0.38, delay: stagger(0.08), ease: 'easeOut' },
+					);
+				},
+				{ amount: 0.3 },
+			);
+		});
+	}
+
 	if (window.location.hash === '#players' && new URLSearchParams(window.location.search).has('player')) {
 		document.querySelector('#players')?.scrollIntoView({ block: 'start', behavior: 'instant' });
 	}

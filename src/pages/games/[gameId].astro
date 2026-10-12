@@ -123,6 +123,21 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 					</a>
 				</div>
 			</section>
+			<article class="venue-banner" aria-labelledby="venue-heading">
+				<StadiumDiagram
+					label={game.stadium ?? 'Football stadium'}
+					homeTeamName={homeTeam?.name ?? game.home_team ?? 'home team'}
+					homeTeamAbbr={game.home_team}
+				/>
+				<div class="venue-banner__copy">
+					<p class="eyebrow">THE VENUE</p>
+					<h2 id="venue-heading">{game.stadium ?? 'Stadium to be announced'}</h2>
+					<p>
+						{homeTeam?.name ? `Home team: ${homeTeam.name}.` : 'Home team shown in team colors.'}
+						{game.overtime ? ' · Decided in overtime.' : ''}
+					</p>
+				</div>
+			</article>
 			<LiveGameCenter
 				homeTeam={game.home_team ?? undefined}
 				awayTeam={game.away_team ?? undefined}
@@ -183,21 +198,6 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 						</div>
 					</dl>
 				</div>
-				<article class="venue-card" aria-labelledby="venue-heading">
-					<StadiumDiagram
-						label={game.stadium ?? 'Football stadium'}
-						homeTeamName={homeTeam?.name ?? game.home_team ?? 'home team'}
-						homeTeamAbbr={game.home_team}
-					/>
-					<div class="venue-card__copy">
-						<p class="eyebrow">THE VENUE</p>
-						<h2 id="venue-heading">{game.stadium ?? 'Stadium to be announced'}</h2>
-						<p>
-							{homeTeam?.name ? `Home team: ${homeTeam.name}.` : 'Home team shown in team colors.'}
-							{game.overtime ? ' · Decided in overtime.' : ''}
-						</p>
-					</div>
-				</article>
 			</section>
 		</>
 	) : unavailable ? (
@@ -210,6 +210,10 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		<DataState state="error" title="Game not found" description="Return to the schedule and choose a game." />
 	)}
 </SiteLayout>
+
+<script>
+	import '../../scripts/game-detail-motion';
+</script>
 
 <style>
 	.back-row {
@@ -382,17 +386,47 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 	}
 
 	.game-information {
-		display: grid;
-		grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
-		gap: 16px;
+		display: block;
 		margin-top: 17px;
 	}
 
-	.game-snapshot,
-	.venue-card {
+	.venue-banner,
+	.game-snapshot {
 		border: 1px solid var(--color-border);
 		border-radius: 16px;
 		background: #fff;
+	}
+
+	.venue-banner {
+		display: grid;
+		grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+		align-items: center;
+		gap: 18px;
+		margin-top: 17px;
+		padding: 12px 22px;
+	}
+
+	.venue-banner .stadium-diagram {
+		width: min(100%, 500px);
+		justify-self: center;
+	}
+
+	.venue-banner__copy .eyebrow {
+		margin-bottom: 5px;
+		font-size: 9px;
+	}
+
+	.venue-banner__copy h2 {
+		margin: 0;
+		font-size: 18px;
+		letter-spacing: -0.025em;
+	}
+
+	.venue-banner__copy > p:last-child {
+		margin: 6px 0 0;
+		color: var(--color-muted);
+		font-size: 11px;
+		line-height: 1.5;
 	}
 
 	.game-snapshot {
@@ -400,13 +434,8 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 	}
 
 	.game-snapshot .eyebrow,
-	.venue-card .eyebrow {
-		margin-bottom: 5px;
-		font-size: 9px;
-	}
-
 	.game-snapshot h2,
-	.venue-card h2 {
+	.venue-banner h2 {
 		margin: 0;
 		font-size: 17px;
 		letter-spacing: -0.025em;
@@ -448,46 +477,27 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		line-height: 1.45;
 	}
 
-	.venue-card {
-		display: flex;
-		min-width: 0;
-		flex-direction: column;
-		justify-content: space-between;
-		overflow: hidden;
-		padding: 15px;
-	}
-
-	.venue-card .stadium-diagram {
-		width: min(100%, 330px);
-		align-self: center;
-	}
-
-	.venue-card__copy {
-		padding: 3px 5px 1px;
-	}
-
-	.venue-card__copy > p:last-child {
-		margin: 5px 0 0;
-		color: var(--color-muted);
-		font-size: 10px;
-		line-height: 1.5;
-	}
-
 	@media (max-width: 560px) {
 		.game-hero {
 			padding: 23px 15px 27px;
 		}
 
-		.game-information {
+		.venue-banner {
 			grid-template-columns: 1fr;
+			gap: 4px;
+			padding: 12px 15px 15px;
+		}
+
+		.venue-banner .stadium-diagram {
+			width: min(100%, 380px);
+		}
+
+		.venue-banner__copy {
+			padding: 0 4px;
 		}
 
 		.game-snapshot {
 			padding: 18px;
-		}
-
-		.venue-card .stadium-diagram {
-			width: min(100%, 300px);
 		}
 
 		.game-matchup {

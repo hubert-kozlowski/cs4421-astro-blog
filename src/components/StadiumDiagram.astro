@@ -91,14 +91,14 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 	{style.setting === 'rain' && (
 		<path d="m75 39-4 11m13-11-4 11m13-11-4 11m180-11-4 11m13-11-4 11m13-11-4 11" stroke="#78a5c8" stroke-linecap="round" stroke-width="2" />
 	)}
-	<path d={stadiumOutline} fill="#fff" stroke={style.primary} stroke-width="9" />
+	<path data-motion-stadium-outline d={stadiumOutline} fill="#fff" stroke={style.primary} stroke-width="9" />
 	<path d="M65 43h230a14 14 0 0 1 14 14v76a14 14 0 0 1-14 14H65a14 14 0 0 1-14-14V57a14 14 0 0 1 14-14Z" fill="#3c795c" />
 	<rect x="51" y="63" width="29" height="64" rx="2" fill={style.primary} />
 	<rect x="280" y="63" width="29" height="64" rx="2" fill={style.accent} />
 	<text x="65.5" y="97" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="10" font-weight="800">{homeTeamAbbr}</text>
 	<text x="294.5" y="97" text-anchor="middle" dominant-baseline="middle" fill={isLightAccent ? '#202733' : '#fff'} font-size="10" font-weight="800">{homeTeamAbbr}</text>
-	{[91, 119, 147, 175, 203, 231, 259].map((x) => <path d={`M${x} 44v108`} stroke="#ffffff" stroke-opacity=".45" stroke-width="1.5" />)}
-	<path d="M51 49h258M51 143h258" stroke="#ffffff" stroke-opacity=".65" stroke-width="2" />
+	{[91, 119, 147, 175, 203, 231, 259].map((x) => <path data-motion-yard-line d={`M${x} 44v108`} stroke="#ffffff" stroke-opacity=".45" stroke-width="1.5" />)}
+	<path data-motion-yard-line d="M51 49h258M51 143h258" stroke="#ffffff" stroke-opacity=".65" stroke-width="2" />
 	<circle cx="180" cy="96" r="17" fill="none" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
 	<path d="M180 44v108" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
 </svg>
