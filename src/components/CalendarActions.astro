@@ -11,6 +11,7 @@ const { event, compact = false } = Astro.props;
 
 <div
 	class:list={['calendar-actions', { 'calendar-actions--compact': compact }]}
+	data-calendar-starts-at={event.startsAt}
 	role="group"
 	aria-label="Add this game to your calendar"
 >
@@ -36,6 +37,24 @@ const { event, compact = false } = Astro.props;
 		</a>
 	</div>
 </div>
+
+<script>
+	function expireCalendarActions(actions: HTMLElement) {
+		const startsAt = Date.parse(actions.dataset.calendarStartsAt ?? '');
+		if (!Number.isFinite(startsAt) || startsAt <= Date.now()) {
+			actions.remove();
+			return;
+		}
+
+		window.setTimeout(
+			() => expireCalendarActions(actions),
+			Math.min(startsAt - Date.now(), 2_147_483_647),
+		);
+	}
+
+	document.querySelectorAll<HTMLElement>('.calendar-actions[data-calendar-starts-at]')
+		.forEach(expireCalendarActions);
+</script>
 
 <style>
 	.calendar-actions {
