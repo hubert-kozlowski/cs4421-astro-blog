@@ -59,7 +59,8 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await page.goto('/games/example-game');
 	await expect(page.getByRole('heading', { name: 'Before kickoff' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
-	await expect(page.getByRole('img', { name: 'Top-down illustration of EverBank Stadium' })).toBeVisible();
+	await expect(page.getByRole('img', { name: 'Top-down illustration of EverBank Stadium, home of the Jacksonville Jaguars in Jacksonville, Florida' })).toBeVisible();
+	await expect(page.locator('.stadium-diagram').first()).toContainText('JAX');
 	const calendarMenu = page.locator('.calendar-menu');
 	await expect(calendarMenu.locator('summary')).toHaveText('Add to calendar');
 	await expect(calendarMenu.locator('.calendar-menu__options')).toBeHidden();
@@ -78,7 +79,8 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Final result' })).toBeVisible();
 	await expect(page.locator('.game-snapshot__summary')).toContainText('Kansas City Chiefs won by 7');
 	await expect(page.locator('.venue-card')).toBeVisible();
-	await expect(page.getByRole('img', { name: 'Top-down illustration of Arrowhead Stadium' })).toBeVisible();
+	await expect(page.getByRole('img', { name: 'Top-down illustration of Arrowhead Stadium, home of the Kansas City Chiefs in Kansas City, Missouri' })).toBeVisible();
+	await expect(page.locator('.stadium-diagram').first()).toContainText('KC');
 	await expect(page.locator('.calendar-menu')).toHaveCount(0);
 
 	await page.goto('/');
@@ -115,6 +117,103 @@ test('calendar actions disappear when kickoff arrives', async ({ page }) => {
 
 	await page.clock.fastForward(delay + 1);
 	await expect(calendarMenu).toBeHidden();
+});
+
+test('completed game details keep the final provider box score visible', async ({ page }) => {
+	await page.route('**/api/live/games?date=*', async (route) => {
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-12T13:00:00.000Z',
+				stale: false,
+				games: [{
+					eventId: 'final-buf-kc',
+					kickoffAt: '2026-10-09T20:00:00.000Z',
+					homeTeam: 'KC',
+					awayTeam: 'BUF',
+					homeScore: 24,
+					awayScore: 17,
+					state: 'final',
+					status: 'Final',
+					period: 4,
+					clock: '0:00',
+					boxScoreUpdatedAt: '2026-10-09T23:00:00.000Z',
+					lastPlay: null,
+					situation: null,
+					moment: null,
+					notice: null,
+					boxScore: [{
+						team: 'KC',
+						stats: [{ label: 'Total Yards', value: '350' }],
+						categories: [{
+							name: 'passing',
+							labels: ['C/ATT', 'YDS'],
+							athletes: [{ name: 'Patrick Mahomes', stats: ['22/30', '280'] }],
+						}],
+					}],
+				}],
+			},
+		});
+	});
+
+	await page.goto('/games/past-game-no-kickoff');
+
+	const boxScore = page.locator('[data-live-boxscore]');
+	await expect(boxScore).toBeVisible();
+	await expect(boxScore.getByRole('heading', { name: 'Final game stats' })).toBeVisible();
+	await expect(boxScore).toContainText('Total Yards');
+	await expect(boxScore).toContainText('Patrick Mahomes');
+	await expect(boxScore).toContainText('22/30');
+	await expect(page.locator('[data-snapshot-summary]')).toContainText('Kansas City Chiefs won by 7');
+});
+
+test('game detail snapshot and statistics update from the live feed', async ({ page }) => {
+	let requests = 0;
+	await page.route('**/api/live/games?date=*', async (route) => {
+		requests += 1;
+		const final = requests > 1;
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-14T13:00:00.000Z',
+				stale: false,
+				games: [{
+					eventId: 'live-phi-jax-detail',
+					kickoffAt: '2026-10-14T13:00:00.000Z',
+					homeTeam: 'JAX',
+					awayTeam: 'PHI',
+					homeScore: final ? 21 : 14,
+					awayScore: final ? 17 : 10,
+					state: final ? 'final' : 'in_progress',
+					status: final ? 'Final' : '2nd Quarter',
+					period: final ? 4 : 2,
+					clock: final ? '0:00' : '8:42',
+					boxScoreUpdatedAt: '2026-10-14T14:00:00.000Z',
+					lastPlay: null,
+					situation: null,
+					moment: null,
+					notice: null,
+					boxScore: [{
+						team: 'JAX',
+						stats: [{ label: 'Total Yards', value: '220' }],
+						categories: [],
+					}],
+				}],
+			},
+		});
+	});
+
+	await page.goto('/games/example-game');
+
+	await expect(page.locator('[data-snapshot-title]')).toHaveText('Game in progress');
+	await expect(page.locator('[data-snapshot-eyebrow]')).toHaveText('LIVE UPDATE');
+	await expect(page.locator('[data-snapshot-summary]')).toContainText('Philadelphia Eagles 10 · Jacksonville Jaguars 14');
+	await expect(page.locator('[data-live-boxscore]')).toBeVisible();
+	await expect(page.locator('[data-live-boxscore]')).toContainText('Total Yards');
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => requests).toBeGreaterThan(1);
+	await expect(page.locator('[data-snapshot-title]')).toHaveText('Final result');
+	await expect(page.locator('[data-snapshot-eyebrow]')).toHaveText('THE RESULT');
+	await expect(page.locator('[data-snapshot-summary]')).toContainText('Jacksonville Jaguars won by 4');
+	await expect(page.locator('[data-boxscore-title]')).toHaveText('Final game stats');
 });
 
 test('live game center stays visible while the next kickoff countdown advances', async ({ page }) => {

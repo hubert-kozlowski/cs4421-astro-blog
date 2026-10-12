@@ -373,6 +373,30 @@ function updateGameDetail(game: LiveGame, changed: boolean) {
 		if (game.state === 'in_progress' || game.state === 'halftime') status.classList.add('game-status--live');
 		if (game.state === 'final') status.classList.add('game-status--final');
 	}
+
+	const snapshot = document.querySelector<HTMLElement>('[data-game-snapshot]');
+	if (snapshot) {
+		const eyebrow = snapshot.querySelector<HTMLElement>('[data-snapshot-eyebrow]');
+		const title = snapshot.querySelector<HTMLElement>('[data-snapshot-title]');
+		const summary = snapshot.querySelector<HTMLElement>('[data-snapshot-summary]');
+		if (eyebrow && title && summary) {
+			const homeName = snapshot.dataset.homeName ?? game.homeTeam;
+			const awayName = snapshot.dataset.awayName ?? game.awayTeam;
+			if (game.state === 'final') {
+				eyebrow.textContent = 'THE RESULT';
+				title.textContent = 'Final result';
+				summary.textContent = game.homeScore === game.awayScore
+					? 'The game ended in a tie.'
+					: game.homeScore > game.awayScore
+						? `${homeName} won by ${game.homeScore - game.awayScore}.`
+						: `${awayName} won by ${game.awayScore - game.homeScore}.`;
+			} else if (game.state === 'in_progress' || game.state === 'halftime') {
+				eyebrow.textContent = 'LIVE UPDATE';
+				title.textContent = game.state === 'halftime' ? 'Halftime' : 'Game in progress';
+				summary.textContent = `${awayName} ${game.awayScore} · ${homeName} ${game.homeScore}.`;
+			}
+		}
+	}
 }
 
 function possessionMatchesTeam(possession: string | null | undefined, team: string): boolean {
@@ -727,8 +751,12 @@ function renderBoxScore(game: LiveGame) {
 	if (!container || targetHome !== normalizedTeam(game.homeTeam) || targetAway !== normalizedTeam(game.awayTeam)) return;
 	const statsContainer = container.querySelector<HTMLElement>('[data-live-stats]');
 	if (!statsContainer) return;
-	container.hidden = game.state !== 'in_progress' && game.state !== 'halftime';
+	container.hidden = game.state !== 'in_progress' && game.state !== 'halftime' && game.state !== 'final';
 	if (container.hidden) return;
+	const eyebrow = container.querySelector<HTMLElement>('[data-boxscore-eyebrow]');
+	const title = container.querySelector<HTMLElement>('[data-boxscore-title]');
+	if (eyebrow) eyebrow.textContent = game.state === 'final' ? 'FINAL BOX SCORE' : 'LIVE BOX SCORE';
+	if (title) title.textContent = game.state === 'final' ? 'Final game stats' : 'Live game stats';
 
 	const fragment = document.createDocumentFragment();
 	const teams = appendText(fragment, 'div', '', 'live-boxscore__teams');
@@ -795,7 +823,11 @@ async function pollLiveGames() {
 	if (polling || document.visibilityState === 'hidden') return;
 	polling = true;
 	try {
-		const response = await fetch('/api/live/games', {
+		const gameDate = document.querySelector<HTMLElement>('[data-live-boxscore]')?.dataset.gameDate;
+		const endpoint = gameDate
+			? `/api/live/games?date=${encodeURIComponent(gameDate)}`
+			: '/api/live/games';
+		const response = await fetch(endpoint, {
 			headers: { Accept: 'application/json' },
 			cache: 'no-store',
 		});

@@ -15,6 +15,7 @@ import {
 	type NflTeam,
 } from '../../utils/nfl-data';
 import { createGameCalendarEvent } from '../../utils/calendar';
+import { getMatchupTypeLabel } from '../../utils/game-presentation';
 import { isAbsoluteTimestamp } from '../../utils/local-game-time';
 import CalendarActions from '../../components/CalendarActions.astro';
 
@@ -53,13 +54,14 @@ const hasGameDate = Boolean(game?.gameday && Number.isFinite(Date.parse(`${game.
 const gameDateTime = kickoffAt ?? (hasGameDate && game?.gameday ? `${game.gameday}T12:00:00Z` : undefined);
 const homeScore = typeof game?.home_score === 'number' ? game.home_score : undefined;
 const awayScore = typeof game?.away_score === 'number' ? game.away_score : undefined;
-const resultSummary = homeScore !== undefined && awayScore !== undefined && game
+const resultSummary = isFinal && homeScore !== undefined && awayScore !== undefined && game
 	? homeScore === awayScore
-		? 'The teams finished level.'
+		? 'The game ended in a tie.'
 		: homeScore > awayScore
 			? `${homeTeam?.name ?? game.home_team} won by ${homeScore - awayScore}.`
 			: `${awayTeam?.name ?? game.away_team} won by ${awayScore - homeScore}.`
 	: undefined;
+const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false);
 ---
 
 <SiteLayout
@@ -121,12 +123,21 @@ const resultSummary = homeScore !== undefined && awayScore !== undefined && game
 					</a>
 				</div>
 			</section>
-			<LiveGameCenter homeTeam={game.home_team ?? undefined} awayTeam={game.away_team ?? undefined} />
+			<LiveGameCenter
+				homeTeam={game.home_team ?? undefined}
+				awayTeam={game.away_team ?? undefined}
+				gameDate={game.gameday}
+			/>
 			<section class="game-information" aria-label="Game information">
-				<div class="game-snapshot">
-					<p class="eyebrow">{isFinal ? 'THE RESULT' : 'THE MATCHUP'}</p>
-					<h2>{isFinal ? 'Final result' : gameStatus === 'Scheduled' ? 'Before kickoff' : 'Game update'}</h2>
-					<p class="game-snapshot__summary">
+				<div
+					class="game-snapshot"
+					data-game-snapshot
+					data-home-name={homeTeam?.name ?? game.home_team ?? 'Home team'}
+					data-away-name={awayTeam?.name ?? game.away_team ?? 'Away team'}
+				>
+					<p class="eyebrow" data-snapshot-eyebrow>{isFinal ? 'THE RESULT' : 'THE MATCHUP'}</p>
+					<h2 data-snapshot-title>{isFinal ? 'Final result' : gameStatus === 'Scheduled' ? 'Before kickoff' : 'Game update'}</h2>
+					<p class="game-snapshot__summary" data-snapshot-summary>
 						{resultSummary ??
 							(gameStatus === 'Scheduled'
 								? 'The teams are set. Check the kickoff details and venue before game day.'
@@ -168,27 +179,21 @@ const resultSummary = homeScore !== undefined && awayScore !== undefined && game
 						)}
 						<div>
 							<dt>Matchup</dt>
-							<dd>
-								{game.div_game
-									? 'Division game'
-									: game.game_type === 'POST'
-										? 'Postseason'
-										: game.game_type === 'PRE'
-											? 'Preseason'
-											: 'Regular season'}
-							</dd>
+							<dd data-snapshot-type>{matchupType}</dd>
 						</div>
 					</dl>
 				</div>
 				<article class="venue-card" aria-labelledby="venue-heading">
-					<StadiumDiagram label={game.stadium ?? 'football stadium'} />
+					<StadiumDiagram
+						label={game.stadium ?? 'Football stadium'}
+						homeTeamName={homeTeam?.name ?? game.home_team ?? 'home team'}
+						homeTeamAbbr={game.home_team}
+					/>
 					<div class="venue-card__copy">
 						<p class="eyebrow">THE VENUE</p>
 						<h2 id="venue-heading">{game.stadium ?? 'Stadium to be announced'}</h2>
 						<p>
-							{homeTeam?.name
-								? `Home of the ${homeTeam.name}.`
-								: 'The setting for this matchup.'}
+							{homeTeam?.name ? `Home team: ${homeTeam.name}.` : 'Home team shown in team colors.'}
 							{game.overtime ? ' · Decided in overtime.' : ''}
 						</p>
 					</div>

@@ -123,6 +123,49 @@ describe('getLiveGames', () => {
 		expect(fetchMock).toHaveBeenCalledTimes(11);
 	});
 
+	it('keeps provider box scores available for completed games', async () => {
+		const date = new Date('2042-01-08T18:00:00.000Z');
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(date);
+		const event = {
+			id: 'final-test-event-2042',
+			date: '2042-01-08T20:00:00.000Z',
+			competitions: [{
+				date: '2042-01-08T20:00:00.000Z',
+				status: { type: { name: 'STATUS_FINAL', state: 'post', completed: true, detail: 'Final' } },
+				competitors: [
+					{ homeAway: 'home', score: '24', team: { abbreviation: 'KC' } },
+					{ homeAway: 'away', score: '17', team: { abbreviation: 'BUF' } },
+				],
+			}],
+		};
+		vi.stubGlobal('fetch', vi.fn(async (input: string | URL | Request) => {
+			const url = new URL(input.toString());
+			if (url.pathname.endsWith('/scoreboard')) {
+				return new Response(JSON.stringify({
+					events: url.searchParams.get('dates') === '20420108' ? [event] : [],
+				}));
+			}
+			return new Response(JSON.stringify({
+				boxscore: {
+					teams: [{
+						team: { abbreviation: 'KC' },
+						statistics: [{ label: 'Total Yards', displayValue: '350' }],
+					}],
+					players: [],
+				},
+			}));
+		}));
+
+		const result = await getLiveGames(date);
+		expect(result.games).toHaveLength(1);
+		expect(result.games[0]).toMatchObject({
+			state: 'final',
+			boxScoreUpdatedAt: date.toISOString(),
+			boxScore: [{ team: 'KC', stats: [{ label: 'Total Yards', value: '350' }] }],
+		});
+	});
+
 	it('identifies the two-minute warning from ESPN status, play text, or the period clock', async () => {
 		const date = new Date('2033-01-15T18:00:00.000Z');
 		vi.useFakeTimers({ toFake: ['Date'] });

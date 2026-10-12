@@ -1,29 +1,106 @@
 ---
 interface Props {
 	label?: string;
+	homeTeamName: string;
+	homeTeamAbbr?: string | null;
 }
 
-const { label = 'Football stadium' } = Astro.props;
-const yardLines = Array.from({ length: 9 }, (_, index) => 68 + index * 28);
+const { label = 'Football stadium', homeTeamName, homeTeamAbbr = '' } = Astro.props;
+
+const teamStyles: Record<string, { primary: string; accent: string; city: string; setting: string }> = {
+	ARI: { primary: '#97233f', accent: '#ffb612', city: 'Glendale, Arizona', setting: 'desert' },
+	ATL: { primary: '#a71930', accent: '#a5acaf', city: 'Atlanta, Georgia', setting: 'city' },
+	BAL: { primary: '#241773', accent: '#9e7c0c', city: 'Baltimore, Maryland', setting: 'coast' },
+	BUF: { primary: '#00338d', accent: '#c60c30', city: 'Orchard Park, New York', setting: 'lake' },
+	CAR: { primary: '#0085ca', accent: '#101820', city: 'Charlotte, North Carolina', setting: 'woodland' },
+	CHI: { primary: '#0b162a', accent: '#c83803', city: 'Chicago, Illinois', setting: 'lake' },
+	CIN: { primary: '#fb4f14', accent: '#111111', city: 'Cincinnati, Ohio', setting: 'river' },
+	CLE: { primary: '#311d00', accent: '#ff3c00', city: 'Cleveland, Ohio', setting: 'lake' },
+	DAL: { primary: '#003594', accent: '#869397', city: 'Arlington, Texas', setting: 'plains' },
+	DEN: { primary: '#fb4f14', accent: '#002244', city: 'Denver, Colorado', setting: 'mountain' },
+	DET: { primary: '#0076b6', accent: '#b0b7bc', city: 'Detroit, Michigan', setting: 'lake' },
+	GB: { primary: '#203731', accent: '#ffb612', city: 'Green Bay, Wisconsin', setting: 'woodland' },
+	HOU: { primary: '#03202f', accent: '#a71930', city: 'Houston, Texas', setting: 'plains' },
+	IND: { primary: '#002c5f', accent: '#a2aaad', city: 'Indianapolis, Indiana', setting: 'city' },
+	JAX: { primary: '#006778', accent: '#d7a22a', city: 'Jacksonville, Florida', setting: 'coast' },
+	KC: { primary: '#e31837', accent: '#ffb81c', city: 'Kansas City, Missouri', setting: 'plains' },
+	LV: { primary: '#111111', accent: '#a5acaf', city: 'Las Vegas, Nevada', setting: 'desert' },
+	LAC: { primary: '#0080c6', accent: '#ffc20e', city: 'Inglewood, California', setting: 'coast' },
+	LAR: { primary: '#003594', accent: '#ffa300', city: 'Inglewood, California', setting: 'coast' },
+	MIA: { primary: '#008e97', accent: '#fc4c02', city: 'Miami Gardens, Florida', setting: 'coast' },
+	MIN: { primary: '#4f2683', accent: '#ffc62f', city: 'Minneapolis, Minnesota', setting: 'lake' },
+	NE: { primary: '#002244', accent: '#c60c30', city: 'Foxborough, Massachusetts', setting: 'woodland' },
+	NO: { primary: '#d3bc8d', accent: '#101820', city: 'New Orleans, Louisiana', setting: 'river' },
+	NYG: { primary: '#0b2265', accent: '#a71930', city: 'East Rutherford, New Jersey', setting: 'city' },
+	NYJ: { primary: '#125740', accent: '#ffffff', city: 'East Rutherford, New Jersey', setting: 'city' },
+	PHI: { primary: '#004c54', accent: '#a5acaf', city: 'Philadelphia, Pennsylvania', setting: 'river' },
+	PIT: { primary: '#ffb612', accent: '#101820', city: 'Pittsburgh, Pennsylvania', setting: 'river' },
+	SEA: { primary: '#002244', accent: '#69be28', city: 'Seattle, Washington', setting: 'rain' },
+	SF: { primary: '#aa0000', accent: '#b3995d', city: 'Santa Clara, California', setting: 'coast' },
+	TB: { primary: '#d50a0a', accent: '#34302b', city: 'Tampa, Florida', setting: 'coast' },
+	TEN: { primary: '#0c2340', accent: '#4b92db', city: 'Nashville, Tennessee', setting: 'river' },
+	WAS: { primary: '#5a1414', accent: '#ffb612', city: 'Landover, Maryland', setting: 'woodland' },
+};
+
+const style = teamStyles[homeTeamAbbr ?? ''] ?? {
+	primary: '#28446f',
+	accent: '#9fb0c8',
+	city: 'United States',
+	setting: 'city',
+};
+const terrain = style.setting === 'desert'
+	? 'M8 99 Q31 80 55 99 T102 99 M255 99 Q287 76 320 99 T352 99'
+	: style.setting === 'mountain'
+		? 'M8 100 58 55 91 87 132 43 190 100 M232 100 281 51 352 100'
+		: style.setting === 'woodland' || style.setting === 'rain'
+			? 'M14 96 29 69 44 96m3 0 15-27 15 27m219 0 15-27 15 27m3 0 15-27 15 27'
+			: style.setting === 'lake' || style.setting === 'coast'
+				? 'M8 87q19-10 38 0t38 0m-76 13q19-10 38 0t38 0m216-13q19-10 38 0t38 0m-76 13q19-10 38 0t38 0'
+				: 'M8 96h50m244 0h50';
+const stadiumOutline = homeTeamAbbr === 'LV'
+	? 'M48 28h264a28 28 0 0 1 28 28v78a28 28 0 0 1-28 28H48a28 28 0 0 1-28-28V56a28 28 0 0 1 28-28Z'
+	: homeTeamAbbr === 'KC'
+		? 'M43 27 310 34l31 24v70l-31 24-267 7-24-24V51Z'
+		: homeTeamAbbr === 'JAX'
+			? 'M49 27h262a25 25 0 0 1 25 25v84a25 25 0 0 1-25 25H49a25 25 0 0 1-25-25V52a25 25 0 0 1 25-25Z'
+			: homeTeamAbbr === 'SEA'
+				? 'M45 27h270v15h18v103h-18v16H45v-16H27V42h18Z'
+				: homeTeamAbbr === 'DAL'
+					? 'M38 26h284v18h15v105h-15v18H38v-18H23V44h15Z'
+					: homeTeamAbbr === 'MIN'
+						? 'M49 27h262l25 24v91l-25 24H49l-25-24V51Z'
+						: homeTeamAbbr === 'LAR' || homeTeamAbbr === 'LAC'
+							? 'M50 29h260q34 0 34 27v75q0 27-34 27H50q-34 0-34-27V56q0-27 34-27Z'
+				: 'M48 28h264a25 25 0 0 1 25 25v82a25 25 0 0 1-25 25H48a25 25 0 0 1-25-25V53a25 25 0 0 1 25-25Z';
+const isLightAccent = ['ARI', 'GB', 'KC', 'MIN', 'NO', 'NYJ', 'PIT', 'SF', 'WAS'].includes(homeTeamAbbr ?? '');
+const teamLabel = homeTeamName.replace(/^the /i, '');
 ---
 
 <svg
 	class="stadium-diagram"
 	viewBox="0 0 360 190"
 	role="img"
-	aria-label={`Top-down illustration of ${label}`}
+	aria-label={`Top-down illustration of ${label}, home of the ${teamLabel} in ${style.city}`}
 >
-	<rect x="8" y="8" width="344" height="174" rx="38" fill="#dfe7f1" />
-	<rect x="19" y="19" width="322" height="152" rx="32" fill="#c4d0df" />
-	<path d="M48 30h264a22 22 0 0 1 22 22v86a22 22 0 0 1-22 22H48a22 22 0 0 1-22-22V52a22 22 0 0 1 22-22Z" fill="#17243a" />
-	<path d="M65 42h230a14 14 0 0 1 14 14v78a14 14 0 0 1-14 14H65a14 14 0 0 1-14-14V56a14 14 0 0 1 14-14Z" fill="#3c795c" />
-	<rect x="51" y="64" width="24" height="62" rx="2" fill="#244f46" />
-	<rect x="285" y="64" width="24" height="62" rx="2" fill="#244f46" />
-	{yardLines.map((x) => <path d={`M${x} 43v110`} stroke="#ffffff" stroke-opacity=".42" stroke-width="1.5" />)}
-	<path d="M51 48h258M51 142h258" stroke="#ffffff" stroke-opacity=".65" stroke-width="2" />
-	<circle cx="180" cy="95" r="18" fill="none" stroke="#ffffff" stroke-opacity=".72" stroke-width="2" />
-	<path d="M180 43v110" stroke="#ffffff" stroke-opacity=".72" stroke-width="2" />
-	<path d="M31 49h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m274-91h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12m-12 8h12" stroke="#8e9fb4" stroke-linecap="round" stroke-width="2" />
+	<rect x="5" y="5" width="350" height="180" rx="34" fill="#e8edf3" />
+	<text x="180" y="19" text-anchor="middle" fill="#526177" font-size="7" font-weight="800" letter-spacing=".8">
+		HOME TEAM · {homeTeamAbbr || 'NFL'} · {style.city.toUpperCase()}
+	</text>
+	<path d={terrain} fill="none" stroke={style.accent} stroke-opacity=".68" stroke-width="3" stroke-linecap="round" />
+	{style.setting === 'desert' && <circle cx="307" cy="41" r="11" fill="#ffcf70" />}
+	{style.setting === 'rain' && (
+		<path d="m75 39-4 11m13-11-4 11m13-11-4 11m180-11-4 11m13-11-4 11m13-11-4 11" stroke="#78a5c8" stroke-linecap="round" stroke-width="2" />
+	)}
+	<path d={stadiumOutline} fill="#fff" stroke={style.primary} stroke-width="9" />
+	<path d="M65 43h230a14 14 0 0 1 14 14v76a14 14 0 0 1-14 14H65a14 14 0 0 1-14-14V57a14 14 0 0 1 14-14Z" fill="#3c795c" />
+	<rect x="51" y="63" width="29" height="64" rx="2" fill={style.primary} />
+	<rect x="280" y="63" width="29" height="64" rx="2" fill={style.accent} />
+	<text x="65.5" y="97" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="10" font-weight="800">{homeTeamAbbr}</text>
+	<text x="294.5" y="97" text-anchor="middle" dominant-baseline="middle" fill={isLightAccent ? '#202733' : '#fff'} font-size="10" font-weight="800">{homeTeamAbbr}</text>
+	{[91, 119, 147, 175, 203, 231, 259].map((x) => <path d={`M${x} 44v108`} stroke="#ffffff" stroke-opacity=".45" stroke-width="1.5" />)}
+	<path d="M51 49h258M51 143h258" stroke="#ffffff" stroke-opacity=".65" stroke-width="2" />
+	<circle cx="180" cy="96" r="17" fill="none" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
+	<path d="M180 44v108" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
 </svg>
 
 <style>

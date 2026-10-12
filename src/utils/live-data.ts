@@ -489,7 +489,9 @@ export async function getLiveGames(date = new Date()): Promise<LiveGamesResult> 
 	let stale = successful.length !== days.length;
 	const games = [...uniqueEvents.values()].sort((left, right) => Date.parse(left.kickoffAt) - Date.parse(right.kickoffAt));
 	const summaries = await Promise.all(
-		games.filter((game) => game.state === 'in_progress' || game.state === 'halftime').map(async (game) => {
+		games.filter((game) =>
+			game.state === 'in_progress' || game.state === 'halftime' || game.state === 'final',
+		).map(async (game) => {
 			try {
 				return { eventId: game.eventId, value: await fetchSummary(game.eventId) };
 			} catch (error) {
