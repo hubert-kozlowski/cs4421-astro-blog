@@ -11,8 +11,7 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
 	await expect(page.locator('[data-countdown]')).toHaveText(/^\d+:\d{2}:\d{2}$/);
 	await expect(page.locator('[data-session-matchups]')).not.toHaveText(/^\d+ games?$/);
-	const completedCard = page.locator('.game-card__link[href="/games/past-game-no-kickoff"]');
-	const completedGameCard = page.locator('.game-card').filter({ has: completedCard });
+	const completedCard = page.locator('.game-card[href="/games/past-game-no-kickoff"]');
 	await expect(completedCard).toHaveCount(1);
 	await expect(completedCard.locator('.game-card__kickoff')).toHaveText('Final');
 	await expect(page.locator('.game-card').filter({ hasText: 'Kickoff time pending' })).toHaveCount(0);
@@ -54,24 +53,35 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Find your player.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Set up a matchup.' })).toBeVisible();
 	await expect(page.getByRole('searchbox', { name: 'Search NFL player names' })).toBeVisible();
-	const upcomingCard = page.locator('.game-card').filter({ has: page.locator('.game-card__link[href="/games/example-game"]') });
-	const googleCalendarLink = upcomingCard.getByRole('link', { name: 'Add to Google Calendar' });
-	const appleCalendarLink = upcomingCard.getByRole('link', { name: 'Download Apple Calendar event' });
+	await expect(page.locator('.game-card .calendar-menu')).toHaveCount(0);
+	await expect(page.locator('.upcoming-game .calendar-menu')).toHaveCount(0);
+
+	await page.goto('/games/example-game');
+	await expect(page.getByRole('heading', { name: 'Before kickoff' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
+	await expect(page.getByRole('img', { name: 'Top-down illustration of EverBank Stadium, home of the Jacksonville Jaguars in Jacksonville, Florida' })).toBeVisible();
+	await expect(page.locator('.stadium-diagram').first()).toContainText('JAX');
+	const calendarMenu = page.locator('.calendar-menu');
+	await expect(calendarMenu.locator('summary')).toHaveText('Add to calendar');
+	await expect(calendarMenu.locator('.calendar-menu__options')).toBeHidden();
+	await calendarMenu.locator('summary').click();
+	const googleCalendarLink = calendarMenu.getByRole('link', { name: 'Google Calendar' });
+	const appleCalendarLink = calendarMenu.getByRole('link', { name: 'Apple Calendar (.ics)' });
 	await expect(googleCalendarLink).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\/calendar\/render\?/);
 	await expect(appleCalendarLink).toHaveAttribute('download', 'nfl-game-example-game.ics');
 	const googleUrl = new URL((await googleCalendarLink.getAttribute('href'))!);
 	expect(googleUrl.searchParams.get('text')).toBe('Philadelphia Eagles at Jacksonville Jaguars');
-	await expect(completedGameCard.getByRole('link', { name: 'Add to Google Calendar' })).toHaveCount(0);
 	const calendarResponse = await page.request.get((await appleCalendarLink.getAttribute('href'))!);
 	expect(calendarResponse.ok()).toBe(true);
 	expect(calendarResponse.headers()['content-type']).toContain('text/calendar');
 	expect(await calendarResponse.text()).toContain('SUMMARY:Philadelphia Eagles at Jacksonville Jaguars');
-
-	await page.goto('/games/example-game');
-	await expect(page.getByRole('link', { name: 'Add to Google Calendar' })).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Download Apple Calendar event' })).toBeVisible();
 	await page.goto('/games/past-game-no-kickoff');
-	await expect(page.locator('.calendar-actions')).toHaveCount(0);
+	await expect(page.getByRole('heading', { name: 'Final result' })).toBeVisible();
+	await expect(page.locator('.game-snapshot__summary')).toContainText('Kansas City Chiefs won by 7');
+	await expect(page.locator('.venue-card')).toBeVisible();
+	await expect(page.getByRole('img', { name: 'Top-down illustration of Arrowhead Stadium, home of the Kansas City Chiefs in Kansas City, Missouri' })).toBeVisible();
+	await expect(page.locator('.stadium-diagram').first()).toContainText('KC');
+	await expect(page.locator('.calendar-menu')).toHaveCount(0);
 
 	await page.goto('/');
 	await page.getByRole('navigation', { name: 'Jump to a dashboard feature' }).getByRole('link', { name: 'Standings' }).click();
@@ -79,18 +89,131 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await context.close();
 });
 
+test('global and matchup styles load after a direct query navigation', async ({ page }) => {
+	const failedStylesheets: string[] = [];
+	page.on('requestfailed', (request) => {
+		if (request.resourceType() === 'stylesheet') failedStylesheets.push(request.url());
+	});
+
+	for (const load of [() => page.goto('/?team1=BUF&team2=KC#matchups'), () => page.reload()]) {
+		await load();
+		await expect(page.locator('.matchup-result')).toBeVisible();
+		await expect(page.locator('#matchups .section-heading h2')).toHaveCSS('font-size', '30px');
+		await expect(page.locator('.matchup-result')).toHaveCSS('border-radius', '15px');
+		await expect(page.locator('.matchup-result')).toHaveCSS('background-color', 'rgb(244, 251, 246)');
+	}
+	expect(failedStylesheets).toEqual([]);
+});
+
 test('calendar actions disappear when kickoff arrives', async ({ page }) => {
 	await page.clock.install();
 	await page.goto('/games/example-game');
 
-	const calendarActions = page.locator('.calendar-actions');
-	await expect(calendarActions).toBeVisible();
-	const startsAt = await calendarActions.getAttribute('data-calendar-starts-at');
+	const calendarMenu = page.locator('.calendar-menu');
+	await expect(calendarMenu).toBeVisible();
+	const startsAt = await calendarMenu.getAttribute('data-calendar-starts-at');
 	expect(startsAt).not.toBeNull();
 	const delay = Date.parse(startsAt!) - await page.evaluate(() => Date.now());
 
 	await page.clock.fastForward(delay + 1);
-	await expect(calendarActions).toHaveCount(0);
+	await expect(calendarMenu).toBeHidden();
+});
+
+test('completed game details keep the final provider box score visible', async ({ page }) => {
+	await page.route('**/api/live/games?date=*', async (route) => {
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-12T13:00:00.000Z',
+				stale: false,
+				games: [{
+					eventId: 'final-buf-kc',
+					kickoffAt: '2026-10-09T20:00:00.000Z',
+					homeTeam: 'KC',
+					awayTeam: 'BUF',
+					homeScore: 24,
+					awayScore: 17,
+					state: 'final',
+					status: 'Final',
+					period: 4,
+					clock: '0:00',
+					boxScoreUpdatedAt: '2026-10-09T23:00:00.000Z',
+					lastPlay: null,
+					situation: null,
+					moment: null,
+					notice: null,
+					boxScore: [{
+						team: 'KC',
+						stats: [{ label: 'Total Yards', value: '350' }],
+						categories: [{
+							name: 'passing',
+							labels: ['C/ATT', 'YDS'],
+							athletes: [{ name: 'Patrick Mahomes', stats: ['22/30', '280'] }],
+						}],
+					}],
+				}],
+			},
+		});
+	});
+
+	await page.goto('/games/past-game-no-kickoff');
+
+	const boxScore = page.locator('[data-live-boxscore]');
+	await expect(boxScore).toBeVisible();
+	await expect(boxScore.getByRole('heading', { name: 'Final game stats' })).toBeVisible();
+	await expect(boxScore).toContainText('Total Yards');
+	await expect(boxScore).toContainText('Patrick Mahomes');
+	await expect(boxScore).toContainText('22/30');
+	await expect(page.locator('[data-snapshot-summary]')).toContainText('Kansas City Chiefs won by 7');
+});
+
+test('game detail snapshot and statistics update from the live feed', async ({ page }) => {
+	let requests = 0;
+	await page.route('**/api/live/games?date=*', async (route) => {
+		requests += 1;
+		const final = requests > 1;
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-14T13:00:00.000Z',
+				stale: false,
+				games: [{
+					eventId: 'live-phi-jax-detail',
+					kickoffAt: '2026-10-14T13:00:00.000Z',
+					homeTeam: 'JAX',
+					awayTeam: 'PHI',
+					homeScore: final ? 21 : 14,
+					awayScore: final ? 17 : 10,
+					state: final ? 'final' : 'in_progress',
+					status: final ? 'Final' : '2nd Quarter',
+					period: final ? 4 : 2,
+					clock: final ? '0:00' : '8:42',
+					boxScoreUpdatedAt: '2026-10-14T14:00:00.000Z',
+					lastPlay: null,
+					situation: null,
+					moment: null,
+					notice: null,
+					boxScore: [{
+						team: 'JAX',
+						stats: [{ label: 'Total Yards', value: '220' }],
+						categories: [],
+					}],
+				}],
+			},
+		});
+	});
+
+	await page.goto('/games/example-game');
+
+	await expect(page.locator('[data-snapshot-title]')).toHaveText('Game in progress');
+	await expect(page.locator('[data-snapshot-eyebrow]')).toHaveText('LIVE UPDATE');
+	await expect(page.locator('[data-snapshot-summary]')).toContainText('Philadelphia Eagles 10 · Jacksonville Jaguars 14');
+	await expect(page.locator('[data-live-boxscore]')).toBeVisible();
+	await expect(page.locator('[data-live-boxscore]')).toContainText('Total Yards');
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => requests).toBeGreaterThan(1);
+	await expect(page.locator('[data-snapshot-title]')).toHaveText('Final result');
+	await expect(page.locator('[data-snapshot-eyebrow]')).toHaveText('THE RESULT');
+	await expect(page.locator('[data-snapshot-summary]')).toContainText('Jacksonville Jaguars won by 4');
+	await expect(page.locator('[data-boxscore-title]')).toHaveText('Final game stats');
 });
 
 test('live game center stays visible while the next kickoff countdown advances', async ({ page }) => {

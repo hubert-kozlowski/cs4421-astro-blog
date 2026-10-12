@@ -1,8 +1,6 @@
 ---
 import { getGameStatus, getGameUpset, type NflGame, type NflTeam } from '../utils/nfl-data';
 import { isAbsoluteTimestamp } from '../utils/local-game-time';
-import { createGameCalendarEvent } from '../utils/calendar';
-import CalendarActions from './CalendarActions.astro';
 import TeamMark from './TeamMark.astro';
 
 interface Props {
@@ -18,18 +16,17 @@ const gameStatus = getGameStatus(game);
 const isFinal = gameStatus === 'Final';
 const upset = getGameUpset(game);
 const kickoffAt = isAbsoluteTimestamp(game.kickoff_at ?? undefined) ? game.kickoff_at : undefined;
-const calendarEvent = createGameCalendarEvent(game, teams);
 const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' : gameStatus;
 ---
 
-<article class="game-card" data-motion-hover>
-	<a
-		class="game-card__link"
-		href={`/games/${encodeURIComponent(game.game_id)}`}
-		data-live-home={game.home_team}
-		data-live-away={game.away_team}
-		data-live-date={game.gameday}
-	>
+<a
+	class="game-card"
+	href={`/games/${encodeURIComponent(game.game_id)}`}
+	data-motion-hover
+	data-live-home={game.home_team}
+	data-live-away={game.away_team}
+	data-live-date={game.gameday}
+>
 		<div class="game-card__meta">
 			<span class="game-card__labels">
 				<span class:list={['game-status', {
@@ -71,16 +68,17 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 			<span>{game.stadium ?? 'Venue to be announced'}</span>
 			<span aria-hidden="true">↗</span>
 		</div>
-	</a>
-	{calendarEvent && <CalendarActions event={calendarEvent} compact />}
-</article>
+</a>
 
 <style>
 	.game-card {
-		overflow: hidden;
+		display: block;
+		padding: 17px 18px 15px;
 		border: 1px solid var(--color-border);
 		border-radius: 16px;
 		background: #fff;
+		color: inherit;
+		text-decoration: none;
 		transition: border-color 150ms ease, box-shadow 150ms ease;
 	}
 
@@ -92,13 +90,6 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 	.game-card--live-change {
 		border-color: #d8424a;
 		box-shadow: 0 0 0 3px rgb(216 66 74 / 15%), 0 10px 24px rgb(25 42 72 / 8%);
-	}
-
-	.game-card__link {
-		display: block;
-		padding: 17px 18px 15px;
-		color: inherit;
-		text-decoration: none;
 	}
 
 	.game-card__meta,

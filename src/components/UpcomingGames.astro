@@ -1,15 +1,12 @@
 ---
-import { getGameBroadcastLabel, type NflGame, type NflTeam } from '../utils/nfl-data';
+import { getGameBroadcastLabel, type NflGame } from '../utils/nfl-data';
 import { isAbsoluteTimestamp } from '../utils/local-game-time';
-import { createGameCalendarEvent } from '../utils/calendar';
-import CalendarActions from './CalendarActions.astro';
 
 interface Props {
 	games: NflGame[];
-	teams: NflTeam[];
 }
 
-const { games, teams } = Astro.props;
+const { games } = Astro.props;
 ---
 
 <section class="upcoming" aria-labelledby="upcoming-heading">
@@ -20,20 +17,20 @@ const { games, teams } = Astro.props;
 	<div class="upcoming__ticker" role="list">
 		{games.map((game) => {
 			const kickoffAt = game.kickoff_at && isAbsoluteTimestamp(game.kickoff_at) ? game.kickoff_at : undefined;
-			const calendarEvent = createGameCalendarEvent(game, teams);
 			return (
-				<article class="upcoming-game" role="listitem">
-					<a class="upcoming-game__link" href={`/games/${encodeURIComponent(game.game_id)}`}>
-						{kickoffAt ? (
-							<time class="upcoming-game__date" datetime={kickoffAt} data-device-time="time">Kickoff time</time>
-						) : (
-							<span class="upcoming-game__date">Kickoff time pending</span>
-						)}
-						<strong>{game.away_team} <i>@</i> {game.home_team}</strong>
-						{getGameBroadcastLabel(game) && <span class="upcoming-game__broadcast">{getGameBroadcastLabel(game)}</span>}
-					</a>
-					{calendarEvent && <CalendarActions event={calendarEvent} compact />}
-				</article>
+				<a
+					class="upcoming-game"
+					href={`/games/${encodeURIComponent(game.game_id)}`}
+					role="listitem"
+				>
+					{kickoffAt ? (
+						<time class="upcoming-game__date" datetime={kickoffAt} data-device-time="time">Kickoff time</time>
+					) : (
+						<span class="upcoming-game__date">Kickoff time pending</span>
+					)}
+					<strong>{game.away_team} <i>@</i> {game.home_team}</strong>
+					{getGameBroadcastLabel(game) && <span class="upcoming-game__broadcast">{getGameBroadcastLabel(game)}</span>}
+				</a>
 			);
 		})}
 	</div>
@@ -76,28 +73,21 @@ const { games, teams } = Astro.props;
 	}
 
 	.upcoming-game {
+		display: grid;
 		min-width: 210px;
+		gap: 4px;
+		padding: 8px 10px;
 		border: 1px solid #e8ebf1;
 		border-radius: 10px;
 		background: #fff;
-	}
-
-	.upcoming-game:hover {
-		border-color: #aebfe0;
-		background: #fdfdff;
-	}
-
-	.upcoming-game__link {
-		display: grid;
-		gap: 4px;
-		padding: 8px 10px;
 		color: var(--color-ink);
 		text-decoration: none;
 		white-space: nowrap;
 	}
 
-	.upcoming-game :global(.calendar-actions--compact) {
-		padding: 8px 10px 10px;
+	.upcoming-game:hover {
+		border-color: #aebfe0;
+		background: #fdfdff;
 	}
 
 	.upcoming-game__date {

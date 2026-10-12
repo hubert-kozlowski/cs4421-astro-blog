@@ -2,9 +2,10 @@
 interface Props {
 	homeTeam?: string;
 	awayTeam?: string;
+	gameDate?: string | null;
 }
 
-const { homeTeam, awayTeam } = Astro.props;
+const { homeTeam, awayTeam, gameDate } = Astro.props;
 const isGamePage = Boolean(homeTeam && awayTeam);
 ---
 
@@ -32,13 +33,14 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 		data-live-boxscore
 		data-game-home={homeTeam}
 		data-game-away={awayTeam}
+		data-game-date={gameDate}
 		hidden
-		aria-label="Live game statistics"
+		aria-label="Game statistics"
 	>
 		<div class="live-boxscore__header">
 			<div>
-				<p class="eyebrow">LIVE BOX SCORE</p>
-				<h2>Live game stats</h2>
+				<p class="eyebrow" data-boxscore-eyebrow>GAME STATS</p>
+				<h2 data-boxscore-title>Game statistics</h2>
 			</div>
 			<span class="live-boxscore__updated" data-live-updated></span>
 		</div>
