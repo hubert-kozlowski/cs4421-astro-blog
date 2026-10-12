@@ -1,0 +1,114 @@
+---
+import type { GameCalendarEvent } from '../utils/calendar';
+
+interface Props {
+	event: GameCalendarEvent;
+	compact?: boolean;
+}
+
+const { event, compact = false } = Astro.props;
+---
+
+<div
+	class:list={['calendar-actions', { 'calendar-actions--compact': compact }]}
+	data-calendar-starts-at={event.startsAt}
+	role="group"
+	aria-label="Add this game to your calendar"
+>
+	<span class="calendar-actions__label">Add to calendar</span>
+	<div class="calendar-actions__links">
+		<a
+			class="calendar-actions__link calendar-actions__link--google"
+			href={event.googleCalendarUrl}
+			target="_blank"
+			rel="noopener noreferrer"
+			aria-label="Add to Google Calendar"
+		>
+			Google Calendar
+		</a>
+		<a
+			class="calendar-actions__link calendar-actions__link--apple"
+			href={event.icsUrl}
+			download={`nfl-game-${event.gameId}.ics`}
+			aria-label="Download Apple Calendar event"
+		>
+			Apple Calendar
+			<span class="calendar-actions__format">.ics</span>
+		</a>
+	</div>
+</div>
+
+<script>
+	function expireCalendarActions(actions: HTMLElement) {
+		const startsAt = Date.parse(actions.dataset.calendarStartsAt ?? '');
+		if (!Number.isFinite(startsAt) || startsAt <= Date.now()) {
+			actions.remove();
+			return;
+		}
+
+		window.setTimeout(
+			() => expireCalendarActions(actions),
+			Math.min(startsAt - Date.now(), 2_147_483_647),
+		);
+	}
+
+	document.querySelectorAll<HTMLElement>('.calendar-actions[data-calendar-starts-at]')
+		.forEach(expireCalendarActions);
+</script>
+
+<style>
+	.calendar-actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 5px 10px;
+	}
+
+	.calendar-actions__label {
+		color: var(--color-muted);
+		font-size: 11px;
+		font-weight: 500;
+		white-space: nowrap;
+	}
+
+	.calendar-actions__links {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0;
+	}
+
+	.calendar-actions__link {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		padding: 2px 5px;
+		color: var(--color-blue);
+		font-size: 11px;
+		font-weight: 600;
+		text-decoration: none;
+		white-space: nowrap;
+		text-underline-offset: 2px;
+	}
+
+	.calendar-actions__link + .calendar-actions__link::before {
+		margin-right: 5px;
+		color: var(--color-faint);
+		content: '·';
+	}
+
+	.calendar-actions__link:hover {
+		text-decoration: underline;
+	}
+
+	.calendar-actions__format {
+		color: inherit;
+		font-size: 9px;
+		font-weight: 500;
+		opacity: 0.75;
+	}
+
+	.calendar-actions--compact {
+		padding: 0 18px 13px;
+	}
+</style>

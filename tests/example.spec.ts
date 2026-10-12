@@ -11,7 +11,8 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
 	await expect(page.locator('[data-countdown]')).toHaveText(/^\d+:\d{2}:\d{2}$/);
 	await expect(page.locator('[data-session-matchups]')).not.toHaveText(/^\d+ games?$/);
-	const completedCard = page.locator('.game-card[href="/games/past-game-no-kickoff"]');
+	const completedCard = page.locator('.game-card__link[href="/games/past-game-no-kickoff"]');
+	const completedGameCard = page.locator('.game-card').filter({ has: completedCard });
 	await expect(completedCard).toHaveCount(1);
 	await expect(completedCard.locator('.game-card__kickoff')).toHaveText('Final');
 	await expect(page.locator('.game-card').filter({ hasText: 'Kickoff time pending' })).toHaveCount(0);
@@ -53,10 +54,43 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Find your player.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Set up a matchup.' })).toBeVisible();
 	await expect(page.getByRole('searchbox', { name: 'Search NFL player names' })).toBeVisible();
+	const upcomingCard = page.locator('.game-card').filter({ has: page.locator('.game-card__link[href="/games/example-game"]') });
+	const googleCalendarLink = upcomingCard.getByRole('link', { name: 'Add to Google Calendar' });
+	const appleCalendarLink = upcomingCard.getByRole('link', { name: 'Download Apple Calendar event' });
+	await expect(googleCalendarLink).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\/calendar\/render\?/);
+	await expect(appleCalendarLink).toHaveAttribute('download', 'nfl-game-example-game.ics');
+	const googleUrl = new URL((await googleCalendarLink.getAttribute('href'))!);
+	expect(googleUrl.searchParams.get('text')).toBe('Philadelphia Eagles at Jacksonville Jaguars');
+	await expect(completedGameCard.getByRole('link', { name: 'Add to Google Calendar' })).toHaveCount(0);
+	const calendarResponse = await page.request.get((await appleCalendarLink.getAttribute('href'))!);
+	expect(calendarResponse.ok()).toBe(true);
+	expect(calendarResponse.headers()['content-type']).toContain('text/calendar');
+	expect(await calendarResponse.text()).toContain('SUMMARY:Philadelphia Eagles at Jacksonville Jaguars');
 
+	await page.goto('/games/example-game');
+	await expect(page.getByRole('link', { name: 'Add to Google Calendar' })).toBeVisible();
+	await expect(page.getByRole('link', { name: 'Download Apple Calendar event' })).toBeVisible();
+	await page.goto('/games/past-game-no-kickoff');
+	await expect(page.locator('.calendar-actions')).toHaveCount(0);
+
+	await page.goto('/');
 	await page.getByRole('navigation', { name: 'Jump to a dashboard feature' }).getByRole('link', { name: 'Standings' }).click();
 	await expect(page).toHaveURL(/#standings$/);
 	await context.close();
+});
+
+test('calendar actions disappear when kickoff arrives', async ({ page }) => {
+	await page.clock.install();
+	await page.goto('/games/example-game');
+
+	const calendarActions = page.locator('.calendar-actions');
+	await expect(calendarActions).toBeVisible();
+	const startsAt = await calendarActions.getAttribute('data-calendar-starts-at');
+	expect(startsAt).not.toBeNull();
+	const delay = Date.parse(startsAt!) - await page.evaluate(() => Date.now());
+
+	await page.clock.fastForward(delay + 1);
+	await expect(calendarActions).toHaveCount(0);
 });
 
 test('live game center stays visible while the next kickoff countdown advances', async ({ page }) => {

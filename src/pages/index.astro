@@ -124,7 +124,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		{dashboard && (
 			<>
 				{dashboard.upcomingGames.length > 0 && (
-					<UpcomingGames games={dashboard.upcomingGames} />
+					<UpcomingGames games={dashboard.upcomingGames} teams={dashboard.teams} />
 				)}
 				<div class="schedule-toolbar">
 					<div class="week-switcher">
