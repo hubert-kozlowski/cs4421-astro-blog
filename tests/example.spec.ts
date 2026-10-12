@@ -11,7 +11,7 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
 	await expect(page.locator('[data-countdown]')).toHaveText(/^\d+:\d{2}:\d{2}$/);
 	await expect(page.locator('[data-session-matchups]')).not.toHaveText(/^\d+ games?$/);
-	const completedCard = page.locator('.game-card').filter({ has: page.locator('.game-status--final') });
+	const completedCard = page.locator('.game-card[href="/games/past-game-no-kickoff"]');
 	await expect(completedCard).toHaveCount(1);
 	await expect(completedCard.locator('.game-card__kickoff')).toHaveText('Final');
 	await expect(page.locator('.game-card').filter({ hasText: 'Kickoff time pending' })).toHaveCount(0);
