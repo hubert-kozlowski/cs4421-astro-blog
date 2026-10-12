@@ -7,6 +7,7 @@ test('dashboard brings games, standings, player search, and matchups together', 
 
 	await expect(page).toHaveTitle(/NFL dashboard \| Gridiron Atlas/);
 	await expect(page.getByRole('heading', { name: 'Every game. One place.' })).toBeVisible();
+	await expect(page.locator('.dashboard-hero__copy')).toHaveAttribute('data-motion-played', 'true');
 	await expect(page.locator('.hero-score')).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
 	await expect(page.locator('[data-countdown]')).toHaveText(/^\d+:\d{2}:\d{2}$/);
@@ -101,11 +102,45 @@ test('global and matchup styles load after a direct query navigation', async ({ 
 	for (const load of [() => page.goto('/?team1=BUF&team2=KC#matchups'), () => page.reload()]) {
 		await load();
 		await expect(page.locator('.matchup-result')).toBeVisible();
+		await expect(page.locator('.matchup-result')).toHaveAttribute('data-motion-played', 'true');
 		await expect(page.locator('#matchups .section-heading h2')).toHaveCSS('font-size', '30px');
 		await expect(page.locator('.matchup-result')).toHaveCSS('border-radius', '15px');
 		await expect(page.locator('.matchup-result')).toHaveCSS('background-color', 'rgb(244, 251, 246)');
 	}
 	expect(failedStylesheets).toEqual([]);
+});
+
+test('dashboard entrance and matchup motion are skipped for reduced-motion users', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.goto('/?team1=BUF&team2=KC#matchups');
+	await expect(page.locator('.dashboard-hero__copy')).toBeVisible();
+	await expect(page.locator('.matchup-result')).toBeVisible();
+	await expect(page.locator('.dashboard-hero__copy')).not.toHaveAttribute('data-motion-played', 'true');
+	await expect(page.locator('.matchup-result')).not.toHaveAttribute('data-motion-played', 'true');
+});
+
+test('game detail entrance and stadium reveal avoid layout shifts', async ({ page }) => {
+	await page.goto('/games/example-game');
+	await expect(page.locator('.game-hero')).toHaveAttribute('data-motion-played', 'true');
+	const venue = page.locator('.venue-banner');
+	const venueLayoutTop = await venue.evaluate((element) => (element as HTMLElement).offsetTop);
+	await venue.scrollIntoViewIfNeeded();
+	await expect(venue).toHaveAttribute('data-motion-played', 'true');
+	const outline = venue.locator('[data-motion-stadium-outline]');
+	await expect.poll(() => outline.evaluate((path) => getComputedStyle(path).strokeDashoffset)).toBe('0px');
+	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
+	expect(await venue.evaluate((element) => (element as HTMLElement).offsetTop)).toBe(venueLayoutTop);
+});
+
+test('game detail animations are skipped when reduced motion is enabled', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.goto('/games/example-game');
+	await expect(page.locator('.game-hero')).toBeVisible();
+	await expect(page.locator('.venue-banner')).toBeVisible();
+	await expect(page.locator('.game-hero')).not.toHaveAttribute('data-motion-played', 'true');
+	await expect(page.locator('.venue-banner')).not.toHaveAttribute('data-motion-played', 'true');
+	const outline = page.locator('[data-motion-stadium-outline]');
+	expect(await outline.evaluate((path) => (path as SVGPathElement).style.strokeDasharray)).toBe('');
 });
 
 test('calendar actions disappear when kickoff arrives', async ({ page }) => {
