@@ -145,7 +145,7 @@ function isRelevantGameForCard(card: HTMLElement, game: LiveGame): boolean {
 }
 
 function gameDetailHref(game: LiveGame): string | undefined {
-	const scheduleCard = [...document.querySelectorAll<HTMLAnchorElement>('a.game-card[data-live-home][data-live-away]')]
+	const scheduleCard = [...document.querySelectorAll<HTMLAnchorElement>('a.game-card__link[data-live-home][data-live-away]')]
 		.find((card) =>
 			normalizedTeam(card.dataset.liveHome) === normalizedTeam(game.homeTeam) &&
 			normalizedTeam(card.dataset.liveAway) === normalizedTeam(game.awayTeam) &&
@@ -330,10 +330,11 @@ function updateScheduleCard(game: LiveGame, changed: boolean) {
 			card.setAttribute('aria-label', `${game.awayTeam} ${game.awayScore}, ${game.homeTeam} ${game.homeScore}, ${liveStatusLabel(game)}`);
 		}
 		if (changed) {
-			card.classList.remove('game-card--live-change');
+			const cardSurface = card.closest<HTMLElement>('.game-card') ?? card;
+			cardSurface.classList.remove('game-card--live-change');
 			void card.offsetWidth;
-			card.classList.add('game-card--live-change');
-			window.setTimeout(() => card.classList.remove('game-card--live-change'), 1300);
+			cardSurface.classList.add('game-card--live-change');
+			window.setTimeout(() => cardSurface.classList.remove('game-card--live-change'), 1300);
 		}
 	});
 }

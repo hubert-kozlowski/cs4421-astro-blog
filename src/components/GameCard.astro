@@ -1,6 +1,8 @@
 ---
 import { getGameStatus, getGameUpset, type NflGame, type NflTeam } from '../utils/nfl-data';
 import { isAbsoluteTimestamp } from '../utils/local-game-time';
+import { createGameCalendarEvent } from '../utils/calendar';
+import CalendarActions from './CalendarActions.astro';
 import TeamMark from './TeamMark.astro';
 
 interface Props {
@@ -16,69 +18,69 @@ const gameStatus = getGameStatus(game);
 const isFinal = gameStatus === 'Final';
 const upset = getGameUpset(game);
 const kickoffAt = isAbsoluteTimestamp(game.kickoff_at ?? undefined) ? game.kickoff_at : undefined;
+const calendarEvent = createGameCalendarEvent(game, teams);
 const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' : gameStatus;
 ---
 
-<a
-	class="game-card"
-	href={`/games/${encodeURIComponent(game.game_id)}`}
-	data-motion-hover
-	data-live-home={game.home_team}
-	data-live-away={game.away_team}
-	data-live-date={game.gameday}
->
-	<div class="game-card__meta">
-		<span class="game-card__labels">
-			<span class:list={['game-status', {
-				'game-status--final': isFinal,
-				'game-status--score': gameStatus === 'Score posted',
-				'game-status--pending': gameStatus === 'Result pending',
-			}]}>
-				<span class="game-status__dot" aria-hidden="true"></span>
-				{gameStatus}
-			</span>
-			{upset && (
-				<span class="game-card__upset" title={`${upset.team} won as a ${upset.spread}-point underdog`}>
-					<strong>UPSET WIN</strong>
-					<span>{upset.team} · {upset.spread}-pt dog</span>
+<article class="game-card" data-motion-hover>
+	<a
+		class="game-card__link"
+		href={`/games/${encodeURIComponent(game.game_id)}`}
+		data-live-home={game.home_team}
+		data-live-away={game.away_team}
+		data-live-date={game.gameday}
+	>
+		<div class="game-card__meta">
+			<span class="game-card__labels">
+				<span class:list={['game-status', {
+					'game-status--final': isFinal,
+					'game-status--score': gameStatus === 'Score posted',
+					'game-status--pending': gameStatus === 'Result pending',
+				}]}>
+					<span class="game-status__dot" aria-hidden="true"></span>
+					{gameStatus}
 				</span>
+				{upset && (
+					<span class="game-card__upset" title={`${upset.team} won as a ${upset.spread}-point underdog`}>
+						<strong>UPSET WIN</strong>
+						<span>{upset.team} · {upset.spread}-pt dog</span>
+					</span>
+				)}
+			</span>
+			{kickoffAt ? (
+				<time
+					class="game-card__kickoff"
+					datetime={kickoffAt}
+					data-device-time="time"
+				>Kickoff time</time>
+			) : (
+				<span class="game-card__kickoff">{missingKickoffLabel}</span>
 			)}
-		</span>
-		{kickoffAt ? (
-			<time
-				class="game-card__kickoff"
-				datetime={kickoffAt}
-				data-device-time="time"
-			>Kickoff time</time>
-		) : (
-			<span class="game-card__kickoff">{missingKickoffLabel}</span>
-		)}
-	</div>
-	<div class="game-card__team">
-		<TeamMark abbr={game.away_team} conference={awayTeam?.conf} />
-		<span class="game-card__name">{awayTeam?.name ?? game.away_team}</span>
-		<strong class="game-card__score" data-score-team={game.away_team}>{hasScore ? game.away_score : '—'}</strong>
-	</div>
-	<div class="game-card__team">
-		<TeamMark abbr={game.home_team} conference={homeTeam?.conf} />
-		<span class="game-card__name">{homeTeam?.name ?? game.home_team}</span>
-		<strong class="game-card__score" data-score-team={game.home_team}>{hasScore ? game.home_score : '—'}</strong>
-	</div>
-	<div class="game-card__footer">
-		<span>{game.stadium ?? 'Venue to be announced'}</span>
-		<span aria-hidden="true">↗</span>
-	</div>
-</a>
+		</div>
+		<div class="game-card__team">
+			<TeamMark abbr={game.away_team} conference={awayTeam?.conf} />
+			<span class="game-card__name">{awayTeam?.name ?? game.away_team}</span>
+			<strong class="game-card__score" data-score-team={game.away_team}>{hasScore ? game.away_score : '—'}</strong>
+		</div>
+		<div class="game-card__team">
+			<TeamMark abbr={game.home_team} conference={homeTeam?.conf} />
+			<span class="game-card__name">{homeTeam?.name ?? game.home_team}</span>
+			<strong class="game-card__score" data-score-team={game.home_team}>{hasScore ? game.home_score : '—'}</strong>
+		</div>
+		<div class="game-card__footer">
+			<span>{game.stadium ?? 'Venue to be announced'}</span>
+			<span aria-hidden="true">↗</span>
+		</div>
+	</a>
+	{calendarEvent && <CalendarActions event={calendarEvent} compact />}
+</article>
 
 <style>
 	.game-card {
-		display: block;
-		padding: 17px 18px 15px;
+		overflow: hidden;
 		border: 1px solid var(--color-border);
 		border-radius: 16px;
 		background: #fff;
-		color: inherit;
-		text-decoration: none;
 		transition: border-color 150ms ease, box-shadow 150ms ease;
 	}
 
@@ -90,6 +92,13 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 	.game-card--live-change {
 		border-color: #d8424a;
 		box-shadow: 0 0 0 3px rgb(216 66 74 / 15%), 0 10px 24px rgb(25 42 72 / 8%);
+	}
+
+	.game-card__link {
+		display: block;
+		padding: 17px 18px 15px;
+		color: inherit;
+		text-decoration: none;
 	}
 
 	.game-card__meta,

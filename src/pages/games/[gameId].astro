@@ -12,7 +12,9 @@ import {
 	type NflGame,
 	type NflTeam,
 } from '../../utils/nfl-data';
+import { createGameCalendarEvent } from '../../utils/calendar';
 import { isAbsoluteTimestamp } from '../../utils/local-game-time';
+import CalendarActions from '../../components/CalendarActions.astro';
 
 const gameId = Astro.params.gameId ?? '';
 let gameResult: ApiResult<NflGame> | undefined;
@@ -42,6 +44,7 @@ const gameStatus = game ? getGameStatus(game) : 'Scheduled';
 const isFinal = gameStatus === 'Final';
 const kickoffCandidate = game?.kickoff_at;
 const kickoffAt = isAbsoluteTimestamp(kickoffCandidate ?? undefined) ? kickoffCandidate : undefined;
+const calendarEvent = game ? createGameCalendarEvent(game, teams) : undefined;
 const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' : gameStatus;
 ---
 
@@ -65,6 +68,7 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 						<>{missingKickoffLabel}</>
 					)}
 				</p>
+				{calendarEvent && <CalendarActions event={calendarEvent} />}
 				<div class="game-matchup">
 					<a class="game-side" href={awayTeam ? `/teams/${awayTeam.abbr}` : '/teams'}>
 						<TeamMark abbr={game.away_team} conference={awayTeam?.conf} size="large" />
