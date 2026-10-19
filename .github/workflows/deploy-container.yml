@@ -44,7 +44,9 @@ jobs:
 
       - name: Build Static Release 1.0.0
         working-directory: ./static-source
-        run: npm run build
+        run: |
+          node ../scripts/configure-static-site-origin.mjs . https://static-preview.invalid
+          npm run build
 
       - name: Setup CDK Node.js Cache
         uses: actions/setup-node@v4

@@ -42,10 +42,6 @@ jobs:
         working-directory: ./static-source
         run: npm ci
 
-      - name: Build Static Release 1.0.0
-        working-directory: ./static-source
-        run: npm run build
-
       - name: Install CDK Dependencies
         working-directory: ./cdk
         run: npm ci
@@ -56,6 +52,41 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+
+      - name: Resolve or Bootstrap Static Site Origin
+        id: static-site
+        shell: bash
+        run: |
+          set -euo pipefail
+          if aws cloudformation describe-stacks \
+            --stack-name StaticSiteStack \
+            --region us-east-1 >/dev/null 2>&1; then
+            url="$(aws cloudformation describe-stacks \
+              --stack-name StaticSiteStack \
+              --region us-east-1 \
+              --query "Stacks[0].Outputs[?OutputKey=='StaticSiteUrl'].OutputValue | [0]" \
+              --output text)"
+          else
+            mkdir -p static-source/dist
+            printf '%s\n' '<!doctype html><title>Static site deployment initializing</title>' \
+              > static-source/dist/index.html
+            (cd cdk && npx cdk deploy StaticSiteStack --require-approval never)
+            url="$(aws cloudformation describe-stacks \
+              --stack-name StaticSiteStack \
+              --region us-east-1 \
+              --query "Stacks[0].Outputs[?OutputKey=='StaticSiteUrl'].OutputValue | [0]" \
+              --output text)"
+          fi
+          if [[ "$url" == "None" || -z "$url" ]]; then
+            echo "Could not resolve the static site's public origin." >&2
+            exit 1
+          fi
+          echo "STATIC_SITE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Configure Static Site Origin and Build Release 1.0.0
+        run: |
+          node scripts/configure-static-site-origin.mjs static-source "$STATIC_SITE_URL"
+          npm --prefix static-source run build
 
       - name: Deploy Infrastructure & Assets with AWS CDK
         working-directory: ./cdk
