@@ -147,6 +147,38 @@ test('game detail entrance and stadium reveal avoid layout shifts', async ({ pag
 	expect(await venue.evaluate((element) => (element as HTMLElement).offsetTop)).toBe(venueLayoutTop);
 });
 
+test('game detail matchup cards frame each team and keep the score between them', async ({ page }) => {
+	await page.goto('/games/example-game');
+
+	for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+		await page.setViewportSize(viewport);
+		const matchup = page.locator('.game-matchup');
+		const away = matchup.locator('.game-side').first();
+		const score = matchup.locator('.game-score');
+		const home = matchup.locator('.game-side').last();
+
+		await expect(away).toBeVisible();
+		await expect(home).toBeVisible();
+		await expect(score).toBeVisible();
+		expect(await away.evaluate((element) => {
+			const card = element.getBoundingClientRect();
+			const mark = element.querySelector('.team-mark')!.getBoundingClientRect();
+			return card.width >= 100 && card.height >= 120 && card.left < mark.left && card.right > mark.right;
+		})).toBe(true);
+		expect(await home.evaluate((element) => {
+			const card = element.getBoundingClientRect();
+			const mark = element.querySelector('.team-mark')!.getBoundingClientRect();
+			return card.width >= 100 && card.height >= 120 && card.left < mark.left && card.right > mark.right;
+		})).toBe(true);
+		expect(await matchup.evaluate((element) => {
+			const [awayCard, scoreCard, homeCard] = Array.from(
+				element.querySelectorAll<HTMLElement>('.game-side, .game-score'),
+			).map((item) => item.getBoundingClientRect());
+			return awayCard.right < scoreCard.left && scoreCard.right < homeCard.left;
+		})).toBe(true);
+	}
+});
+
 test('game detail animations are skipped when reduced motion is enabled', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
 	await page.goto('/games/example-game');
