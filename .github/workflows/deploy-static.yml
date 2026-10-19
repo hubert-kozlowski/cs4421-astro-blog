@@ -36,7 +36,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: static-source/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            static-source/package-lock.json
+
+      - name: Install Project Dependencies
+        run: npm ci
 
       - name: Install Static Release Dependencies
         working-directory: ./static-source
