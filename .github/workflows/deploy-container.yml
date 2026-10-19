@@ -25,18 +25,26 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
+      - name: Checkout Static Release 1.0.0 for CDK Synthesis
+        uses: actions/checkout@v4
+        with:
+          ref: 1.0.0
+          path: static-source
+
       - name: Setup Node.js Runtime
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: static-source/package-lock.json
 
-      - name: Install Project Dependencies
+      - name: Install Static Release Dependencies
+        working-directory: ./static-source
         run: npm ci
 
-      - name: Build Static Site for CDK Synthesis
-        run: npm run build:static
+      - name: Build Static Release 1.0.0
+        working-directory: ./static-source
+        run: npm run build
 
       - name: Setup CDK Node.js Cache
         uses: actions/setup-node@v4

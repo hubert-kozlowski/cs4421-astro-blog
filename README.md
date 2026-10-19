@@ -56,7 +56,6 @@ The local site is available at <http://localhost:4321>. Useful project commands:
 | `npm run test:unit` | Run unit tests |
 | `npm run test:e2e` | Run Playwright tests against a local NFL API fixture |
 | `npm run build` | Build the production application |
-| `npm run build:static` | Build the independent static site into `dist-static/` |
 | `npm run preview` | Preview the production build |
 
 Playwright starts an isolated local fixture server for NFL and ESPN data, so browser tests are repeatable and do not depend on external provider availability.
@@ -135,10 +134,10 @@ AWS CDK defines two independently deployable services:
 
 | Service | CDK stack | Hosting | Deployment workflow |
 | --- | --- | --- | --- |
-| Static landing site | `StaticSiteStack` | Private S3 bucket served through CloudFront | `deploy-static.yml` |
-| Live dashboard | `CdkStack` | ECS Fargate behind an Application Load Balancer | `deploy-container.yml` |
+| Static blog | `StaticSiteStack` | Tag `1.0.0`, published from private S3 through CloudFront | `deploy-static.yml` |
+| Live dashboard | `CdkStack` | Current `main`, deployed to ECS Fargate behind an Application Load Balancer | `deploy-container.yml` |
 
-Both workflows run after successful CI on `main` and can be dispatched manually from `main`. The static workflow runs `npm run build:static` before deploying `StaticSiteStack`; the SSR workflow builds the Docker image through the CDK asset.
+Both workflows run after successful CI on `main` and can be dispatched manually from `main`. `deploy-static.yml` checks out and builds the immutable `1.0.0` tag before deploying `StaticSiteStack`; `deploy-container.yml` deploys the current `main` SSR application through `CdkStack`.
 
 The SSR service exposes two probe endpoints:
 
@@ -156,11 +155,9 @@ The SSR service exposes two probe endpoints:
 │   ├── layouts/         # Shared page layouts
 │   ├── pages/
 │   │   └── api/         # Health, readiness, and liveness endpoints
-│   └── static/          # Standalone static-site source
 ├── docs/adr/            # Architecture decision records
 ├── Dockerfile
 ├── astro.config.mjs
-├── astro.static.config.mjs
 └── package.json
 ```
 

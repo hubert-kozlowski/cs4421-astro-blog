@@ -25,15 +25,26 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
+      - name: Checkout Static Release 1.0.0
+        uses: actions/checkout@v4
+        with:
+          ref: 1.0.0
+          path: static-source
+
       - name: Setup Node.js Runtime
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: static-source/package-lock.json
 
-      - name: Install Project Dependencies
+      - name: Install Static Release Dependencies
+        working-directory: ./static-source
         run: npm ci
+
+      - name: Build Static Release 1.0.0
+        working-directory: ./static-source
+        run: npm run build
 
       - name: Install CDK Dependencies
         working-directory: ./cdk
@@ -45,22 +56,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
-      - name: Resolve SSR Dashboard URL
-        run: |
-          url="$(aws cloudformation describe-stacks \
-            --stack-name CdkStack \
-            --region us-east-1 \
-            --query "Stacks[0].Outputs[?OutputKey=='SiteUrl'].OutputValue | [0]" \
-            --output text)"
-          if [ "$url" = "None" ] || [ -z "$url" ]; then
-            echo "Could not resolve the deployed SSR dashboard URL." >&2
-            exit 1
-          fi
-          echo "PUBLIC_SSR_SITE_URL=$url" >> "$GITHUB_ENV"
-
-      - name: Build Static Site
-        run: npm run build:static
 
       - name: Deploy Infrastructure & Assets with AWS CDK
         working-directory: ./cdk

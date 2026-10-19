@@ -2,6 +2,7 @@
 dist/
 dist-static/
 .data/
+/static-source/
 # generated types
 .astro/
 
