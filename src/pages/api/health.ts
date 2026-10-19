@@ -1,30 +1,12 @@
-export function GET() {
-	const memoryUsage = process.memoryUsage();
+import type { APIRoute } from 'astro';
 
+export const GET: APIRoute = async () => {
 	return new Response(
 		JSON.stringify({
 			status: 'ok',
+			uptime: process.uptime(),
 			timestamp: new Date().toISOString(),
-			uptimeSeconds: process.uptime(),
-			process: {
-				pid: process.pid,
-				nodeVersion: process.version,
-				platform: process.platform,
-				architecture: process.arch,
-			},
-			memory: {
-				rssBytes: memoryUsage.rss,
-				heapTotalBytes: memoryUsage.heapTotal,
-				heapUsedBytes: memoryUsage.heapUsed,
-				externalBytes: memoryUsage.external,
-				arrayBuffersBytes: memoryUsage.arrayBuffers,
-			},
 		}),
-		{
-			headers: {
-				'Content-Type': 'application/json',
-				'Cache-Control': 'no-store',
-			},
-		},
+		{ status: 200, headers: { 'Content-Type': 'application/json' } },
 	);
-}
+};

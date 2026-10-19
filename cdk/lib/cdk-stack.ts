@@ -2,6 +2,10 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as path from 'path';
 
 export class BlogStack extends cdk.Stack {
@@ -32,7 +36,7 @@ export class BlogStack extends cdk.Stack {
 					'CMD',
 					'node',
 					'-e',
-					"fetch('http://127.0.0.1:4321/api/live').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
+					"fetch('http://127.0.0.1:4321/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))",
 				],
 				interval: cdk.Duration.seconds(30),
 				timeout: cdk.Duration.seconds(5),
@@ -60,6 +64,37 @@ export class BlogStack extends cdk.Stack {
 
 		new cdk.CfnOutput(this, 'SiteUrl', {
 			value: `http://${service.loadBalancer.loadBalancerDnsName}`,
+		});
+	}
+}
+
+export class StaticSiteStack extends cdk.Stack {
+	constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+		super(scope, id, props);
+
+		const staticSiteBucket = new s3.Bucket(this, 'StaticSiteBucket', {
+			blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+			encryption: s3.BucketEncryption.S3_MANAGED,
+			enforceSSL: true,
+			removalPolicy: cdk.RemovalPolicy.RETAIN,
+		});
+		const staticSiteDistribution = new cloudfront.Distribution(this, 'StaticSiteDistribution', {
+			defaultRootObject: 'index.html',
+			defaultBehavior: {
+				origin: origins.S3BucketOrigin.withOriginAccessControl(staticSiteBucket),
+				viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+			},
+		});
+
+		new s3deploy.BucketDeployment(this, 'DeployStaticSite', {
+			sources: [s3deploy.Source.asset(path.join(__dirname, '../../dist-static'))],
+			destinationBucket: staticSiteBucket,
+			distribution: staticSiteDistribution,
+			distributionPaths: ['/*'],
+		});
+
+		new cdk.CfnOutput(this, 'StaticSiteUrl', {
+			value: `https://${staticSiteDistribution.distributionDomainName}`,
 		});
 	}
 }

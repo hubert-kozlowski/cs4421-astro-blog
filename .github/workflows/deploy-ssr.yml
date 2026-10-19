@@ -45,4 +45,4 @@ jobs:
 
       - name: Deploy Infrastructure & Assets with AWS CDK
         working-directory: ./cdk
-        run: npx cdk deploy --require-approval never
+        run: npx cdk deploy SsrStack --require-approval never

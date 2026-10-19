@@ -1,0 +1,81 @@
+---
+const ssrUrl = import.meta.env.PUBLIC_SSR_SITE_URL;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<meta
+			name="description"
+			content="Gridiron Atlas is an NFL dashboard with a separately deployed server-rendered experience."
+		/>
+		<title>Gridiron Atlas</title>
+	</head>
+	<body>
+		<main>
+			<p>GRIDIRON ATLAS</p>
+			<h1>NFL coverage, from kickoff to final whistle.</h1>
+			<p>
+				The live dashboard runs as a separately deployed server-rendered service so schedules,
+				scores, and player data stay current.
+			</p>
+			{ssrUrl ? (
+				<a href={ssrUrl}>Open the live dashboard</a>
+			) : (
+				<p>The live dashboard URL will be published after its AWS deployment.</p>
+			)}
+		</main>
+	</body>
+</html>
+
+<style>
+	:global(*) {
+		box-sizing: border-box;
+	}
+
+	:global(body) {
+		margin: 0;
+		background: #09111f;
+		color: #f8fafc;
+		font-family: Arial, sans-serif;
+	}
+
+	main {
+		display: grid;
+		align-content: center;
+		gap: 1.25rem;
+		min-height: 100vh;
+		max-width: 46rem;
+		margin: auto;
+		padding: 2rem;
+	}
+
+	p {
+		margin: 0;
+		line-height: 1.6;
+	}
+
+	main > p:first-child {
+		color: #fbbf24;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+	}
+
+	h1 {
+		margin: 0;
+		font-size: clamp(2.5rem, 7vw, 5rem);
+		line-height: 1;
+	}
+
+	a {
+		width: fit-content;
+		padding: 0.8rem 1.1rem;
+		border-radius: 0.4rem;
+		background: #fbbf24;
+		color: #09111f;
+		font-weight: 700;
+		text-decoration: none;
+	}
+</style>
