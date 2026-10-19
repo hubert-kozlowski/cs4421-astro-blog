@@ -152,6 +152,9 @@ test('game detail matchup cards frame each team and keep the score between them'
 
 	for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
 		await page.setViewportSize(viewport);
+		await page.locator('.game-status').evaluate((element) => {
+			element.textContent = 'Sunday Night Football · 8:20 PM ET';
+		});
 		const matchup = page.locator('.game-matchup');
 		const away = matchup.locator('.game-side').first();
 		const score = matchup.locator('.game-score');
@@ -174,7 +177,7 @@ test('game detail matchup cards frame each team and keep the score between them'
 			const [awayCard, scoreCard, homeCard] = Array.from(
 				element.querySelectorAll<HTMLElement>('.game-side, .game-score'),
 			).map((item) => item.getBoundingClientRect());
-			return awayCard.right < scoreCard.left && scoreCard.right < homeCard.left;
+			return scoreCard.width <= 112 && awayCard.right < scoreCard.left && scoreCard.right < homeCard.left;
 		})).toBe(true);
 	}
 });

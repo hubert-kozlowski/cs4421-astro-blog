@@ -286,7 +286,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		display: grid;
 		width: min(100%, 760px);
 		max-width: 760px;
-		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr);
 		align-items: center;
 		gap: clamp(12px, 2.2vw, 22px);
 		margin: 22px auto 0;
@@ -342,8 +342,9 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 
 	.game-score {
 		display: grid;
-		min-width: 112px;
+		width: 112px;
 		box-sizing: border-box;
+		min-width: 0;
 		justify-items: center;
 		gap: 8px;
 		padding: 13px 15px;
@@ -395,12 +396,17 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 	.game-status {
 		display: inline-flex;
 		align-items: center;
+		max-width: 100%;
+		flex-wrap: wrap;
+		justify-content: center;
 		gap: 6px;
 		color: #9fe0bd;
 		font-size: 9px;
 		font-weight: 750;
 		letter-spacing: 0.09em;
 		text-transform: uppercase;
+		text-align: center;
+		overflow-wrap: anywhere;
 	}
 
 	.game-status > span {
@@ -559,6 +565,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		}
 
 		.game-matchup {
+			grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr);
 			gap: 10px;
 		}
 
@@ -579,7 +586,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		}
 
 		.game-score {
-			min-width: 78px;
+			width: 88px;
 			padding: 9px 8px;
 			border-radius: 13px;
 		}
