@@ -1,9 +1,10 @@
 import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { BlogStack } from '../lib/cdk-stack';
+import { StaticSiteStack } from '../lib/static-site-stack';
 
 describe('BlogStack', () => {
-	it('deploys the standalone app as an ECS service behind a load balancer', () => {
+	it('deploys the SSR app as an ECS service behind a load balancer', () => {
 		const app = new cdk.App();
 		const stack = new BlogStack(app, 'TestStack');
 		const template = Template.fromStack(stack);
@@ -23,7 +24,7 @@ describe('BlogStack', () => {
 							'CMD',
 							'node',
 							'-e',
-							Match.stringLikeRegexp('/api/live'),
+							Match.stringLikeRegexp('/api/health'),
 						]),
 						Interval: 30,
 						Timeout: 5,
@@ -36,6 +37,24 @@ describe('BlogStack', () => {
 		template.hasResourceProperties('AWS::ElasticLoadBalancingV2::TargetGroup', {
 			HealthCheckPath: '/api/ready',
 			Matcher: { HttpCode: '200' },
+		});
+	});
+
+	it('deploys a static site through CloudFront and a private S3 bucket', () => {
+		const app = new cdk.App();
+		const stack = new StaticSiteStack(app, 'TestStack');
+		const template = Template.fromStack(stack);
+
+		template.resourceCountIs('AWS::ECS::Service', 0);
+		template.resourceCountIs('AWS::S3::Bucket', 1);
+		template.resourceCountIs('AWS::CloudFront::Distribution', 1);
+		template.hasResourceProperties('AWS::S3::Bucket', {
+			PublicAccessBlockConfiguration: {
+				BlockPublicAcls: true,
+				BlockPublicPolicy: true,
+				IgnorePublicAcls: true,
+				RestrictPublicBuckets: true,
+			},
 		});
 	});
 });

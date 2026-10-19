@@ -1,0 +1,93 @@
+name: Deploy Astro Static Site via AWS CDK
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: 22.12.0
+
+jobs:
+  deploy:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Checkout Static Release 1.0.0
+        uses: actions/checkout@v4
+        with:
+          ref: 1.0.0
+          path: static-source
+
+      - name: Setup Node.js Runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: static-source/package-lock.json
+
+      - name: Install Static Release Dependencies
+        working-directory: ./static-source
+        run: npm ci
+
+      - name: Install CDK Dependencies
+        working-directory: ./cdk
+        run: npm ci
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Resolve or Bootstrap Static Site Origin
+        id: static-site
+        shell: bash
+        run: |
+          set -euo pipefail
+          if aws cloudformation describe-stacks \
+            --stack-name StaticSiteStack \
+            --region us-east-1 >/dev/null 2>&1; then
+            url="$(aws cloudformation describe-stacks \
+              --stack-name StaticSiteStack \
+              --region us-east-1 \
+              --query "Stacks[0].Outputs[?OutputKey=='StaticSiteUrl'].OutputValue | [0]" \
+              --output text)"
+          else
+            mkdir -p static-source/dist
+            printf '%s\n' '<!doctype html><title>Static site deployment initializing</title>' \
+              > static-source/dist/index.html
+            (cd cdk && npx cdk deploy StaticSiteStack --require-approval never)
+            url="$(aws cloudformation describe-stacks \
+              --stack-name StaticSiteStack \
+              --region us-east-1 \
+              --query "Stacks[0].Outputs[?OutputKey=='StaticSiteUrl'].OutputValue | [0]" \
+              --output text)"
+          fi
+          if [[ "$url" == "None" || -z "$url" ]]; then
+            echo "Could not resolve the static site's public origin." >&2
+            exit 1
+          fi
+          echo "STATIC_SITE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Configure Static Site Origin and Build Release 1.0.0
+        run: |
+          node scripts/configure-static-site-origin.mjs static-source "$STATIC_SITE_URL"
+          npm --prefix static-source run build
+
+      - name: Deploy Infrastructure & Assets with AWS CDK
+        working-directory: ./cdk
+        run: npx cdk deploy StaticSiteStack --require-approval never

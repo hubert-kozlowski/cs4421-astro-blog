@@ -71,17 +71,36 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
+      - name: Checkout Static Release 1.0.0
+        uses: actions/checkout@v4
+        with:
+          ref: 1.0.0
+          path: static-source
+
       - name: Setup Node.js Runtime
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            static-source/package-lock.json
 
       - name: Install Project Dependencies
         run: npm ci
 
       - name: Build Site
         run: npm run build
+
+      - name: Install Static Release Dependencies
+        working-directory: ./static-source
+        run: npm ci
+
+      - name: Build Static Release 1.0.0
+        working-directory: ./static-source
+        run: |
+          node ../scripts/configure-static-site-origin.mjs . https://static-preview.invalid
+          npm run build
 
       - name: Install CDK Dependencies
         working-directory: ./cdk
@@ -128,7 +147,8 @@ jobs:
             exit 1
           fi
 
-          curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/api/health | jq --exit-status '.status == "ok" and .uptimeSeconds >= 0'
+          curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/api/health \
+            | jq --exit-status '.status == "ok" and (.uptime | type == "number" and . >= 0)'
           curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/api/live | jq --exit-status '.status == "ok"'
           curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/ | grep '<html' >/dev/null
 

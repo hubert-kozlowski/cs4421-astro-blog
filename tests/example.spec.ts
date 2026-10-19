@@ -1,5 +1,10 @@
 import { expect, test } from '@playwright/test';
 
+const liveGameKickoff = new Date();
+liveGameKickoff.setUTCDate(liveGameKickoff.getUTCDate() + 2);
+liveGameKickoff.setUTCHours(19, 0, 0, 0);
+const liveGameKickoffAt = liveGameKickoff.toISOString();
+
 test('dashboard brings games, standings, player search, and matchups together', async ({ browser }) => {
 	const context = await browser.newContext({ timezoneId: 'Europe/Paris' });
 	const page = await context.newPage();
@@ -223,7 +228,7 @@ test('game detail snapshot and statistics update from the live feed', async ({ p
 				stale: false,
 				games: [{
 					eventId: 'live-phi-jax-detail',
-					kickoffAt: '2026-10-14T13:00:00.000Z',
+					kickoffAt: liveGameKickoffAt,
 					homeTeam: 'JAX',
 					awayTeam: 'PHI',
 					homeScore: final ? 21 : 14,
@@ -392,7 +397,7 @@ test('game detail touchdown motion leads into the scoring team score reveal', as
 	let apiRequests = 0;
 	const game = {
 		eventId: 'live-phi-jax-touchdown-detail',
-		kickoffAt: '2026-10-14T13:00:00.000Z',
+		kickoffAt: liveGameKickoffAt,
 		homeTeam: 'JAX',
 		awayTeam: 'PHI',
 		homeScore: 14,

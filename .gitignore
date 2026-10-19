@@ -1,6 +1,8 @@
 # build output
 dist/
+dist-static/
 .data/
+/static-source/
 # generated types
 .astro/
 
@@ -30,3 +32,6 @@ pnpm-debug.log*
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# slides
+slides/
