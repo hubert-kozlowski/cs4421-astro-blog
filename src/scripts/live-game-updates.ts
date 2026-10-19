@@ -415,7 +415,7 @@ function updateGameDetail(game: LiveGame, changed: boolean, touchdown: boolean, 
 		const isLive = game.state === 'in_progress' || game.state === 'halftime';
 		stadiumBall.style.display = isLive && yardLine !== null ? 'block' : 'none';
 		if (yardLine !== null) {
-			const x = 51 + yardLine * 2.58;
+			const x = 114 + yardLine * 1.32;
 			stadiumBall.setAttribute('transform', `translate(${x.toFixed(1)} 0)`);
 		}
 		const tip = stadiumBall.querySelector<SVGPathElement>('[data-stadium-live-ball-tip]');
@@ -423,7 +423,7 @@ function updateGameDetail(game: LiveGame, changed: boolean, touchdown: boolean, 
 			tip.style.display = game.situation?.direction ? 'block' : 'none';
 			tip.setAttribute(
 				'd',
-				game.situation?.direction === 'left' ? 'M-2 92 -9 97 -2 102Z' : 'M2 92 9 97 2 102Z',
+				game.situation?.direction === 'left' ? 'M-2 90 -9 95 -2 100Z' : 'M2 90 9 95 2 100Z',
 			);
 		}
 		if (yardLine !== null) {

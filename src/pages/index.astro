@@ -525,8 +525,11 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 
 	.schedule-toolbar {
 		display: flex;
+		width: fit-content;
+		max-width: 100%;
+		box-sizing: border-box;
 		align-items: center;
-		justify-content: flex-end;
+		justify-content: flex-start;
 		gap: 10px;
 		margin-bottom: 17px;
 		padding: 9px 12px;
@@ -903,7 +906,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		}
 
 		.schedule-toolbar {
-			justify-content: flex-start;
+			width: 100%;
 		}
 
 		.schedule-filter {

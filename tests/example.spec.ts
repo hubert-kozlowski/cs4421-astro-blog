@@ -62,6 +62,9 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Set up a matchup.' })).toBeVisible();
 	await expect(page.getByRole('searchbox', { name: 'Search NFL player names' })).toBeVisible();
 	await expect(page.locator('#team-filter option[value="JAX"]')).toHaveText('Jacksonville Jaguars');
+	expect(await page.locator('.schedule-toolbar').evaluate((element) =>
+		(element as HTMLElement).getBoundingClientRect().width,
+	)).toBeLessThan(700);
 	await expect(page.locator('.game-card .calendar-menu')).toHaveCount(0);
 	await expect(page.locator('.upcoming-game .calendar-menu')).toHaveCount(0);
 
@@ -136,6 +139,10 @@ test('game detail entrance and stadium reveal avoid layout shifts', async ({ pag
 	await expect(venue).toHaveAttribute('data-motion-played', 'true');
 	const outline = venue.locator('[data-motion-stadium-outline]');
 	await expect.poll(() => outline.evaluate((path) => getComputedStyle(path).strokeDashoffset)).toBe('0px');
+	expect(await outline.evaluate((path) => {
+		const svgPath = path as SVGPathElement;
+		return Number.parseFloat(svgPath.style.strokeDasharray) > svgPath.getTotalLength();
+	})).toBe(true);
 	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
 	expect(await venue.evaluate((element) => (element as HTMLElement).offsetTop)).toBe(venueLayoutTop);
 });
@@ -244,7 +251,7 @@ test('game detail snapshot and statistics update from the live feed', async ({ p
 					lastPlay: null,
 					situation: final
 						? null
-						: { downDistance: '1st & 10', possession: 'JAX', redZone: false, yardLine: 72, direction: 'left' },
+						: { downDistance: '1st & 10', possession: 'JAX', redZone: false, yardLine: 0, direction: 'left' },
 					moment: null,
 					notice: null,
 					boxScore: [{
@@ -264,12 +271,14 @@ test('game detail snapshot and statistics update from the live feed', async ({ p
 	await expect(page.locator('[data-snapshot-summary]')).toContainText('Philadelphia Eagles 10 · Jacksonville Jaguars 14');
 	const stadiumBall = page.locator('[data-stadium-live-ball]');
 	await expect(stadiumBall).toBeVisible();
-	await expect(stadiumBall).toHaveAttribute('transform', 'translate(236.8 0)');
+	await expect(stadiumBall).toHaveAttribute('transform', 'translate(114.0 0)');
+	await expect(page.locator('[data-stadium-field]')).toHaveAttribute('x', '96');
+	await expect(page.locator('[data-stadium-field]')).toHaveAttribute('width', '168');
 	await expect(stadiumBall).toHaveAttribute(
 		'aria-label',
-		'Live ball position, provider coordinate 72 from left goal line, offense moving left',
+		'Live ball position, provider coordinate 0 from left goal line, offense moving left',
 	);
-	await expect(stadiumBall.locator('[data-stadium-live-ball-tip]')).toHaveAttribute('d', 'M-2 92 -9 97 -2 102Z');
+	await expect(stadiumBall.locator('[data-stadium-live-ball-tip]')).toHaveAttribute('d', 'M-2 90 -9 95 -2 100Z');
 	await expect(page.locator('[data-live-boxscore]')).toBeVisible();
 	await expect(page.locator('[data-live-boxscore]')).toContainText('Total Yards');
 	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));

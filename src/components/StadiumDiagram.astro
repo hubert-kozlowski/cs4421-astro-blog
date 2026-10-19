@@ -82,16 +82,21 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 	{style.setting === 'rain' && (
 		<path d="m75 39-4 11m13-11-4 11m13-11-4 11m180-11-4 11m13-11-4 11m13-11-4 11" stroke="#78a5c8" stroke-linecap="round" stroke-width="2" />
 	)}
-	<path data-motion-stadium-outline d={stadiumProfile.outline} fill="#fff" stroke={style.primary} stroke-width="9" />
-	<path d="M65 43h230a14 14 0 0 1 14 14v76a14 14 0 0 1-14 14H65a14 14 0 0 1-14-14V57a14 14 0 0 1 14-14Z" fill="#3c795c" />
-	<rect x="51" y="63" width="29" height="64" rx="2" fill={style.primary} />
-	<rect x="280" y="63" width="29" height="64" rx="2" fill={style.accent} />
-	<text x="65.5" y="97" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="10" font-weight="800">{homeTeamAbbr}</text>
-	<text x="294.5" y="97" text-anchor="middle" dominant-baseline="middle" fill={isLightAccent ? '#202733' : '#fff'} font-size="10" font-weight="800">{homeTeamAbbr}</text>
-	{[91, 119, 147, 175, 203, 231, 259].map((x) => <path data-motion-yard-line d={`M${x} 44v108`} stroke="#ffffff" stroke-opacity=".45" stroke-width="1.5" />)}
-	<path data-motion-yard-line d="M51 49h258M51 143h258" stroke="#ffffff" stroke-opacity=".65" stroke-width="2" />
-	<circle cx="180" cy="96" r="17" fill="none" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
-	<path d="M180 44v108" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
+	<path data-motion-stadium-outline d={stadiumProfile.outline} fill="#fff" stroke={style.primary} stroke-width="7" />
+	{stadiumProfile.details && (
+		<path class="stadium-architecture" d={stadiumProfile.details} fill="none" stroke={style.primary} stroke-opacity=".35" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+	)}
+	<rect data-stadium-field x="96" y="58" width="168" height="74" rx="2" fill="#3c795c" />
+	<rect x="96" y="58" width="18" height="74" rx="1" fill={style.primary} />
+	<rect x="246" y="58" width="18" height="74" rx="1" fill={style.accent} />
+	<text transform="rotate(-90 100 95)" x="100" y="95" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="7" font-weight="800">{homeTeamAbbr}</text>
+	<text transform="rotate(90 260 95)" x="260" y="95" text-anchor="middle" dominant-baseline="middle" fill={isLightAccent ? '#202733' : '#fff'} font-size="7" font-weight="800">{homeTeamAbbr}</text>
+	{Array.from({ length: 11 }, (_, index) => 114 + index * 13.2).map((x) => (
+		<path data-motion-yard-line d={`M${x} 60v70`} stroke="#ffffff" stroke-opacity=".45" stroke-width="1.5" />
+	))}
+	<path data-motion-yard-line d="M96 62h168M96 128h168" stroke="#ffffff" stroke-opacity=".65" stroke-width="2" />
+	<circle cx="180" cy="95" r="10" fill="none" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
+	<path d="M180 58v74" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
 	<g
 		class="stadium-live-ball"
 		data-stadium-live-ball
@@ -99,8 +104,8 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 		aria-label="Live ball position"
 		style="display: none"
 	>
-		<circle cx="0" cy="97" r="6" />
-		<path data-stadium-live-ball-tip d="M2 92 9 97 2 102Z" />
+		<circle cx="0" cy="95" r="6" />
+		<path data-stadium-live-ball-tip d="M2 90 9 95 2 100Z" />
 	</g>
 </svg>
 
@@ -122,5 +127,9 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 		stroke: #202a37;
 		stroke-linejoin: round;
 		stroke-width: 1.5;
+	}
+
+	.stadium-architecture {
+		pointer-events: none;
 	}
 </style>
