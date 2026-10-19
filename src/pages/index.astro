@@ -2,6 +2,7 @@
 import DataFreshness from '../components/DataFreshness.astro';
 import DataState from '../components/DataState.astro';
 import GameCard from '../components/GameCard.astro';
+import { getTeamDisplayName } from '../utils/team-names';
 import LiveGameCenter from '../components/LiveGameCenter.astro';
 import NextSessionCountdown from '../components/NextSessionCountdown.astro';
 import PlayerAvatar from '../components/PlayerAvatar.astro';
@@ -127,24 +128,6 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 					<UpcomingGames games={dashboard.upcomingGames} />
 				)}
 				<div class="schedule-toolbar">
-					<div class="week-switcher">
-						<a
-							class:list={['week-arrow', { 'week-arrow--disabled': dashboard.week <= 1 }]}
-							href={`/?week=${Math.max(1, dashboard.week - 1)}${teamFilter ? `&team=${teamFilter}` : ''}#schedule`}
-							aria-label="Previous week"
-							aria-disabled={dashboard.week <= 1 ? 'true' : undefined}
-						>‹</a>
-						<div>
-							<strong>Week {dashboard.week}</strong>
-							<span>{dashboard.season} regular season</span>
-						</div>
-						<a
-							class:list={['week-arrow', { 'week-arrow--disabled': dashboard.week >= 18 }]}
-							href={`/?week=${Math.min(18, dashboard.week + 1)}${teamFilter ? `&team=${teamFilter}` : ''}#schedule`}
-							aria-label="Next week"
-							aria-disabled={dashboard.week >= 18 ? 'true' : undefined}
-						>›</a>
-					</div>
 					<form class="schedule-filter" action="/#schedule" method="get">
 						<label for="week-filter">Week</label>
 						<select id="week-filter" name="week">
@@ -156,7 +139,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 						<select id="team-filter" name="team">
 							<option value="">All teams</option>
 							{dashboard.teams.map((team) => (
-								<option value={team.abbr} selected={team.abbr === teamFilter}>{team.abbr}</option>
+								<option value={team.abbr} selected={team.abbr === teamFilter}>{getTeamDisplayName(team.abbr)}</option>
 							))}
 						</select>
 						<button type="submit">Show games</button>
@@ -172,7 +155,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 					</div>
 				) : (
 					<DataState
-						title={teamFilter ? `No ${teamFilter} game in week ${dashboard.week}` : `No games listed for week ${dashboard.week}`}
+						title={teamFilter ? `No ${getTeamDisplayName(teamFilter)} game in week ${dashboard.week}` : `No games listed for week ${dashboard.week}`}
 						description="Choose another week or clear the team filter to see more of the schedule."
 					/>
 				)}
@@ -542,60 +525,17 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 
 	.schedule-toolbar {
 		display: flex;
+		width: fit-content;
+		max-width: 100%;
+		box-sizing: border-box;
 		align-items: center;
-		justify-content: space-between;
-		gap: 18px;
+		justify-content: flex-start;
+		gap: 10px;
 		margin-bottom: 17px;
-		padding: 15px 17px;
+		padding: 9px 12px;
 		border: 1px solid var(--color-border);
-		border-radius: 16px;
+		border-radius: 12px;
 		background: linear-gradient(110deg, #fff, #f9faff);
-	}
-
-	.week-switcher {
-		display: flex;
-		flex: 0 0 auto;
-		align-items: center;
-		gap: 11px;
-	}
-
-	.week-switcher > div {
-		display: grid;
-		gap: 1px;
-	}
-
-	.week-switcher strong {
-		font-size: 14px;
-		font-weight: 750;
-	}
-
-	.week-switcher span {
-		color: var(--color-muted);
-		font-size: 10px;
-	}
-
-	.week-arrow {
-		display: grid;
-		width: 30px;
-		height: 30px;
-		place-items: center;
-		border: 1px solid var(--color-border);
-		border-radius: 9px;
-		background: #fff;
-		color: #485d85;
-		font-size: 21px;
-		line-height: 1;
-		text-decoration: none;
-	}
-
-	.week-arrow:hover {
-		border-color: #afc2e8;
-		background: #eff4ff;
-	}
-
-	.week-arrow--disabled {
-		opacity: 0.42;
-		pointer-events: none;
 	}
 
 	.schedule-filter {
@@ -966,8 +906,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		}
 
 		.schedule-toolbar {
-			align-items: flex-start;
-			flex-direction: column;
+			width: 100%;
 		}
 
 		.schedule-filter {

@@ -958,6 +958,19 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 			grid-column: 1;
 		}
 
+		.live-center :global(.live-game-row__teams) {
+			min-width: 0;
+			gap: 4px;
+			overflow: hidden;
+		}
+
+		.live-center :global(.live-game-row__team) {
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
 		.live-center :global(.live-game-row__score) {
 			grid-column: 2;
 			grid-row: 1;
@@ -966,13 +979,28 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 		.live-center :global(.live-game-row__clock) {
 			grid-column: 3;
 			grid-row: 1;
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.live-center[data-live-layout="ticker"] :global(.live-game-row__score) {
+			grid-column: 2;
+		}
+
+		.live-center[data-live-layout="ticker"] :global(.live-game-row__clock) {
+			grid-column: 3;
 		}
 
 		.live-center :global(.live-game-row__collapse-toggle) {
 			grid-column: 4;
 			grid-row: 1;
+			z-index: 2;
 			width: 26px;
 			height: 26px;
+			margin-left: 2px;
+			transform: translateX(6px);
 		}
 
 		.live-center :global(.live-game-row__field) {

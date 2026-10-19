@@ -16,6 +16,8 @@ import {
 } from '../../utils/nfl-data';
 import { createGameCalendarEvent } from '../../utils/calendar';
 import { getMatchupTypeLabel } from '../../utils/game-presentation';
+import { getStadiumProfile } from '../../utils/stadium-profiles';
+import { getTeamDisplayName } from '../../utils/team-names';
 import { isAbsoluteTimestamp } from '../../utils/local-game-time';
 import CalendarActions from '../../components/CalendarActions.astro';
 
@@ -42,6 +44,9 @@ try {
 const game = gameResult?.value;
 const homeTeam = teams.find((team) => team.abbr === game?.home_team);
 const awayTeam = teams.find((team) => team.abbr === game?.away_team);
+const homeTeamName = getTeamDisplayName(game?.home_team);
+const awayTeamName = getTeamDisplayName(game?.away_team);
+const stadiumName = game?.stadium ?? getStadiumProfile(game?.home_team).venue;
 const hasScore = typeof game?.home_score === 'number' && typeof game.away_score === 'number';
 const gameStatus = game ? getGameStatus(game) : 'Scheduled';
 const isFinal = gameStatus === 'Final';
@@ -58,14 +63,14 @@ const resultSummary = isFinal && homeScore !== undefined && awayScore !== undefi
 	? homeScore === awayScore
 		? 'The game ended in a tie.'
 		: homeScore > awayScore
-			? `${homeTeam?.name ?? game.home_team} won by ${homeScore - awayScore}.`
-			: `${awayTeam?.name ?? game.away_team} won by ${awayScore - homeScore}.`
+			? `${homeTeamName} won by ${homeScore - awayScore}.`
+			: `${awayTeamName} won by ${awayScore - homeScore}.`
 	: undefined;
 const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false);
 ---
 
 <SiteLayout
-	title={game ? `${awayTeam?.abbr ?? game.away_team} at ${homeTeam?.abbr ?? game.home_team}` : 'Game details'}
+	title={game ? `${awayTeamName} at ${homeTeamName}` : 'Game details'}
 	description="Game date, score, venue, and team details from the NFL Data API."
 >
 	{game ? (
@@ -75,7 +80,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 				{gameResult && <DataFreshness fetchedAt={gameResult.fetchedAt} stale={gameResult.stale} />}
 			</div>
 			<section class="game-hero">
-				<h1 class="game-hero__title">{awayTeam?.name ?? game.away_team} at {homeTeam?.name ?? game.home_team}</h1>
+				<h1 class="game-hero__title">{awayTeamName} at {homeTeamName}</h1>
 				<p class="eyebrow">WEEK {game.week ?? '—'} · {game.season ?? 'NFL'} {game.game_type ?? ''}</p>
 				<p class="game-hero__date">
 					{kickoffAt ? (
@@ -88,7 +93,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 				<div class="game-matchup">
 					<a class="game-side" href={awayTeam ? `/teams/${awayTeam.abbr}` : '/teams'}>
 						<TeamMark abbr={game.away_team} conference={awayTeam?.conf} size="large" />
-						<strong>{awayTeam?.name ?? game.away_team}</strong>
+						<strong>{awayTeamName}</strong>
 						<span>Away</span>
 					</a>
 					<div
@@ -118,22 +123,22 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 					</div>
 					<a class="game-side" href={homeTeam ? `/teams/${homeTeam.abbr}` : '/teams'}>
 						<TeamMark abbr={game.home_team} conference={homeTeam?.conf} size="large" />
-						<strong>{homeTeam?.name ?? game.home_team}</strong>
+						<strong>{homeTeamName}</strong>
 						<span>Home</span>
 					</a>
 				</div>
 			</section>
 			<article class="venue-banner" aria-labelledby="venue-heading">
 				<StadiumDiagram
-					label={game.stadium ?? 'Football stadium'}
-					homeTeamName={homeTeam?.name ?? game.home_team ?? 'home team'}
+					label={game.stadium ?? undefined}
+					homeTeamName={homeTeamName}
 					homeTeamAbbr={game.home_team}
 				/>
 				<div class="venue-banner__copy">
 					<p class="eyebrow">THE VENUE</p>
-					<h2 id="venue-heading">{game.stadium ?? 'Stadium to be announced'}</h2>
+					<h2 id="venue-heading">{stadiumName}</h2>
 					<p>
-						{homeTeam?.name ? `Home team: ${homeTeam.name}.` : 'Home team shown in team colors.'}
+						{game.home_team ? `Home team: ${homeTeamName}.` : 'Home team shown in team colors.'}
 						{game.overtime ? ' · Decided in overtime.' : ''}
 					</p>
 				</div>
@@ -147,8 +152,8 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 				<div
 					class="game-snapshot"
 					data-game-snapshot
-					data-home-name={homeTeam?.name ?? game.home_team ?? 'Home team'}
-					data-away-name={awayTeam?.name ?? game.away_team ?? 'Away team'}
+					data-home-name={homeTeamName}
+					data-away-name={awayTeamName}
 				>
 					<p class="eyebrow" data-snapshot-eyebrow>{isFinal ? 'THE RESULT' : 'THE MATCHUP'}</p>
 					<h2 data-snapshot-title>{isFinal ? 'Final result' : gameStatus === 'Scheduled' ? 'Before kickoff' : 'Game update'}</h2>
@@ -236,13 +241,27 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 	}
 
 	.game-hero {
+		position: relative;
+		overflow: hidden;
 		padding: 28px 32px 33px;
 		border-radius: 23px;
 		background:
-			radial-gradient(ellipse at 50% 120%, rgb(104 137 200 / 31%), transparent 44%),
+			radial-gradient(ellipse at 50% 120%, rgb(104 137 200 / 34%), transparent 44%),
+			radial-gradient(ellipse at 0 0, rgb(79 110 164 / 20%), transparent 42%),
 			linear-gradient(120deg, #111a2e, #243d69);
 		color: #fff;
 		text-align: center;
+	}
+
+	.game-hero::after {
+		position: absolute;
+		right: 0;
+		bottom: 0;
+		left: 0;
+		height: 3px;
+		background: linear-gradient(90deg, #c33748 0 50%, #3a65b6 50%);
+		content: "";
+		opacity: 0.9;
 	}
 
 	.game-hero__title {
@@ -265,23 +284,38 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 
 	.game-matchup {
 		display: grid;
-		max-width: 650px;
+		max-width: 720px;
 		grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 		align-items: center;
-		gap: 23px;
-		margin: 27px auto 0;
+		gap: 15px;
+		margin: 22px auto 0;
 	}
 
 	.game-side {
 		display: grid;
+		min-width: 0;
 		justify-items: center;
-		gap: 9px;
+		gap: 8px;
+		padding: 14px 12px 12px;
+		border: 1px solid rgb(255 255 255 / 12%);
+		border-radius: 15px;
+		background: linear-gradient(145deg, rgb(255 255 255 / 10%), rgb(255 255 255 / 4%));
 		color: inherit;
 		text-decoration: none;
+		transition: background-color 150ms ease, transform 150ms ease;
+	}
+
+	.game-side:hover {
+		background: rgb(255 255 255 / 13%);
+		transform: translateY(-2px);
 	}
 
 	.game-side strong {
-		font-size: 13px;
+		max-width: 100%;
+		font-size: 12px;
+		line-height: 1.3;
+		overflow-wrap: anywhere;
+		text-wrap: balance;
 	}
 
 	.game-side > span:last-child {
@@ -291,9 +325,13 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 
 	.game-score {
 		display: grid;
-		min-width: 130px;
+		min-width: 108px;
 		justify-items: center;
-		gap: 8px;
+		gap: 6px;
+		padding: 11px 13px;
+		border: 1px solid rgb(255 255 255 / 13%);
+		border-radius: 14px;
+		background: rgb(8 16 31 / 20%);
 	}
 
 	.game-score > strong {
@@ -399,11 +437,11 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 
 	.venue-banner {
 		display: grid;
-		grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+		grid-template-columns: minmax(0, 1.4fr) minmax(200px, 0.6fr);
 		align-items: center;
-		gap: 18px;
+		gap: 12px;
 		margin-top: 17px;
-		padding: 12px 22px;
+		padding: 10px 18px;
 	}
 
 	.venue-banner .stadium-diagram {
@@ -430,7 +468,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 	}
 
 	.game-snapshot {
-		padding: 21px 23px;
+		padding: 18px 20px;
 	}
 
 	.game-snapshot .eyebrow,
@@ -442,7 +480,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 	}
 
 	.game-snapshot__summary {
-		margin: 7px 0 18px;
+		margin: 7px 0 14px;
 		color: var(--color-muted);
 		font-size: 12px;
 		line-height: 1.6;
@@ -451,7 +489,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 	.game-facts {
 		display: grid;
 		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 14px 20px;
+		gap: 12px 18px;
 		margin: 0;
 		padding-top: 15px;
 		border-top: 1px solid #eef0f3;
@@ -509,7 +547,8 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		}
 
 		.game-score {
-			min-width: 85px;
+			min-width: 70px;
+			padding: 8px 7px;
 		}
 
 		.game-score > strong {

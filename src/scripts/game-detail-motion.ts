@@ -29,11 +29,12 @@ if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
 				const outline = element.querySelector<SVGPathElement>('[data-motion-stadium-outline]');
 				if (outline) {
 					const length = outline.getTotalLength();
-					outline.style.strokeDasharray = `${length}`;
-					outline.style.strokeDashoffset = `${length}`;
+					const completeOutlineLength = length + 2;
+					outline.style.strokeDasharray = `${completeOutlineLength}`;
+					outline.style.strokeDashoffset = `${completeOutlineLength}`;
 					animate(
 						outline,
-						{ strokeDashoffset: [length, 0] },
+						{ strokeDashoffset: [completeOutlineLength, 0] },
 						{ duration: 0.85, delay: 0.12, ease: 'easeInOut' },
 					);
 				}
