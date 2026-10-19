@@ -35,9 +35,6 @@ jobs:
       - name: Install Project Dependencies
         run: npm ci
 
-      - name: Build Static Site
-        run: npm run build:static
-
       - name: Install CDK Dependencies
         working-directory: ./cdk
         run: npm ci
@@ -48,6 +45,22 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
+
+      - name: Resolve SSR Dashboard URL
+        run: |
+          url="$(aws cloudformation describe-stacks \
+            --stack-name CdkStack \
+            --region us-east-1 \
+            --query "Stacks[0].Outputs[?OutputKey=='SiteUrl'].OutputValue | [0]" \
+            --output text)"
+          if [ "$url" = "None" ] || [ -z "$url" ]; then
+            echo "Could not resolve the deployed SSR dashboard URL." >&2
+            exit 1
+          fi
+          echo "PUBLIC_SSR_SITE_URL=$url" >> "$GITHUB_ENV"
+
+      - name: Build Static Site
+        run: npm run build:static
 
       - name: Deploy Infrastructure & Assets with AWS CDK
         working-directory: ./cdk

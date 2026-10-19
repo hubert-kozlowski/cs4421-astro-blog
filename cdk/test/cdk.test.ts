@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { BlogStack, StaticSiteStack } from '../lib/cdk-stack';
+import { BlogStack } from '../lib/cdk-stack';
+import { StaticSiteStack } from '../lib/static-site-stack';
 
 describe('BlogStack', () => {
 	it('deploys the SSR app as an ECS service behind a load balancer', () => {

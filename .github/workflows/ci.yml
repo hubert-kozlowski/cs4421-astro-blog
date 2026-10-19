@@ -83,6 +83,9 @@ jobs:
       - name: Build Site
         run: npm run build
 
+      - name: Build Static Site
+        run: npm run build:static
+
       - name: Install CDK Dependencies
         working-directory: ./cdk
         run: npm ci
@@ -128,7 +131,7 @@ jobs:
             exit 1
           fi
 
-          curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/api/health | jq --exit-status '.status == "ok" and .uptimeSeconds >= 0'
+          curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/api/health | jq --exit-status '.status == "ok" and .uptime >= 0'
           curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/api/live | jq --exit-status '.status == "ok"'
           curl --fail --silent --show-error --max-time 30 http://127.0.0.1:4321/ | grep '<html' >/dev/null
 
