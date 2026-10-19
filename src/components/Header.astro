@@ -16,24 +16,13 @@ const onHome = Astro.url.pathname === '/';
 			<span class="brand__mark" aria-hidden="true">GA</span>
 			<span class="brand__name">GRIDIRON <span>ATLAS</span></span>
 		</a>
-		<nav class="quick-nav" aria-label="Dashboard sections">
-			{
-				sections.map(({ href, label }) => (
-					<a class="quick-nav__link" href={onHome ? href : `/${href}`}>
-						{label}
-					</a>
-				))
-			}
-		</nav>
-		<form class="header-search" action="/players#player-search-form" method="get" role="search">
-			<label class="sr-only" for="header-player-search">Find an NFL player</label>
-			<svg viewBox="0 0 24 24" aria-hidden="true">
-				<circle cx="10.8" cy="10.8" r="6.3" />
-				<path d="m15.4 15.4 4.2 4.2" />
-			</svg>
-			<input id="header-player-search" type="search" name="name" placeholder="Find a player" />
-			<button type="submit" aria-label="Search players">Search</button>
-		</form>
+		{!onHome && (
+			<nav class="quick-nav" aria-label="Dashboard sections">
+				{sections.map(({ href, label }) => (
+					<a class="quick-nav__link" href={`/${href}`}>{label}</a>
+				))}
+			</nav>
+		)}
 	</div>
 </header>
 
@@ -120,59 +109,6 @@ const onHome = Astro.url.pathname === '/';
 		color: var(--color-blue);
 	}
 
-	.header-search {
-		display: flex;
-		width: 238px;
-		height: 38px;
-		flex: 0 0 auto;
-		align-items: center;
-		gap: 8px;
-		padding: 0 6px 0 11px;
-		border: 1px solid var(--color-border);
-		border-radius: 12px;
-		background: #f8f9fb;
-		color: var(--color-muted);
-	}
-
-	.header-search svg {
-		width: 16px;
-		height: 16px;
-		flex: 0 0 auto;
-		fill: none;
-		stroke: currentColor;
-		stroke-linecap: round;
-		stroke-width: 1.7;
-	}
-
-	.header-search input {
-		width: 100%;
-		min-width: 0;
-		border: 0;
-		outline: 0;
-		background: transparent;
-		color: var(--color-ink);
-		font-size: 12px;
-	}
-
-	.header-search input::placeholder {
-		color: var(--color-faint);
-	}
-
-	.header-search button {
-		padding: 6px 9px;
-		border: 0;
-		border-radius: 8px;
-		background: #e8edf8;
-		color: var(--color-blue);
-		font-size: 11px;
-		font-weight: 700;
-		cursor: pointer;
-	}
-
-	.header-search button:hover {
-		background: #dce5f7;
-	}
-
 	@media (max-width: 900px) {
 		.site-header__inner {
 			width: min(100% - 32px, 1180px);
@@ -201,13 +137,4 @@ const onHome = Astro.url.pathname === '/';
 		}
 	}
 
-	@media (max-width: 520px) {
-		.header-search {
-			width: min(52vw, 205px);
-		}
-
-		.header-search button {
-			padding: 6px;
-		}
-	}
 </style>

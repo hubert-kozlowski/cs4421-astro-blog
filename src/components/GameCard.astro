@@ -1,6 +1,7 @@
 ---
 import { getGameStatus, getGameUpset, type NflGame, type NflTeam } from '../utils/nfl-data';
 import { isAbsoluteTimestamp } from '../utils/local-game-time';
+import { getTeamDisplayName } from '../utils/team-names';
 import TeamMark from './TeamMark.astro';
 
 interface Props {
@@ -11,6 +12,8 @@ interface Props {
 const { game, teams } = Astro.props;
 const homeTeam = teams.find((team) => team.abbr === game.home_team);
 const awayTeam = teams.find((team) => team.abbr === game.away_team);
+const homeName = getTeamDisplayName(game.home_team);
+const awayName = getTeamDisplayName(game.away_team);
 const hasScore = typeof game.home_score === 'number' && typeof game.away_score === 'number';
 const gameStatus = getGameStatus(game);
 const isFinal = gameStatus === 'Final';
@@ -56,12 +59,12 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 		</div>
 		<div class="game-card__team">
 			<TeamMark abbr={game.away_team} conference={awayTeam?.conf} />
-			<span class="game-card__name">{awayTeam?.name ?? game.away_team}</span>
+			<span class="game-card__name">{awayName}</span>
 			<strong class="game-card__score" data-score-team={game.away_team}>{hasScore ? game.away_score : '—'}</strong>
 		</div>
 		<div class="game-card__team">
 			<TeamMark abbr={game.home_team} conference={homeTeam?.conf} />
-			<span class="game-card__name">{homeTeam?.name ?? game.home_team}</span>
+			<span class="game-card__name">{homeName}</span>
 			<strong class="game-card__score" data-score-team={game.home_team}>{hasScore ? game.home_score : '—'}</strong>
 		</div>
 		<div class="game-card__footer">

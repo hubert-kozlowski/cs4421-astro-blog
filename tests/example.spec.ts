@@ -54,11 +54,14 @@ test('dashboard brings games, standings, player search, and matchups together', 
 		}),
 	).toBe(true);
 	await expect(page.getByRole('navigation', { name: 'Jump to a dashboard feature' }).getByRole('link')).toHaveCount(4);
+	await expect(page.locator('.quick-nav')).toHaveCount(0);
+	await expect(page.locator('.header-search')).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Pick your game.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'See who’s climbing.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Find your player.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Set up a matchup.' })).toBeVisible();
 	await expect(page.getByRole('searchbox', { name: 'Search NFL player names' })).toBeVisible();
+	await expect(page.locator('#team-filter option[value="JAX"]')).toHaveText('Jacksonville Jaguars');
 	await expect(page.locator('.game-card .calendar-menu')).toHaveCount(0);
 	await expect(page.locator('.upcoming-game .calendar-menu')).toHaveCount(0);
 
@@ -239,7 +242,9 @@ test('game detail snapshot and statistics update from the live feed', async ({ p
 					clock: final ? '0:00' : '8:42',
 					boxScoreUpdatedAt: '2026-10-14T14:00:00.000Z',
 					lastPlay: null,
-					situation: null,
+					situation: final
+						? null
+						: { downDistance: '1st & 10', possession: 'JAX', redZone: false, yardLine: 72, direction: 'left' },
 					moment: null,
 					notice: null,
 					boxScore: [{
@@ -257,6 +262,14 @@ test('game detail snapshot and statistics update from the live feed', async ({ p
 	await expect(page.locator('[data-snapshot-title]')).toHaveText('Game in progress');
 	await expect(page.locator('[data-snapshot-eyebrow]')).toHaveText('LIVE UPDATE');
 	await expect(page.locator('[data-snapshot-summary]')).toContainText('Philadelphia Eagles 10 · Jacksonville Jaguars 14');
+	const stadiumBall = page.locator('[data-stadium-live-ball]');
+	await expect(stadiumBall).toBeVisible();
+	await expect(stadiumBall).toHaveAttribute('transform', 'translate(236.8 0)');
+	await expect(stadiumBall).toHaveAttribute(
+		'aria-label',
+		'Live ball position, provider coordinate 72 from left goal line, offense moving left',
+	);
+	await expect(stadiumBall.locator('[data-stadium-live-ball-tip]')).toHaveAttribute('d', 'M-2 92 -9 97 -2 102Z');
 	await expect(page.locator('[data-live-boxscore]')).toBeVisible();
 	await expect(page.locator('[data-live-boxscore]')).toContainText('Total Yards');
 	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -264,6 +277,7 @@ test('game detail snapshot and statistics update from the live feed', async ({ p
 	await expect(page.locator('[data-snapshot-title]')).toHaveText('Final result');
 	await expect(page.locator('[data-snapshot-eyebrow]')).toHaveText('THE RESULT');
 	await expect(page.locator('[data-snapshot-summary]')).toContainText('Jacksonville Jaguars won by 4');
+	await expect(stadiumBall).toBeHidden();
 	await expect(page.locator('[data-boxscore-title]')).toHaveText('Final game stats');
 });
 
@@ -309,7 +323,10 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-game-row')).toContainText('JAX');
 	await expect(liveCenter.locator('.live-game-row')).toContainText('Q1 · 4:19');
 	await expect(liveCenter.locator('.live-game-row__situation')).toHaveText('1st & Goal · RED ZONE');
-	await expect(liveCenter.locator('.live-game-row__team--possession')).toHaveAttribute('aria-label', 'JAX, has possession');
+	await expect(liveCenter.locator('.live-game-row__team--possession')).toHaveAttribute(
+		'aria-label',
+		'Jacksonville Jaguars, has possession',
+	);
 	await expect(liveCenter.locator('.live-game-row__team--possession')).toHaveCSS('border-bottom-color', 'rgb(215, 162, 42)');
 	await expect(liveCenter.locator('.live-game-row__field')).toHaveAttribute(
 		'aria-label',
@@ -762,6 +779,11 @@ test('live field preserves a known ball spot without guessing unknown direction 
 		'aria-label',
 		'Play-derived field view; direction unavailable; JAX possession, provider coordinate 72 from left goal line',
 	);
+	const clockBounds = await rows.first().locator('.live-game-row__clock').boundingBox();
+	const collapseBounds = await rows.first().locator('.live-game-row__collapse-toggle').boundingBox();
+	expect(clockBounds).not.toBeNull();
+	expect(collapseBounds).not.toBeNull();
+	expect(collapseBounds!.x).toBeGreaterThanOrEqual(clockBounds!.x + clockBounds!.width);
 	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 	const liveCenter = page.locator('[data-live-center]');
 	await expect(liveCenter).toHaveAttribute('data-live-layout', 'ticker');

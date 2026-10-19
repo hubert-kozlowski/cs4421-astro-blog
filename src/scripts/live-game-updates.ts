@@ -14,6 +14,8 @@ interface LivePlayerCategory {
 	athletes: LiveStatAthlete[];
 }
 
+import { getTeamDisplayName } from '../utils/team-names';
+
 interface LiveTeamBoxScore {
 	team: string;
 	categories: LivePlayerCategory[];
@@ -401,6 +403,37 @@ function updateGameDetail(game: LiveGame, changed: boolean, touchdown: boolean, 
 	) {
 		return;
 	}
+	const stadiumBall = document.querySelector<SVGGElement>('[data-stadium-live-ball]');
+	if (stadiumBall) {
+		const reportedYardLine = game.situation?.yardLine;
+		const yardLine = typeof reportedYardLine === 'number' &&
+			Number.isInteger(reportedYardLine) &&
+			reportedYardLine >= 0 &&
+			reportedYardLine <= 100
+			? reportedYardLine
+			: null;
+		const isLive = game.state === 'in_progress' || game.state === 'halftime';
+		stadiumBall.style.display = isLive && yardLine !== null ? 'block' : 'none';
+		if (yardLine !== null) {
+			const x = 51 + yardLine * 2.58;
+			stadiumBall.setAttribute('transform', `translate(${x.toFixed(1)} 0)`);
+		}
+		const tip = stadiumBall.querySelector<SVGPathElement>('[data-stadium-live-ball-tip]');
+		if (tip) {
+			tip.style.display = game.situation?.direction ? 'block' : 'none';
+			tip.setAttribute(
+				'd',
+				game.situation?.direction === 'left' ? 'M-2 92 -9 97 -2 102Z' : 'M2 92 9 97 2 102Z',
+			);
+		}
+		if (yardLine !== null) {
+			const direction = game.situation?.direction;
+			stadiumBall.setAttribute(
+				'aria-label',
+				`Live ball position, provider coordinate ${yardLine} from left goal line${direction ? `, offense moving ${direction}` : ', direction unavailable'}`,
+			);
+		}
+	}
 	const score = scoreboard.querySelector<HTMLElement>('[data-live-game-score]');
 	if (score && (game.state === 'in_progress' || game.state === 'halftime' || game.state === 'final')) {
 		score.classList.remove('game-score__versus');
@@ -634,14 +667,16 @@ function renderLiveRow(
 		: game.moment === 'two_minute_warning'
 			? 'TWO-MINUTE WARNING'
 			: '';
-	const accessibleLabel = `${game.awayTeam} ${game.awayScore}, ${game.homeTeam} ${game.homeScore}, ${liveStatusLabel(game)}${possessionTeam ? `, ${possessionTeam} has possession` : ''}${phaseLabel ? `, ${phaseLabel.toLowerCase()}` : ''}${noticeLabel ? `, ${noticeLabel}${noticeDetail ? `: ${noticeDetail}` : ''}` : ''}`;
+	const awayName = getTeamDisplayName(game.awayTeam);
+	const homeName = getTeamDisplayName(game.homeTeam);
+	const accessibleLabel = `${awayName} ${game.awayScore}, ${homeName} ${game.homeScore}, ${liveStatusLabel(game)}${possessionTeam ? `, ${getTeamDisplayName(possessionTeam)} has possession` : ''}${phaseLabel ? `, ${phaseLabel.toLowerCase()}` : ''}${noticeLabel ? `, ${noticeLabel}${noticeDetail ? `: ${noticeDetail}` : ''}` : ''}`;
 	row.setAttribute('aria-label', accessibleLabel);
 	link?.setAttribute('aria-label', accessibleLabel);
 	const teams = appendText(content, 'div', '', 'live-game-row__teams');
 	const away = appendText(teams, 'strong', game.awayTeam, 'live-game-row__team');
 	if (possessionTeam === game.awayTeam) {
 		away.classList.add('live-game-row__team--possession');
-		away.setAttribute('aria-label', `${game.awayTeam}, has possession`);
+		away.setAttribute('aria-label', `${awayName}, has possession`);
 		const accent = teamPalette(game.awayTeam)?.accent;
 		if (accent) away.style.setProperty('--possession-accent', accent);
 	}
@@ -649,7 +684,7 @@ function renderLiveRow(
 	const home = appendText(teams, 'strong', game.homeTeam, 'live-game-row__team');
 	if (possessionTeam === game.homeTeam) {
 		home.classList.add('live-game-row__team--possession');
-		home.setAttribute('aria-label', `${game.homeTeam}, has possession`);
+		home.setAttribute('aria-label', `${homeName}, has possession`);
 		const accent = teamPalette(game.homeTeam)?.accent;
 		if (accent) home.style.setProperty('--possession-accent', accent);
 	}

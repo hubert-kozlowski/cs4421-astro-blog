@@ -1,11 +1,13 @@
 ---
+import { getStadiumProfile } from '../utils/stadium-profiles';
+
 interface Props {
 	label?: string;
 	homeTeamName: string;
 	homeTeamAbbr?: string | null;
 }
 
-const { label = 'Football stadium', homeTeamName, homeTeamAbbr = '' } = Astro.props;
+const { label, homeTeamName, homeTeamAbbr = '' } = Astro.props;
 
 const teamStyles: Record<string, { primary: string; accent: string; city: string; setting: string }> = {
 	ARI: { primary: '#97233f', accent: '#ffb612', city: 'Glendale, Arizona', setting: 'desert' },
@@ -27,6 +29,7 @@ const teamStyles: Record<string, { primary: string; accent: string; city: string
 	LV: { primary: '#111111', accent: '#a5acaf', city: 'Las Vegas, Nevada', setting: 'desert' },
 	LAC: { primary: '#0080c6', accent: '#ffc20e', city: 'Inglewood, California', setting: 'coast' },
 	LAR: { primary: '#003594', accent: '#ffa300', city: 'Inglewood, California', setting: 'coast' },
+	LA: { primary: '#003594', accent: '#ffa300', city: 'Inglewood, California', setting: 'coast' },
 	MIA: { primary: '#008e97', accent: '#fc4c02', city: 'Miami Gardens, Florida', setting: 'coast' },
 	MIN: { primary: '#4f2683', accent: '#ffc62f', city: 'Minneapolis, Minnesota', setting: 'lake' },
 	NE: { primary: '#002244', accent: '#c60c30', city: 'Foxborough, Massachusetts', setting: 'woodland' },
@@ -48,6 +51,8 @@ const style = teamStyles[homeTeamAbbr ?? ''] ?? {
 	city: 'United States',
 	setting: 'city',
 };
+const stadiumProfile = getStadiumProfile(homeTeamAbbr);
+const venueLabel = label ?? stadiumProfile.venue;
 const terrain = style.setting === 'desert'
 	? 'M8 99 Q31 80 55 99 T102 99 M255 99 Q287 76 320 99 T352 99'
 	: style.setting === 'mountain'
@@ -57,21 +62,6 @@ const terrain = style.setting === 'desert'
 			: style.setting === 'lake' || style.setting === 'coast'
 				? 'M8 87q19-10 38 0t38 0m-76 13q19-10 38 0t38 0m216-13q19-10 38 0t38 0m-76 13q19-10 38 0t38 0'
 				: 'M8 96h50m244 0h50';
-const stadiumOutline = homeTeamAbbr === 'LV'
-	? 'M48 28h264a28 28 0 0 1 28 28v78a28 28 0 0 1-28 28H48a28 28 0 0 1-28-28V56a28 28 0 0 1 28-28Z'
-	: homeTeamAbbr === 'KC'
-		? 'M43 27 310 34l31 24v70l-31 24-267 7-24-24V51Z'
-		: homeTeamAbbr === 'JAX'
-			? 'M49 27h262a25 25 0 0 1 25 25v84a25 25 0 0 1-25 25H49a25 25 0 0 1-25-25V52a25 25 0 0 1 25-25Z'
-			: homeTeamAbbr === 'SEA'
-				? 'M45 27h270v15h18v103h-18v16H45v-16H27V42h18Z'
-				: homeTeamAbbr === 'DAL'
-					? 'M38 26h284v18h15v105h-15v18H38v-18H23V44h15Z'
-					: homeTeamAbbr === 'MIN'
-						? 'M49 27h262l25 24v91l-25 24H49l-25-24V51Z'
-						: homeTeamAbbr === 'LAR' || homeTeamAbbr === 'LAC'
-							? 'M50 29h260q34 0 34 27v75q0 27-34 27H50q-34 0-34-27V56q0-27 34-27Z'
-				: 'M48 28h264a25 25 0 0 1 25 25v82a25 25 0 0 1-25 25H48a25 25 0 0 1-25-25V53a25 25 0 0 1 25-25Z';
 const isLightAccent = ['ARI', 'GB', 'KC', 'MIN', 'NO', 'NYJ', 'PIT', 'SF', 'WAS'].includes(homeTeamAbbr ?? '');
 const teamLabel = homeTeamName.replace(/^the /i, '');
 ---
@@ -79,8 +69,9 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 <svg
 	class="stadium-diagram"
 	viewBox="0 0 360 190"
+	data-stadium-team={homeTeamAbbr}
 	role="img"
-	aria-label={`Top-down illustration of ${label}, home of the ${teamLabel} in ${style.city}`}
+	aria-label={`Top-down illustration of ${venueLabel}, home of the ${teamLabel} in ${style.city}`}
 >
 	<rect x="5" y="5" width="350" height="180" rx="34" fill="#e8edf3" />
 	<text x="180" y="19" text-anchor="middle" fill="#526177" font-size="7" font-weight="800" letter-spacing=".8">
@@ -91,7 +82,7 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 	{style.setting === 'rain' && (
 		<path d="m75 39-4 11m13-11-4 11m13-11-4 11m180-11-4 11m13-11-4 11m13-11-4 11" stroke="#78a5c8" stroke-linecap="round" stroke-width="2" />
 	)}
-	<path data-motion-stadium-outline d={stadiumOutline} fill="#fff" stroke={style.primary} stroke-width="9" />
+	<path data-motion-stadium-outline d={stadiumProfile.outline} fill="#fff" stroke={style.primary} stroke-width="9" />
 	<path d="M65 43h230a14 14 0 0 1 14 14v76a14 14 0 0 1-14 14H65a14 14 0 0 1-14-14V57a14 14 0 0 1 14-14Z" fill="#3c795c" />
 	<rect x="51" y="63" width="29" height="64" rx="2" fill={style.primary} />
 	<rect x="280" y="63" width="29" height="64" rx="2" fill={style.accent} />
@@ -101,6 +92,16 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 	<path data-motion-yard-line d="M51 49h258M51 143h258" stroke="#ffffff" stroke-opacity=".65" stroke-width="2" />
 	<circle cx="180" cy="96" r="17" fill="none" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
 	<path d="M180 44v108" stroke="#ffffff" stroke-opacity=".75" stroke-width="2" />
+	<g
+		class="stadium-live-ball"
+		data-stadium-live-ball
+		role="img"
+		aria-label="Live ball position"
+		style="display: none"
+	>
+		<circle cx="0" cy="97" r="6" />
+		<path data-stadium-live-ball-tip d="M2 92 9 97 2 102Z" />
+	</g>
 </svg>
 
 <style>
@@ -108,5 +109,18 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 		display: block;
 		width: 100%;
 		height: auto;
+	}
+
+	.stadium-live-ball {
+		fill: #ffd16c;
+		stroke: #202a37;
+		stroke-width: 1.5;
+	}
+
+	.stadium-live-ball [data-stadium-live-ball-tip] {
+		fill: #ffd16c;
+		stroke: #202a37;
+		stroke-linejoin: round;
+		stroke-width: 1.5;
 	}
 </style>
