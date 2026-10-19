@@ -1,0 +1,104 @@
+---
+import type { GameCalendarEvent } from '../utils/calendar';
+
+interface Props {
+	event: GameCalendarEvent;
+}
+
+const { event } = Astro.props;
+---
+
+<details class="calendar-menu" data-calendar-starts-at={event.startsAt}>
+	<summary>
+		<svg viewBox="0 0 20 20" aria-hidden="true">
+			<rect x="3" y="4.5" width="14" height="13" rx="2" />
+			<path d="M6.5 2.5v4M13.5 2.5v4M3 8.5h14" />
+		</svg>
+		<span>Add to calendar</span>
+	</summary>
+	<div class="calendar-menu__options" role="group" aria-label="Calendar options">
+		<a href={event.googleCalendarUrl} target="_blank" rel="noopener noreferrer">Google Calendar</a>
+		<a href={event.icsUrl} download={`nfl-game-${event.gameId}.ics`}>Apple Calendar (.ics)</a>
+	</div>
+</details>
+
+<script>
+	import '../scripts/calendar-menu';
+</script>
+
+<style>
+	.calendar-menu {
+		position: relative;
+		width: fit-content;
+		margin: 10px auto 0;
+		color: inherit;
+		font-size: 11px;
+	}
+
+	.calendar-menu summary {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 0;
+		color: #c5d2e7;
+		cursor: pointer;
+		list-style: none;
+		text-underline-offset: 3px;
+	}
+
+	.calendar-menu summary::-webkit-details-marker {
+		display: none;
+	}
+
+	.calendar-menu summary:hover,
+	.calendar-menu[open] summary {
+		color: #fff;
+		text-decoration: underline;
+	}
+
+	.calendar-menu summary:focus-visible {
+		border-radius: 3px;
+		outline: 2px solid currentColor;
+		outline-offset: 3px;
+	}
+
+	.calendar-menu summary svg {
+		width: 14px;
+		height: 14px;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.4;
+	}
+
+	.calendar-menu__options {
+		position: absolute;
+		z-index: 5;
+		top: calc(100% + 4px);
+		left: 50%;
+		display: grid;
+		min-width: 150px;
+		gap: 2px;
+		padding: 5px;
+		transform: translateX(-50%);
+		border: 1px solid rgb(255 255 255 / 20%);
+		border-radius: 9px;
+		background: #fff;
+		box-shadow: 0 8px 24px rgb(9 18 33 / 24%);
+		color: var(--color-ink);
+		text-align: left;
+	}
+
+	.calendar-menu__options a {
+		padding: 7px 9px;
+		border-radius: 5px;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.calendar-menu__options a:hover,
+	.calendar-menu__options a:focus-visible {
+		background: #f1f4f9;
+	}
+</style>

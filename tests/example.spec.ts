@@ -7,6 +7,7 @@ test('dashboard brings games, standings, player search, and matchups together', 
 
 	await expect(page).toHaveTitle(/NFL dashboard \| Gridiron Atlas/);
 	await expect(page.getByRole('heading', { name: 'Every game. One place.' })).toBeVisible();
+	await expect(page.locator('.dashboard-hero__copy')).toHaveAttribute('data-motion-played', 'true');
 	await expect(page.locator('.hero-score')).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
 	await expect(page.locator('[data-countdown]')).toHaveText(/^\d+:\d{2}:\d{2}$/);
@@ -53,10 +54,212 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await expect(page.getByRole('heading', { name: 'Find your player.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Set up a matchup.' })).toBeVisible();
 	await expect(page.getByRole('searchbox', { name: 'Search NFL player names' })).toBeVisible();
+	await expect(page.locator('.game-card .calendar-menu')).toHaveCount(0);
+	await expect(page.locator('.upcoming-game .calendar-menu')).toHaveCount(0);
 
+	await page.goto('/games/example-game');
+	await expect(page.getByRole('heading', { name: 'Before kickoff' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
+	await expect(page.getByRole('img', { name: 'Top-down illustration of EverBank Stadium, home of the Jacksonville Jaguars in Jacksonville, Florida' })).toBeVisible();
+	await expect(page.locator('.stadium-diagram').first()).toContainText('JAX');
+	const calendarMenu = page.locator('.calendar-menu');
+	await expect(calendarMenu.locator('summary')).toHaveText('Add to calendar');
+	await expect(calendarMenu.locator('.calendar-menu__options')).toBeHidden();
+	await calendarMenu.locator('summary').click();
+	const googleCalendarLink = calendarMenu.getByRole('link', { name: 'Google Calendar' });
+	const appleCalendarLink = calendarMenu.getByRole('link', { name: 'Apple Calendar (.ics)' });
+	await expect(googleCalendarLink).toHaveAttribute('href', /^https:\/\/calendar\.google\.com\/calendar\/render\?/);
+	await expect(appleCalendarLink).toHaveAttribute('download', 'nfl-game-example-game.ics');
+	const googleUrl = new URL((await googleCalendarLink.getAttribute('href'))!);
+	expect(googleUrl.searchParams.get('text')).toBe('Philadelphia Eagles at Jacksonville Jaguars');
+	const calendarResponse = await page.request.get((await appleCalendarLink.getAttribute('href'))!);
+	expect(calendarResponse.ok()).toBe(true);
+	expect(calendarResponse.headers()['content-type']).toContain('text/calendar');
+	expect(await calendarResponse.text()).toContain('SUMMARY:Philadelphia Eagles at Jacksonville Jaguars');
+	await page.goto('/games/past-game-no-kickoff');
+	await expect(page.getByRole('heading', { name: 'Final result' })).toBeVisible();
+	await expect(page.locator('.game-snapshot__summary')).toContainText('Kansas City Chiefs won by 7');
+	await expect(page.locator('.venue-banner')).toBeVisible();
+	expect(await page.locator('.venue-banner').evaluate((element) =>
+		Boolean(element.compareDocumentPosition(document.querySelector('[data-live-boxscore]')!) & Node.DOCUMENT_POSITION_FOLLOWING),
+	)).toBe(true);
+	await expect(page.getByRole('img', { name: 'Top-down illustration of Arrowhead Stadium, home of the Kansas City Chiefs in Kansas City, Missouri' })).toBeVisible();
+	await expect(page.locator('.stadium-diagram').first()).toContainText('KC');
+	await expect(page.locator('.calendar-menu')).toHaveCount(0);
+
+	await page.goto('/');
 	await page.getByRole('navigation', { name: 'Jump to a dashboard feature' }).getByRole('link', { name: 'Standings' }).click();
 	await expect(page).toHaveURL(/#standings$/);
 	await context.close();
+});
+
+test('global and matchup styles load after a direct query navigation', async ({ page }) => {
+	const failedStylesheets: string[] = [];
+	page.on('requestfailed', (request) => {
+		if (request.resourceType() === 'stylesheet') failedStylesheets.push(request.url());
+	});
+
+	for (const load of [() => page.goto('/?team1=BUF&team2=KC#matchups'), () => page.reload()]) {
+		await load();
+		await expect(page.locator('.matchup-result')).toBeVisible();
+		await expect(page.locator('.matchup-result')).toHaveAttribute('data-motion-played', 'true');
+		await expect(page.locator('#matchups .section-heading h2')).toHaveCSS('font-size', '30px');
+		await expect(page.locator('.matchup-result')).toHaveCSS('border-radius', '15px');
+		await expect(page.locator('.matchup-result')).toHaveCSS('background-color', 'rgb(244, 251, 246)');
+	}
+	expect(failedStylesheets).toEqual([]);
+});
+
+test('dashboard entrance and matchup motion are skipped for reduced-motion users', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.goto('/?team1=BUF&team2=KC#matchups');
+	await expect(page.locator('.dashboard-hero__copy')).toBeVisible();
+	await expect(page.locator('.matchup-result')).toBeVisible();
+	await expect(page.locator('.dashboard-hero__copy')).not.toHaveAttribute('data-motion-played', 'true');
+	await expect(page.locator('.matchup-result')).not.toHaveAttribute('data-motion-played', 'true');
+});
+
+test('game detail entrance and stadium reveal avoid layout shifts', async ({ page }) => {
+	await page.goto('/games/example-game');
+	await expect(page.locator('.game-hero')).toHaveAttribute('data-motion-played', 'true');
+	const venue = page.locator('.venue-banner');
+	const venueLayoutTop = await venue.evaluate((element) => (element as HTMLElement).offsetTop);
+	await venue.scrollIntoViewIfNeeded();
+	await expect(venue).toHaveAttribute('data-motion-played', 'true');
+	const outline = venue.locator('[data-motion-stadium-outline]');
+	await expect.poll(() => outline.evaluate((path) => getComputedStyle(path).strokeDashoffset)).toBe('0px');
+	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
+	expect(await venue.evaluate((element) => (element as HTMLElement).offsetTop)).toBe(venueLayoutTop);
+});
+
+test('game detail animations are skipped when reduced motion is enabled', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	await page.goto('/games/example-game');
+	await expect(page.locator('.game-hero')).toBeVisible();
+	await expect(page.locator('.venue-banner')).toBeVisible();
+	await expect(page.locator('.game-hero')).not.toHaveAttribute('data-motion-played', 'true');
+	await expect(page.locator('.venue-banner')).not.toHaveAttribute('data-motion-played', 'true');
+	const outline = page.locator('[data-motion-stadium-outline]');
+	expect(await outline.evaluate((path) => (path as SVGPathElement).style.strokeDasharray)).toBe('');
+});
+
+test('calendar actions disappear when kickoff arrives', async ({ page }) => {
+	await page.clock.install();
+	await page.goto('/games/example-game');
+
+	const calendarMenu = page.locator('.calendar-menu');
+	await expect(calendarMenu).toBeVisible();
+	const startsAt = await calendarMenu.getAttribute('data-calendar-starts-at');
+	expect(startsAt).not.toBeNull();
+	const delay = Date.parse(startsAt!) - await page.evaluate(() => Date.now());
+
+	await page.clock.fastForward(delay + 1);
+	await expect(calendarMenu).toBeHidden();
+});
+
+test('completed game details keep the final provider box score visible', async ({ page }) => {
+	await page.route('**/api/live/games?date=*', async (route) => {
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-12T13:00:00.000Z',
+				stale: false,
+				games: [{
+					eventId: 'final-buf-kc',
+					kickoffAt: '2026-10-09T20:00:00.000Z',
+					homeTeam: 'KC',
+					awayTeam: 'BUF',
+					homeScore: 24,
+					awayScore: 17,
+					state: 'final',
+					status: 'Final',
+					period: 4,
+					clock: '0:00',
+					boxScoreUpdatedAt: '2026-10-09T23:00:00.000Z',
+					lastPlay: null,
+					situation: null,
+					moment: null,
+					notice: null,
+					boxScore: [{
+						team: 'KC',
+						stats: [{ label: 'Total Yards', value: '350' }],
+						categories: [{
+							name: 'passing',
+							labels: ['C/ATT', 'YDS'],
+							athletes: [{ name: 'Patrick Mahomes', stats: ['22/30', '280'] }],
+						}],
+					}],
+				}],
+			},
+		});
+	});
+
+	await page.goto('/games/past-game-no-kickoff');
+
+	const boxScore = page.locator('[data-live-boxscore]');
+	await expect(boxScore).toBeVisible();
+	await expect(boxScore.locator('[data-boxscore-details]')).not.toHaveAttribute('open');
+	await expect(boxScore.getByRole('heading', { name: 'Final game stats' })).toBeVisible();
+	await page.setViewportSize({ width: 390, height: 844 });
+	expect(await boxScore.locator('summary').evaluate((element) => {
+		const title = element.querySelector('h2');
+		return title && title.scrollWidth <= title.clientWidth && element.scrollWidth <= element.clientWidth;
+	})).toBe(true);
+	await boxScore.locator('summary').click();
+	await expect(boxScore.locator('[data-boxscore-details]')).toHaveAttribute('open');
+	await expect(boxScore).toContainText('Total Yards');
+	await expect(boxScore).toContainText('Patrick Mahomes');
+	await expect(boxScore).toContainText('22/30');
+	await expect(page.locator('[data-snapshot-summary]')).toContainText('Kansas City Chiefs won by 7');
+});
+
+test('game detail snapshot and statistics update from the live feed', async ({ page }) => {
+	let requests = 0;
+	await page.route('**/api/live/games?date=*', async (route) => {
+		requests += 1;
+		const final = requests > 1;
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-14T13:00:00.000Z',
+				stale: false,
+				games: [{
+					eventId: 'live-phi-jax-detail',
+					kickoffAt: '2026-10-14T13:00:00.000Z',
+					homeTeam: 'JAX',
+					awayTeam: 'PHI',
+					homeScore: final ? 21 : 14,
+					awayScore: final ? 17 : 10,
+					state: final ? 'final' : 'in_progress',
+					status: final ? 'Final' : '2nd Quarter',
+					period: final ? 4 : 2,
+					clock: final ? '0:00' : '8:42',
+					boxScoreUpdatedAt: '2026-10-14T14:00:00.000Z',
+					lastPlay: null,
+					situation: null,
+					moment: null,
+					notice: null,
+					boxScore: [{
+						team: 'JAX',
+						stats: [{ label: 'Total Yards', value: '220' }],
+						categories: [],
+					}],
+				}],
+			},
+		});
+	});
+
+	await page.goto('/games/example-game');
+
+	await expect(page.locator('[data-snapshot-title]')).toHaveText('Game in progress');
+	await expect(page.locator('[data-snapshot-eyebrow]')).toHaveText('LIVE UPDATE');
+	await expect(page.locator('[data-snapshot-summary]')).toContainText('Philadelphia Eagles 10 · Jacksonville Jaguars 14');
+	await expect(page.locator('[data-live-boxscore]')).toBeVisible();
+	await expect(page.locator('[data-live-boxscore]')).toContainText('Total Yards');
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => requests).toBeGreaterThan(1);
+	await expect(page.locator('[data-snapshot-title]')).toHaveText('Final result');
+	await expect(page.locator('[data-snapshot-eyebrow]')).toHaveText('THE RESULT');
+	await expect(page.locator('[data-snapshot-summary]')).toContainText('Jacksonville Jaguars won by 4');
+	await expect(page.locator('[data-boxscore-title]')).toHaveText('Final game stats');
 });
 
 test('live game center stays visible while the next kickoff countdown advances', async ({ page }) => {
@@ -155,6 +358,7 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert')).toHaveClass(/live-event-alert--touchdown/);
 	await expect(liveCenter.locator('.live-event-alert__team')).toHaveText('JAX SCORES');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('min-height', '24px');
+	await expect(liveCenter.locator('.live-game-row')).toHaveAttribute('data-touchdown-motion', 'score-reveal');
 	const alertAlignment = await page.evaluate(() => {
 		const field = document.querySelector('.live-game-row__field')?.getBoundingClientRect();
 		const alert = document.querySelector('.live-event-alert')?.getBoundingClientRect();
@@ -167,10 +371,12 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCSS('background-image', /linear-gradient/);
 	await expect(liveCenter.locator('.live-event-alert__score')).toHaveText('PHI 0 – JAX 7');
 	await expect(liveCenter.locator('.live-event-alert__detail')).toContainText('Touchdown');
-	await expect(liveCenter.locator('.live-game-row__score')).toHaveClass(/live-game-row__score--changed/);
+	await expect(liveCenter.locator('.live-game-row__score')).toHaveClass(/live-game-row__score--touchdown/);
+	await expect(liveCenter.locator('.live-game-row__score')).not.toHaveClass(/--changed/);
 	await expect(liveCenter).toHaveAttribute('aria-live', 'off');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveAttribute('aria-live', 'assertive');
 	await expect(liveCenter.locator('.live-event-alert')).toHaveClass(/live-event-alert--new/);
+	await expect(liveCenter.locator('.live-game-row')).toHaveAttribute('data-touchdown-motion', 'score-reveal');
 
 	const requestsBeforeRepeatedPoll = apiRequests;
 	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -178,6 +384,112 @@ test('live game center stays visible while the next kickoff countdown advances',
 	await expect(liveCenter.locator('.live-event-alert')).toHaveCount(1);
 	await expect(liveCenter.locator('.live-event-alert')).toHaveAttribute('aria-live', 'off');
 	await expect(liveCenter.locator('.live-event-alert')).not.toHaveClass(/live-event-alert--new/);
+	await expect(liveCenter.locator('.live-game-row')).not.toHaveAttribute('data-touchdown-motion', 'impact');
+	await expect(liveCenter.locator('.live-game-row')).not.toHaveAttribute('data-touchdown-motion', 'score-reveal');
+});
+
+test('game detail touchdown motion leads into the scoring team score reveal', async ({ page }) => {
+	let apiRequests = 0;
+	const game = {
+		eventId: 'live-phi-jax-touchdown-detail',
+		kickoffAt: '2026-10-14T13:00:00.000Z',
+		homeTeam: 'JAX',
+		awayTeam: 'PHI',
+		homeScore: 14,
+		awayScore: 10,
+		state: 'in_progress',
+		status: '3rd Quarter',
+		period: 3,
+		clock: '8:42',
+		boxScoreUpdatedAt: null,
+		lastPlay: { id: 'detail-play-1', text: 'Rush for 3 yards', scoring: false, keyAction: false },
+		situation: null,
+		moment: null,
+		notice: null,
+		boxScore: [],
+	};
+	await page.route('**/api/live/games?date=*', async (route) => {
+		apiRequests += 1;
+		await route.fulfill({
+			json: {
+				fetchedAt: '2026-10-14T14:00:00.000Z',
+				stale: false,
+				games: [game],
+			},
+		});
+	});
+
+	await page.goto('/games/example-game');
+	const liveCenter = page.locator('[data-live-center]');
+	await expect(liveCenter).toBeVisible();
+	await expect(page.locator('[data-live-game-score]')).toContainText('10');
+	await expect(page.locator('[data-live-game-score]')).toContainText('14');
+
+	game.homeScore = 21;
+	game.lastPlay = {
+		id: 'detail-play-2',
+		text: 'Touchdown pass to the end zone',
+		scoring: true,
+		keyAction: true,
+	};
+	const requestsBeforeTouchdown = apiRequests;
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => apiRequests).toBeGreaterThan(requestsBeforeTouchdown);
+	const row = liveCenter.locator('.live-game-row');
+	await expect(row.locator('.live-event-alert__title')).toHaveText('TOUCHDOWN');
+	await expect(row).toHaveAttribute('data-touchdown-motion', 'impact');
+	const heroScore = page.locator('[data-live-game-score]');
+	await expect(heroScore).toHaveAttribute('data-touchdown-scoring-team', 'JAX');
+	await expect(heroScore).toHaveAttribute('data-touchdown-event-id', 'live-phi-jax-touchdown-detail');
+	await expect(heroScore).toContainText('21');
+	await expect(row).toHaveAttribute('data-touchdown-motion', 'score-reveal');
+	await expect(heroScore.locator('[data-score-team="JAX"]')).toBeVisible();
+});
+
+test('touchdown content remains visible without motion for reduced-motion users', async ({ page }) => {
+	await page.emulateMedia({ reducedMotion: 'reduce' });
+	let apiRequests = 0;
+	const game = {
+		eventId: 'live-reduced-motion-touchdown',
+		kickoffAt: '2026-10-11T13:00:00.000Z',
+		homeTeam: 'JAX',
+		awayTeam: 'PHI',
+		homeScore: 0,
+		awayScore: 0,
+		state: 'in_progress',
+		status: '1st Quarter',
+		period: 1,
+		clock: '4:19',
+		boxScoreUpdatedAt: null,
+		lastPlay: { id: 'reduced-play-1', text: 'Rush for no gain', scoring: false, keyAction: false },
+		situation: null,
+		moment: null,
+		notice: null,
+		boxScore: [],
+	};
+	await page.route('**/api/live/games', async (route) => {
+		apiRequests += 1;
+		await route.fulfill({
+			json: { fetchedAt: '2026-10-11T14:00:00.000Z', stale: false, games: [game] },
+		});
+	});
+	await page.goto('/');
+
+	game.homeScore = 7;
+	game.lastPlay = {
+		id: 'reduced-play-2',
+		text: 'Touchdown run into the end zone',
+		scoring: true,
+		keyAction: true,
+	};
+	const requestsBeforeTouchdown = apiRequests;
+	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	await expect.poll(() => apiRequests).toBeGreaterThan(requestsBeforeTouchdown);
+	const row = page.locator('.live-game-row');
+	await expect(row.locator('.live-event-alert__title')).toHaveText('TOUCHDOWN');
+	await expect(row.locator('.live-event-alert__score')).toHaveText('PHI 0 – JAX 7');
+	await expect(row).not.toHaveAttribute('data-touchdown-motion');
+	await expect(row.locator('.live-event-alert')).toHaveCSS('animation-name', 'none');
 });
 
 test('live mini-fields align across games with different score widths', async ({ page }) => {

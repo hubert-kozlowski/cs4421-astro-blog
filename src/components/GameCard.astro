@@ -27,47 +27,47 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 	data-live-away={game.away_team}
 	data-live-date={game.gameday}
 >
-	<div class="game-card__meta">
-		<span class="game-card__labels">
-			<span class:list={['game-status', {
-				'game-status--final': isFinal,
-				'game-status--score': gameStatus === 'Score posted',
-				'game-status--pending': gameStatus === 'Result pending',
-			}]}>
-				<span class="game-status__dot" aria-hidden="true"></span>
-				{gameStatus}
-			</span>
-			{upset && (
-				<span class="game-card__upset" title={`${upset.team} won as a ${upset.spread}-point underdog`}>
-					<strong>UPSET WIN</strong>
-					<span>{upset.team} · {upset.spread}-pt dog</span>
+		<div class="game-card__meta">
+			<span class="game-card__labels">
+				<span class:list={['game-status', {
+					'game-status--final': isFinal,
+					'game-status--score': gameStatus === 'Score posted',
+					'game-status--pending': gameStatus === 'Result pending',
+				}]}>
+					<span class="game-status__dot" aria-hidden="true"></span>
+					{gameStatus}
 				</span>
+				{upset && (
+					<span class="game-card__upset" title={`${upset.team} won as a ${upset.spread}-point underdog`}>
+						<strong>UPSET WIN</strong>
+						<span>{upset.team} · {upset.spread}-pt dog</span>
+					</span>
+				)}
+			</span>
+			{kickoffAt ? (
+				<time
+					class="game-card__kickoff"
+					datetime={kickoffAt}
+					data-device-time="time"
+				>Kickoff time</time>
+			) : (
+				<span class="game-card__kickoff">{missingKickoffLabel}</span>
 			)}
-		</span>
-		{kickoffAt ? (
-			<time
-				class="game-card__kickoff"
-				datetime={kickoffAt}
-				data-device-time="time"
-			>Kickoff time</time>
-		) : (
-			<span class="game-card__kickoff">{missingKickoffLabel}</span>
-		)}
-	</div>
-	<div class="game-card__team">
-		<TeamMark abbr={game.away_team} conference={awayTeam?.conf} />
-		<span class="game-card__name">{awayTeam?.name ?? game.away_team}</span>
-		<strong class="game-card__score" data-score-team={game.away_team}>{hasScore ? game.away_score : '—'}</strong>
-	</div>
-	<div class="game-card__team">
-		<TeamMark abbr={game.home_team} conference={homeTeam?.conf} />
-		<span class="game-card__name">{homeTeam?.name ?? game.home_team}</span>
-		<strong class="game-card__score" data-score-team={game.home_team}>{hasScore ? game.home_score : '—'}</strong>
-	</div>
-	<div class="game-card__footer">
-		<span>{game.stadium ?? 'Venue to be announced'}</span>
-		<span aria-hidden="true">↗</span>
-	</div>
+		</div>
+		<div class="game-card__team">
+			<TeamMark abbr={game.away_team} conference={awayTeam?.conf} />
+			<span class="game-card__name">{awayTeam?.name ?? game.away_team}</span>
+			<strong class="game-card__score" data-score-team={game.away_team}>{hasScore ? game.away_score : '—'}</strong>
+		</div>
+		<div class="game-card__team">
+			<TeamMark abbr={game.home_team} conference={homeTeam?.conf} />
+			<span class="game-card__name">{homeTeam?.name ?? game.home_team}</span>
+			<strong class="game-card__score" data-score-team={game.home_team}>{hasScore ? game.home_score : '—'}</strong>
+		</div>
+		<div class="game-card__footer">
+			<span>{game.stadium ?? 'Venue to be announced'}</span>
+			<span aria-hidden="true">↗</span>
+		</div>
 </a>
 
 <style>
