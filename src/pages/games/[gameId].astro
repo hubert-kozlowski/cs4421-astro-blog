@@ -284,8 +284,8 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 
 	.game-matchup {
 		display: grid;
-		width: min(100%, 760px);
-		max-width: 760px;
+		width: min(100%, 680px);
+		max-width: 680px;
 		grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr);
 		align-items: center;
 		gap: clamp(12px, 2.2vw, 22px);
@@ -321,7 +321,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		transform: translateY(-2px);
 	}
 
-	.game-side .team-mark--large {
+	.game-side :global(.team-mark--large) {
 		width: 82px;
 		height: 82px;
 		filter: drop-shadow(0 5px 9px rgb(0 0 0 / 20%));
@@ -565,20 +565,20 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		}
 
 		.game-matchup {
-			grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr);
-			gap: 10px;
+			grid-template-columns: minmax(0, 1fr) clamp(76px, 22vw, 88px) minmax(0, 1fr);
+			gap: clamp(8px, 2vw, 10px);
 		}
 
 		.game-side {
 			min-height: 132px;
 			gap: 8px;
-			padding: 14px 9px 12px;
+			padding: 14px clamp(4px, 2vw, 9px) 12px;
 			border-radius: 15px;
 		}
 
-		.game-side .team-mark--large {
-			width: 64px;
-			height: 64px;
+		.game-side :global(.team-mark--large) {
+			width: clamp(52px, 16vw, 64px);
+			height: clamp(52px, 16vw, 64px);
 		}
 
 		.game-side strong {
@@ -586,13 +586,13 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		}
 
 		.game-score {
-			width: 88px;
-			padding: 9px 8px;
+			width: 100%;
+			padding: 9px 4px;
 			border-radius: 13px;
 		}
 
 		.game-score > strong {
-			font-size: 25px;
+			font-size: clamp(20px, 6vw, 25px);
 		}
 	}
 
