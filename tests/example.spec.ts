@@ -147,14 +147,44 @@ test('game detail entrance and stadium reveal avoid layout shifts', async ({ pag
 	expect(await venue.evaluate((element) => (element as HTMLElement).offsetTop)).toBe(venueLayoutTop);
 });
 
+test('stadium label stays clear and architectural strokes stay within the outline', async ({ page }) => {
+	await page.goto('/games/example-game');
+	const diagram = page.locator('.stadium-diagram');
+
+	for (const width of [390, 1440]) {
+		await page.setViewportSize({ width, height: 900 });
+		const spacing = await diagram.evaluate((element) => {
+			const label = element.querySelector('text')!.getBoundingClientRect();
+			const outline = element.querySelector('[data-motion-stadium-outline]')!.getBoundingClientRect();
+			return label.bottom < outline.top;
+		});
+		expect(spacing, `Stadium label overlaps at ${width}px`).toBe(true);
+		await expect(diagram.locator('.stadium-architecture').locator('..')).toHaveAttribute(
+			'clip-path',
+			'url(#stadium-outline-clip)',
+		);
+	}
+});
+
 test('game detail matchup cards frame each team and keep the score between them', async ({ page }) => {
 	await page.goto('/games/example-game');
 
-	for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+	for (const viewport of [
+		{ width: 320, height: 720 },
+		{ width: 360, height: 800 },
+		{ width: 390, height: 844 },
+		{ width: 560, height: 900 },
+		{ width: 561, height: 900 },
+		{ width: 768, height: 900 },
+		{ width: 1024, height: 900 },
+		{ width: 1440, height: 900 },
+		{ width: 1920, height: 1080 },
+	]) {
 		await page.setViewportSize(viewport);
 		await page.locator('.game-status').evaluate((element) => {
 			element.textContent = 'Sunday Night Football · 8:20 PM ET';
 		});
+		const minimumCardWidth = viewport.width < 380 ? 70 : 100;
 		const matchup = page.locator('.game-matchup');
 		const away = matchup.locator('.game-side').first();
 		const score = matchup.locator('.game-score');
@@ -163,21 +193,47 @@ test('game detail matchup cards frame each team and keep the score between them'
 		await expect(away).toBeVisible();
 		await expect(home).toBeVisible();
 		await expect(score).toBeVisible();
-		expect(await away.evaluate((element) => {
+		const awayGeometry = await away.evaluate((element) => {
 			const card = element.getBoundingClientRect();
 			const mark = element.querySelector('.team-mark')!.getBoundingClientRect();
-			return card.width >= 100 && card.height >= 120 && card.left < mark.left && card.right > mark.right;
-		})).toBe(true);
-		expect(await home.evaluate((element) => {
+			return {
+				cardWidth: card.width,
+				cardHeight: card.height,
+				cardLeft: card.left,
+				cardRight: card.right,
+				markLeft: mark.left,
+				markRight: mark.right,
+			};
+		});
+		expect(awayGeometry.cardWidth, `Away card at ${viewport.width}px`).toBeGreaterThanOrEqual(minimumCardWidth);
+		expect(awayGeometry.cardHeight, `Away card at ${viewport.width}px`).toBeGreaterThanOrEqual(120);
+		expect(awayGeometry.cardLeft).toBeLessThan(awayGeometry.markLeft);
+		expect(awayGeometry.cardRight).toBeGreaterThan(awayGeometry.markRight);
+		expect(await home.evaluate((element, minimumWidth) => {
 			const card = element.getBoundingClientRect();
 			const mark = element.querySelector('.team-mark')!.getBoundingClientRect();
-			return card.width >= 100 && card.height >= 120 && card.left < mark.left && card.right > mark.right;
-		})).toBe(true);
+			return card.width >= minimumWidth && card.height >= 120 && card.left < mark.left && card.right > mark.right;
+		}, minimumCardWidth)).toBe(true);
 		expect(await matchup.evaluate((element) => {
 			const [awayCard, scoreCard, homeCard] = Array.from(
 				element.querySelectorAll<HTMLElement>('.game-side, .game-score'),
 			).map((item) => item.getBoundingClientRect());
-			return scoreCard.width <= 112 && awayCard.right < scoreCard.left && scoreCard.right < homeCard.left;
+			const bounds = element.getBoundingClientRect();
+			const teamLabelsFitCards = Array.from(element.querySelectorAll('.game-side')).every((card) => {
+				const cardBounds = card.getBoundingClientRect();
+				const labelBounds = card.querySelector('strong')!.getBoundingClientRect();
+				return labelBounds.left >= cardBounds.left && labelBounds.right <= cardBounds.right;
+			});
+			const scoreContents = Array.from(element.querySelectorAll('.game-score > *')).map((content) =>
+				content.getBoundingClientRect(),
+			);
+			return scoreCard.width <= 112
+				&& awayCard.left >= bounds.left
+				&& homeCard.right <= bounds.right
+				&& awayCard.right < scoreCard.left
+				&& scoreCard.right < homeCard.left
+				&& teamLabelsFitCards
+				&& scoreContents.every((content) => content.left >= scoreCard.left && content.right <= scoreCard.right);
 		})).toBe(true);
 	}
 });
