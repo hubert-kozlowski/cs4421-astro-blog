@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib/core';
-import { BlogStack } from '../lib/cdk-stack';
+import { SsrSiteStack } from '../lib/ssr-site-stack';
 import { StaticSiteStack } from '../lib/static-site-stack';
 
 const app = new cdk.App();
 const env = { account: '782086108883', region: 'us-east-1' };
 
-new BlogStack(app, 'CdkStack', {
+new SsrSiteStack(app, 'CdkStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */

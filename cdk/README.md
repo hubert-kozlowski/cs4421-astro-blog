@@ -1,6 +1,6 @@
 # Astro SSR CDK Deployment
 
-`CdkStack` builds the repository's Docker image and deploys the Astro standalone server to ECS Fargate behind a public Application Load Balancer. The separate `StaticSiteStack` deploys the static site to a private S3 bucket behind CloudFront. The deployed URLs are available from the `SiteUrl` and `StaticSiteUrl` stack outputs.
+`SsrSiteStack` in `lib/ssr-site-stack.ts` builds the repository's Docker image and deploys the Astro standalone server to ECS Fargate behind a public Application Load Balancer. It retains the deployed CDK stack ID `CdkStack` to avoid replacing the existing CloudFormation stack. The separate `StaticSiteStack` deploys the static site to a private S3 bucket behind CloudFront. The deployed URLs are available from the `SiteUrl` and `StaticSiteUrl` stack outputs.
 
 ## Requirements
 

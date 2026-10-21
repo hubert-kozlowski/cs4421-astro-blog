@@ -1,12 +1,12 @@
 import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
-import { BlogStack } from '../lib/cdk-stack';
+import { SsrSiteStack } from '../lib/ssr-site-stack';
 import { StaticSiteStack } from '../lib/static-site-stack';
 
-describe('BlogStack', () => {
+describe('SsrSiteStack', () => {
 	it('deploys the SSR app as an ECS service behind a load balancer', () => {
 		const app = new cdk.App();
-		const stack = new BlogStack(app, 'TestStack');
+		const stack = new SsrSiteStack(app, 'TestStack');
 		const template = Template.fromStack(stack);
 
 		template.resourceCountIs('AWS::ECS::Service', 1);
