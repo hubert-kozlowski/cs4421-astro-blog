@@ -466,7 +466,7 @@ function updateGameDetail(game: LiveGame, changed: boolean, touchdown: boolean, 
 	const status = document.querySelector<HTMLElement>('[data-game-live-status]');
 	if (status) {
 		status.classList.remove('game-status--final', 'game-status--score', 'game-status--pending', 'game-status--live');
-		const label = liveStatusLabel(game);
+		const label = game.state === 'scheduled' ? 'SCHEDULED' : liveStatusLabel(game);
 		status.replaceChildren();
 		const dot = document.createElement('span');
 		dot.setAttribute('aria-hidden', 'true');
