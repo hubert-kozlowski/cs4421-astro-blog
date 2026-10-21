@@ -36,12 +36,13 @@ const conferences = [
 					<header class="record-card__header">
 						<span class="conference-badge">{name}</span>
 						<span class="record-card__caption">Season snapshot</span>
+						{leaders.length > 3 && <button type="button" data-record-toggle aria-expanded="false">Top 5</button>}
 					</header>
 					{
 						leaders.length > 0 ? (
 							<ol class="record-list">
 								{leaders.map((team, index) => (
-									<li>
+									<li data-record-extra={index >= 3 ? '' : undefined}>
 										<span class="record-list__rank">{index + 1}</span>
 										<a
 											class="record-list__team"
@@ -76,6 +77,17 @@ const conferences = [
 	}
 </div>
 
+<script>
+	document.querySelectorAll<HTMLButtonElement>('[data-record-toggle]').forEach((button) => {
+		button.addEventListener('click', () => {
+			const card = button.closest<HTMLElement>('[data-standings-card]');
+			const expanded = card?.classList.toggle('is-expanded') ?? false;
+			button.setAttribute('aria-expanded', String(expanded));
+			button.textContent = expanded ? 'Top 3' : 'Top 5';
+		});
+	});
+</script>
+
 <style>
 	.record-grid {
 		display: grid;
@@ -94,7 +106,7 @@ const conferences = [
 		display: flex;
 		align-items: center;
 		gap: 10px;
-		padding: 15px 17px;
+		padding: 9px 12px;
 		border-bottom: 1px solid #eef0f3;
 	}
 
@@ -109,8 +121,8 @@ const conferences = [
 	}
 
 	.record-card--nfc .conference-badge {
-		background: #edf3ff;
-		color: #2856a5;
+		background: var(--sport-accent-soft);
+		color: var(--sport-accent-strong);
 	}
 
 	.record-card__caption {
@@ -119,9 +131,23 @@ const conferences = [
 		font-weight: 550;
 	}
 
+	.record-card__header button {
+		min-width: 44px;
+		min-height: 44px;
+		margin-left: auto;
+		margin-block: -9px;
+		padding: 0 5px;
+		border: 0;
+		background: transparent;
+		color: var(--sport-accent-strong);
+		font-size: 9px;
+		font-weight: 750;
+		cursor: pointer;
+	}
+
 	.record-list {
 		margin: 0;
-		padding: 5px 17px 11px;
+		padding: 3px 12px 7px;
 		list-style: none;
 	}
 
@@ -130,8 +156,11 @@ const conferences = [
 		grid-template-columns: 17px minmax(0, 1fr) auto 45px;
 		align-items: center;
 		gap: 9px;
-		padding: 9px 0;
+		padding: 6px 0;
 	}
+
+	.record-list li[data-record-extra] { display: none; }
+	.record-card.is-expanded .record-list li[data-record-extra] { display: grid; }
 
 	.record-list__rank {
 		color: var(--color-faint);
@@ -157,7 +186,7 @@ const conferences = [
 	}
 
 	.record-list__team:hover .record-list__name {
-		color: var(--color-blue);
+		color: var(--sport-accent);
 	}
 
 	.record-list__name {
@@ -199,7 +228,20 @@ const conferences = [
 
 	@media (max-width: 520px) {
 		.record-grid {
-			grid-template-columns: 1fr;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 7px;
 		}
+
+		.record-card__header { gap: 5px; padding: 7px; }
+		.record-card__caption { display: none; }
+		.record-list { padding: 2px 7px 6px; }
+		.record-list li { grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px; padding: 5px 0; }
+		.record-list__bar { display: none; }
+		.record-list__team { gap: 3px; }
+		.record-list__team :global(.team-mark) { width: 22px; height: 22px; }
+		.record-list__name { display: none; }
+		.record-list__record { font-size: 9px; }
+		.conference-badge { padding: 3px 5px; font-size: 8px; }
+		.record-card__header button { font-size: 8px; }
 	}
 </style>

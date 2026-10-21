@@ -16,8 +16,19 @@
 	--color-navy: #121a2b;
 	--color-red: #c9293a;
 	--color-blue: #2856c7;
+	--sport-accent: #c9293a;
+	--sport-accent-strong: #a91f31;
+	--sport-accent-soft: #fff0f2;
+	--sport-on-accent: #fff;
 	--radius-card: 20px;
 	--shadow-card: 0 14px 40px rgb(20 29 48 / 5%);
+}
+
+body[data-sport="cfb"] {
+	--sport-accent: #2856c7;
+	--sport-accent-strong: #1e4198;
+	--sport-accent-soft: #edf3ff;
+	--sport-on-accent: #fff;
 }
 
 * {
@@ -52,7 +63,7 @@ a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-	outline: 3px solid rgb(40 86 199 / 45%);
+	outline: 3px solid color-mix(in srgb, var(--sport-accent) 45%, transparent);
 	outline-offset: 3px;
 }
 
@@ -64,14 +75,14 @@ select {
 
 ::selection {
 	color: #fff;
-	background: var(--color-blue);
+	background: var(--sport-accent);
 }
 
 .site-main {
 	width: min(100% - 48px, 1120px);
 	min-height: calc(100vh - 166px);
 	margin: 0 auto;
-	padding: 64px 0 88px;
+	padding: 26px 0 70px;
 }
 
 #schedule,
@@ -83,7 +94,7 @@ select {
 
 .page-heading {
 	max-width: 720px;
-	margin: 0 0 34px;
+	margin: 0 0 20px;
 }
 
 .eyebrow {
@@ -97,7 +108,7 @@ select {
 
 .page-heading h1 {
 	margin: 0;
-	font-size: clamp(36px, 5vw, 54px);
+	font-size: clamp(30px, 4vw, 44px);
 	font-weight: 700;
 	letter-spacing: -0.055em;
 	line-height: 1.04;
@@ -105,10 +116,10 @@ select {
 
 .page-heading > p:last-child {
 	max-width: 620px;
-	margin: 16px 0 0;
+	margin: 9px 0 0;
 	color: var(--color-muted);
-	font-size: 17px;
-	line-height: 1.65;
+	font-size: 14px;
+	line-height: 1.55;
 }
 
 .content-card {
@@ -302,15 +313,15 @@ select {
 	.site-main {
 		width: min(100% - 32px, 1120px);
 		min-height: calc(100vh - 150px);
-		padding: 42px 0 64px;
+		padding: 12px 0 calc(94px + env(safe-area-inset-bottom));
 	}
 
 	.page-heading {
-		margin-bottom: 26px;
+		margin-bottom: 15px;
 	}
 
 	.page-heading > p:last-child {
-		font-size: 15px;
+		font-size: 13px;
 	}
 
 	.content-card__header {

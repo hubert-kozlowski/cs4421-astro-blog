@@ -126,7 +126,14 @@ const records = new Map(dashboardResult?.value.records.map((record) => [record.a
 
 	@media (max-width: 480px) {
 		.team-grid {
-			grid-template-columns: 1fr;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 7px;
 		}
+
+		.team-tile { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 6px; padding: 9px; }
+		.team-tile :global(.team-mark) { width: 30px; height: 30px; }
+		.team-tile__main > span { display: none; }
+		.team-tile__main strong { font-size: 10px; }
+		.team-tile__record { grid-column: 2; margin-left: 0; }
 	}
 </style>
