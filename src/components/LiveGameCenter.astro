@@ -545,12 +545,12 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 		text-anchor: middle;
 	}
 
-	.live-center :global(.live-game-row__field-direction) {
+	.live-center :global(.live-game-row__field-ball-marker) {
 		fill: none;
 		stroke: #ffd16c;
 		stroke-linecap: round;
 		stroke-linejoin: round;
-		stroke-width: 1;
+		stroke-width: 3;
 	}
 
 	.live-center :global(.live-game-row__field-mark) {
@@ -567,17 +567,6 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 
 	.live-center :global(.live-game-row__field-hash) {
 		stroke: #d2e4d5;
-		stroke-width: 0.8;
-	}
-
-	.live-center :global(.live-game-row__field-ball-stem) {
-		stroke: #c33440;
-		stroke-width: 1.5;
-	}
-
-	.live-center :global(.live-game-row__field-ball) {
-		fill: #f5b347;
-		stroke: #472c0b;
 		stroke-width: 0.8;
 	}
 

@@ -360,7 +360,8 @@ test('game detail snapshot and statistics update from the live feed', async ({ p
 		'aria-label',
 		'Live ball position, provider coordinate 0 from left goal line, offense moving left',
 	);
-	await expect(stadiumBall.locator('[data-stadium-live-ball-tip]')).toHaveAttribute('d', 'M-2 90 -9 95 -2 100Z');
+	await expect(stadiumBall.locator('circle')).toHaveCount(0);
+	await expect(stadiumBall.locator('[data-stadium-live-ball-marker]')).toHaveAttribute('d', 'M4 89 -3 95 4 101');
 	await expect(page.locator('[data-live-boxscore]')).toBeVisible();
 	await expect(page.locator('[data-live-boxscore]')).toContainText('Total Yards');
 	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));

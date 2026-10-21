@@ -421,21 +421,20 @@ function updateGameDetail(game: LiveGame, changed: boolean, touchdown: boolean, 
 			? reportedYardLine
 			: null;
 		const isLive = game.state === 'in_progress' || game.state === 'halftime';
-		stadiumBall.style.display = isLive && yardLine !== null ? 'block' : 'none';
+		const direction = game.situation?.direction;
+		stadiumBall.style.display = isLive && yardLine !== null && direction !== null && direction !== undefined ? 'block' : 'none';
 		if (yardLine !== null) {
 			const x = 114 + yardLine * 1.32;
 			stadiumBall.setAttribute('transform', `translate(${x.toFixed(1)} 0)`);
 		}
-		const tip = stadiumBall.querySelector<SVGPathElement>('[data-stadium-live-ball-tip]');
-		if (tip) {
-			tip.style.display = game.situation?.direction ? 'block' : 'none';
-			tip.setAttribute(
+		const marker = stadiumBall.querySelector<SVGPathElement>('[data-stadium-live-ball-marker]');
+		if (marker && direction) {
+			marker.setAttribute(
 				'd',
-				game.situation?.direction === 'left' ? 'M-2 90 -9 95 -2 100Z' : 'M2 90 9 95 2 100Z',
+				direction === 'left' ? 'M4 89 -3 95 4 101' : 'M-4 89 3 95 -4 101',
 			);
 		}
 		if (yardLine !== null) {
-			const direction = game.situation?.direction;
 			stadiumBall.setAttribute(
 				'aria-label',
 				`Live ball position, provider coordinate ${yardLine} from left goal line${direction ? `, offense moving ${direction}` : ', direction unavailable'}`,
@@ -588,29 +587,17 @@ function appendFieldGraphic(parent: HTMLElement, game: LiveGame, possessionTeam:
 
 	if (yardLine !== null) {
 		const ballPosition = 20 + yardLine * 2.4;
-		const x = ballPosition.toFixed(1);
-		const ball = appendSvg('circle', {
-			cx: x,
-			cy: '20',
-			r: '2.5',
-			class: 'live-game-row__field-ball',
-		});
-		ball.setAttribute('aria-hidden', 'true');
 		if (direction) {
-			const arrowStart = offenseMovesRight
-				? Math.min(ballPosition + 3, 266)
-				: Math.max(ballPosition - 3, 14);
-			const arrowEnd = offenseMovesRight
-				? Math.min(arrowStart + 9, 277)
-				: Math.max(arrowStart - 9, 3);
-			const start = arrowStart.toFixed(1);
-			const end = arrowEnd.toFixed(1);
-			appendSvg('path', {
-				d: offenseMovesRight
-					? `M ${start} 20 H ${end} M ${(arrowEnd - 3).toFixed(1)} 17 L ${end} 20 L ${(arrowEnd - 3).toFixed(1)} 23`
-					: `M ${start} 20 H ${end} M ${(arrowEnd + 3).toFixed(1)} 17 L ${end} 20 L ${(arrowEnd + 3).toFixed(1)} 23`,
-				class: 'live-game-row__field-direction',
+			const left = Math.max(ballPosition - 4, 2);
+			const right = Math.min(ballPosition + 4, 278);
+			const point = offenseMovesRight ? right : left;
+			const tail = offenseMovesRight ? left : right;
+			const marker = appendSvg('path', {
+				d: `M ${tail.toFixed(1)} 15 L ${point.toFixed(1)} 20 L ${tail.toFixed(1)} 25`,
+				class: 'live-game-row__field-ball-marker',
+				'data-live-field-ball-marker': '',
 			});
+			marker.setAttribute('aria-hidden', 'true');
 		}
 	}
 	parent.append(svg);

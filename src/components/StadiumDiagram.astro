@@ -118,8 +118,7 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 				aria-label="Live ball position"
 				style="display: none"
 			>
-				<circle cx="0" cy="95" r="6" />
-				<path data-stadium-live-ball-tip d="M2 90 9 95 2 100Z" />
+				<path data-stadium-live-ball-marker d="M-4 89 3 95 -4 101" />
 			</g>
 		</g>
 	</g>
@@ -133,16 +132,12 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 	}
 
 	.stadium-live-ball {
-		fill: #ffd16c;
-		stroke: #202a37;
-		stroke-width: 1.5;
-	}
-
-	.stadium-live-ball [data-stadium-live-ball-tip] {
-		fill: #ffd16c;
-		stroke: #202a37;
+		fill: none;
+		stroke: #ffd16c;
+		stroke-linecap: round;
 		stroke-linejoin: round;
-		stroke-width: 1.5;
+		stroke-width: 4;
+		filter: drop-shadow(0 1px 1px rgb(20 30 42 / 70%));
 	}
 
 	.stadium-architecture {
