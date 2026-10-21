@@ -734,6 +734,14 @@ test('mobile team filter opens as a focusable sheet and closes with Escape', asy
 	const dialog = page.locator('[data-team-filter-dialog]');
 	await expect(dialog).toBeVisible();
 	expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+	await expect(dialog.locator('select')).toHaveCount(0);
+	const jaguars = dialog.getByRole('radio', { name: /JAX.*Jacksonville Jaguars/ });
+	await jaguars.check();
+	await expect(jaguars).toBeChecked();
+	await dialog.getByRole('button', { name: 'Apply filter' }).click();
+	await expect(page).toHaveURL(/team=JAX/);
+	await page.locator('[data-team-filter-open]').click();
+	await expect(dialog).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(dialog).toBeHidden();
 });
@@ -793,6 +801,24 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 		Number.parseFloat(getComputedStyle(button, '::before').height),
 	);
 	expect(visualFilterHeight).toBeLessThanOrEqual(28);
+	const weekFilter = page.locator('#week-filter-mobile');
+	await weekFilter.focus();
+	const weekFocusStyle = await weekFilter.evaluate((select) => ({
+		outline: getComputedStyle(select).outlineStyle,
+		visualHeight: Number.parseFloat(getComputedStyle(select.parentElement!, '::before').height),
+		visualShadow: getComputedStyle(select.parentElement!, '::before').boxShadow,
+	}));
+	expect(weekFocusStyle.outline).toBe('none');
+	expect(weekFocusStyle.visualHeight).toBeLessThanOrEqual(28);
+	expect(weekFocusStyle.visualShadow).not.toBe('none');
+	const goButton = page.locator('.mobile-week-filter button');
+	await goButton.focus();
+	const goFocusStyle = await goButton.evaluate((button) => ({
+		outline: getComputedStyle(button).outlineStyle,
+		visualHeight: Number.parseFloat(getComputedStyle(button, '::before').height),
+	}));
+	expect(goFocusStyle.outline).toBe('none');
+	expect(goFocusStyle.visualHeight).toBeLessThanOrEqual(28);
 	const appNavStyle = await page.locator('.mobile-nav').evaluate((element) => {
 		const bounds = element.getBoundingClientRect();
 		const style = getComputedStyle(element);
