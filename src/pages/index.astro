@@ -878,14 +878,14 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 
 	/* V2.1 compact application treatment. */
 	.dashboard-hero {
-		min-height: 92px;
-		padding: 18px 28px;
+		min-height: 210px;
+		padding: 30px 36px;
 		border-radius: 18px 18px 0 0;
 		background:
 			radial-gradient(ellipse at 82% 0%, rgb(201 41 58 / 24%), transparent 35%),
 			linear-gradient(115deg, #111a2e 0%, #1b2a49 70%, #30213a 100%);
 	}
-	.dashboard-hero::after { bottom: -155px; height: 210px; }
+	.dashboard-hero::after { right: -18px; bottom: -108px; width: 430px; height: 270px; }
 	.dashboard-hero .eyebrow { margin-bottom: 5px; color: #e3b9c1; font-size: 9px; }
 	.dashboard-hero h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1; white-space: nowrap; }
 	.dashboard-hero h1 span { color: #f07483; }
@@ -925,8 +925,9 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 	.player-card { min-height: 76px; padding: 9px; }
 
 	@media (max-width: 560px) {
-		.dashboard-hero { min-height: 70px; padding: 12px 15px; border-radius: 15px 15px 0 0; }
-		.dashboard-hero h1 { font-size: 25px; }
+		.dashboard-hero { min-height: 200px; align-items: flex-end; padding: 24px 16px; border-radius: 15px 15px 0 0; }
+		.dashboard-hero::after { right: -115px; bottom: -82px; width: 380px; height: 230px; }
+		.dashboard-hero h1 { max-width: 310px; font-size: 31px; line-height: .95; white-space: normal; }
 		.dashboard-section { margin-top: 22px; }
 		#schedule { margin-top: 8px; }
 		.section-heading { align-items: center; flex-direction: row; gap: 8px; margin-bottom: 7px; }
