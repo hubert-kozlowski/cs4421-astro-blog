@@ -7,12 +7,15 @@ import TeamMark from '../../components/TeamMark.astro';
 import SiteLayout from '../../layouts/SiteLayout.astro';
 import {
 	getApiMetadata,
+	buildTeamRecords,
 	getGame,
 	getGameBroadcastLabel,
 	getGameStatus,
+	getSeasonGames,
 	type ApiResult,
 	type NflGame,
 	type NflTeam,
+	type TeamRecord,
 } from '../../utils/nfl-data';
 import { createGameCalendarEvent } from '../../utils/calendar';
 import { getMatchupTypeLabel } from '../../utils/game-presentation';
@@ -25,6 +28,8 @@ const gameId = Astro.params.gameId ?? '';
 let gameResult: ApiResult<NflGame> | undefined;
 let teams: NflTeam[] = [];
 let metadataResult: ApiResult<{ seasons: number[]; teams: NflTeam[] }> | undefined;
+let seasonGamesResult: ApiResult<{ data: NflGame[]; total: number; limit: number; offset: number }> | undefined;
+let recentSeasonResults: ApiResult<{ data: NflGame[]; total: number; limit: number; offset: number }>[] = [];
 let unavailable = false;
 try {
 	[gameResult, metadataResult] = await Promise.all([getGame(gameId), getApiMetadata()]);
@@ -42,6 +47,14 @@ try {
 }
 
 const game = gameResult?.value;
+if (game) {
+	const gameSeason = game.season ?? new Date().getUTCFullYear();
+	const supplemental = await Promise.allSettled(
+		[gameSeason, gameSeason - 1, gameSeason - 2].map((season) => getSeasonGames(season)),
+	);
+	if (supplemental[0].status === 'fulfilled') seasonGamesResult = supplemental[0].value;
+	recentSeasonResults = supplemental.flatMap((result) => result.status === 'fulfilled' ? [result.value] : []);
+}
 const homeTeam = teams.find((team) => team.abbr === game?.home_team);
 const awayTeam = teams.find((team) => team.abbr === game?.away_team);
 const homeTeamName = getTeamDisplayName(game?.home_team);
@@ -67,6 +80,69 @@ const resultSummary = isFinal && homeScore !== undefined && awayScore !== undefi
 			: `${awayTeamName} won by ${awayScore - homeScore}.`
 	: undefined;
 const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false);
+const teamRecords = seasonGamesResult
+	? buildTeamRecords(seasonGamesResult.value.data, teams)
+	: [];
+const homeRecord = teamRecords.find((record) => record.abbr === game?.home_team);
+const awayRecord = teamRecords.find((record) => record.abbr === game?.away_team);
+const gameSortTime = (candidate: NflGame) => {
+	if (isAbsoluteTimestamp(candidate.kickoff_at ?? undefined)) return Date.parse(candidate.kickoff_at!);
+	if (candidate.gameday) return Date.parse(`${candidate.gameday}T12:00:00Z`);
+	return Number.NaN;
+};
+const currentGameTime = game ? gameSortTime(game) : Number.NaN;
+const lastCompletedGame = (team: string | null | undefined) => seasonGamesResult?.value.data
+	.filter((candidate) => {
+		if (!team || candidate.game_id === game?.game_id) return false;
+		if (candidate.home_team !== team && candidate.away_team !== team) return false;
+		if (typeof candidate.home_score !== 'number' || typeof candidate.away_score !== 'number') return false;
+		const candidateTime = gameSortTime(candidate);
+		return Number.isFinite(candidateTime) && (!Number.isFinite(currentGameTime) || candidateTime < currentGameTime);
+	})
+	.sort((left, right) => gameSortTime(right) - gameSortTime(left))[0];
+const homeLastGame = lastCompletedGame(game?.home_team);
+const awayLastGame = lastCompletedGame(game?.away_team);
+const recordLabel = (record: TeamRecord | undefined) => record
+	? `${record.wins}-${record.losses}${record.ties ? `-${record.ties}` : ''}`
+	: 'Record unavailable';
+const lastGameLabel = (candidate: NflGame | undefined, team: string | null | undefined) => {
+	if (!candidate || !team || typeof candidate.home_score !== 'number' || typeof candidate.away_score !== 'number') {
+		return 'No completed game in the provider yet';
+	}
+	const isHome = candidate.home_team === team;
+	const teamScore = isHome ? candidate.home_score : candidate.away_score;
+	const opponentScore = isHome ? candidate.away_score : candidate.home_score;
+	const opponent = isHome ? candidate.away_team : candidate.home_team;
+	const result = teamScore === opponentScore ? 'T' : teamScore > opponentScore ? 'W' : 'L';
+	return `${result} ${teamScore}-${opponentScore} vs ${getTeamDisplayName(opponent)}`;
+};
+const recentMeetings = Array.from(new Map(recentSeasonResults
+	.flatMap((result) => result.value.data)
+	.filter((candidate) => {
+		const matchesPair = candidate.away_team === game?.away_team && candidate.home_team === game?.home_team
+			|| candidate.away_team === game?.home_team && candidate.home_team === game?.away_team;
+		return matchesPair && typeof candidate.away_score === 'number' && typeof candidate.home_score === 'number';
+	})
+	.map((candidate) => [candidate.game_id, candidate])).values());
+const recentSeriesRecord = (team: string | null | undefined) => recentMeetings.reduce((record, candidate) => {
+	if (!team) return record;
+	const teamScore = candidate.home_team === team ? candidate.home_score : candidate.away_score;
+	const opponentScore = candidate.home_team === team ? candidate.away_score : candidate.home_score;
+	if (teamScore === opponentScore) record.ties += 1;
+	else if ((teamScore ?? 0) > (opponentScore ?? 0)) record.wins += 1;
+	else record.losses += 1;
+	return record;
+}, { wins: 0, losses: 0, ties: 0 });
+const awayRecentRecord = recentSeriesRecord(game?.away_team);
+const homeRecentRecord = recentSeriesRecord(game?.home_team);
+const supplementalStale = recentSeasonResults.some((result) => result.stale);
+const freshestFetchedAt = [gameResult?.fetchedAt, ...recentSeasonResults.map((result) => result.fetchedAt)]
+	.filter((value): value is string => Boolean(value))
+	.sort((left, right) => Date.parse(right) - Date.parse(left))[0];
+const recentSeriesAvailable = recentMeetings.length > 0;
+const recentSeasonStart = (game?.season ?? new Date().getUTCFullYear()) - 2;
+const recentSeasonEnd = game?.season ?? new Date().getUTCFullYear();
+const scheduledSummary = `${awayTeamName} visits ${homeTeamName}${stadiumName ? ` at ${stadiumName}` : ''} for this ${matchupType.toLowerCase()}.`;
 ---
 
 <SiteLayout
@@ -77,24 +153,32 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 		<>
 			<div class="back-row">
 				<a href="/#schedule">← Back to the schedule</a>
-				{gameResult && <DataFreshness fetchedAt={gameResult.fetchedAt} stale={gameResult.stale} />}
+				{freshestFetchedAt && <DataFreshness fetchedAt={freshestFetchedAt} stale={Boolean(gameResult?.stale || supplementalStale)} />}
 			</div>
 			<section class="game-hero">
-				<h1 class="game-hero__title">{awayTeamName} at {homeTeamName}</h1>
-				<p class="eyebrow">WEEK {game.week ?? '—'} · {game.season ?? 'NFL'} {game.game_type ?? ''}</p>
-				<p class="game-hero__date">
-					{kickoffAt ? (
-						<time datetime={kickoffAt} data-device-time="time">Kickoff time</time>
-					) : (
-						<>{missingKickoffLabel}</>
-					)}
-				</p>
-				{calendarEvent && <CalendarActions event={calendarEvent} />}
+				<div class="game-hero__meta">
+					<span>NFL · WEEK {game.week ?? '—'}</span>
+					<span>{broadcastLabel ?? matchupType}</span>
+				</div>
+				<div class="game-hero__heading">
+					<p class="eyebrow">{isFinal ? 'FINAL' : gameStatus === 'Scheduled' ? 'UPCOMING MATCHUP' : 'GAME CENTER'}</p>
+					<h1 class="game-hero__title">{awayTeamName} <span>at</span> {homeTeamName}</h1>
+					<p class="game-hero__date">
+						{kickoffAt ? (
+							<time datetime={kickoffAt} data-device-time="time">Kickoff time</time>
+						) : (
+							<>{missingKickoffLabel}</>
+						)}
+					</p>
+					{calendarEvent && <CalendarActions event={calendarEvent} />}
+				</div>
 				<div class="game-matchup">
 					<a class="game-side" href={awayTeam ? `/teams/${awayTeam.abbr}` : '/teams'}>
 						<TeamMark abbr={game.away_team} conference={awayTeam?.conf} size="large" />
-						<strong>{awayTeamName}</strong>
-						<span>Away</span>
+						<span class="game-side__copy">
+							<strong>{awayTeamName}</strong>
+							<small>{recordLabel(awayRecord)} · Away</small>
+						</span>
 					</a>
 					<div
 						class="game-score"
@@ -123,31 +207,56 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 					</div>
 					<a class="game-side" href={homeTeam ? `/teams/${homeTeam.abbr}` : '/teams'}>
 						<TeamMark abbr={game.home_team} conference={homeTeam?.conf} size="large" />
-						<strong>{homeTeamName}</strong>
-						<span>Home</span>
+						<span class="game-side__copy">
+							<strong>{homeTeamName}</strong>
+							<small>{recordLabel(homeRecord)} · Home</small>
+						</span>
 					</a>
 				</div>
 			</section>
-			<article class="venue-banner" aria-labelledby="venue-heading">
-				<StadiumDiagram
-					label={game.stadium ?? undefined}
-					homeTeamName={homeTeamName}
-					homeTeamAbbr={game.home_team}
-				/>
-				<div class="venue-banner__copy">
-					<p class="eyebrow">THE VENUE</p>
-					<h2 id="venue-heading">{stadiumName}</h2>
-					<p>
-						{game.home_team ? `Home team: ${homeTeamName}.` : 'Home team shown in team colors.'}
-						{game.overtime ? ' · Decided in overtime.' : ''}
-					</p>
-				</div>
-			</article>
 			<LiveGameCenter
 				homeTeam={game.home_team ?? undefined}
 				awayTeam={game.away_team ?? undefined}
 				gameDate={game.gameday}
 			/>
+			<section class="matchup-briefing" aria-labelledby="briefing-heading">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">TEAM CONTEXT</p>
+						<h2 id="briefing-heading">{gameStatus === 'Scheduled' ? 'Matchup briefing' : 'Matchup context'}</h2>
+					</div>
+					{supplementalStale && <span>Context may be delayed</span>}
+				</div>
+				<div class="matchup-briefing__grid">
+					<article class="team-context-card">
+						<div class="team-context-card__heading">
+							<TeamMark abbr={game.away_team} conference={awayTeam?.conf} size="small" />
+							<div><span>Away team</span><h3>{awayTeamName}</h3></div>
+							<strong>{recordLabel(awayRecord)}</strong>
+						</div>
+						<p><span>Last time out</span>{lastGameLabel(awayLastGame, game.away_team)}</p>
+					</article>
+					<article class="series-card">
+						<span>Last 3 seasons</span>
+						{recentSeriesAvailable ? (
+							<>
+								<strong>{game.away_team} {awayRecentRecord.wins}–{homeRecentRecord.wins} {game.home_team}</strong>
+								<p>{recentMeetings.length} {recentMeetings.length === 1 ? 'meeting' : 'meetings'} in provider data · {recentSeasonStart}–{recentSeasonEnd}{awayRecentRecord.ties ? ` · ${awayRecentRecord.ties} tied` : ''}</p>
+							</>
+						) : (
+							<><strong>—</strong><p>No meetings found from {recentSeasonStart}–{recentSeasonEnd}</p></>
+						)}
+					</article>
+					<article class="team-context-card">
+						<div class="team-context-card__heading">
+							<TeamMark abbr={game.home_team} conference={homeTeam?.conf} size="small" />
+							<div><span>Home team</span><h3>{homeTeamName}</h3></div>
+							<strong>{recordLabel(homeRecord)}</strong>
+						</div>
+						<p><span>Last time out</span>{lastGameLabel(homeLastGame, game.home_team)}</p>
+					</article>
+				</div>
+			</section>
 			<section class="game-information" aria-label="Game information">
 				<div
 					class="game-snapshot"
@@ -160,7 +269,7 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 					<p class="game-snapshot__summary" data-snapshot-summary>
 						{resultSummary ??
 							(gameStatus === 'Scheduled'
-								? 'The teams are set. Check the kickoff details and venue before game day.'
+								? scheduledSummary
 								: gameStatus === 'Result pending'
 									? 'The scheduled kickoff has passed, but a final score has not been posted yet.'
 									: 'Follow the matchup here for the latest game status.')}
@@ -201,8 +310,24 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 							<dt>Matchup</dt>
 							<dd data-snapshot-type>{matchupType}</dd>
 						</div>
+						<div>
+							<dt>Venue</dt>
+							<dd>{stadiumName}</dd>
+						</div>
 					</dl>
 				</div>
+				<article class="venue-banner" aria-labelledby="venue-heading">
+					<StadiumDiagram
+						label={game.stadium ?? undefined}
+						homeTeamName={homeTeamName}
+						homeTeamAbbr={game.home_team}
+					/>
+					<div class="venue-banner__copy">
+						<p class="eyebrow">THE VENUE</p>
+						<h2 id="venue-heading">{stadiumName}</h2>
+						<p>Home field for the {homeTeamName}.{game.overtime ? ' This game went to overtime.' : ''}</p>
+					</div>
+				</article>
 			</section>
 		</>
 	) : unavailable ? (
@@ -604,6 +729,367 @@ const matchupType = getMatchupTypeLabel(game?.game_type, game?.div_game ?? false
 	@media (prefers-reduced-motion: reduce) {
 		.live-score--changed .live-score__value {
 			animation: none;
+		}
+	}
+
+	/* V2.1 game center refresh */
+	.game-hero {
+		padding: 0 32px 30px;
+		background:
+			radial-gradient(circle at 84% 12%, rgb(211 36 55 / 24%), transparent 30%),
+			radial-gradient(circle at 12% 108%, rgb(62 98 164 / 24%), transparent 36%),
+			linear-gradient(135deg, #101a2f 0%, #162541 56%, #302038 100%);
+		text-align: left;
+	}
+
+	.game-hero::before {
+		position: absolute;
+		inset: 48px -10% auto 38%;
+		height: 210px;
+		border: 1px solid rgb(255 255 255 / 7%);
+		border-radius: 50%;
+		content: "";
+		transform: rotate(-12deg);
+	}
+
+	.game-hero::after {
+		height: 4px;
+		background: var(--sport-accent);
+	}
+
+	.game-hero__meta {
+		position: relative;
+		display: flex;
+		min-height: 42px;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		border-bottom: 1px solid rgb(255 255 255 / 12%);
+		color: #b7c2d5;
+		font-size: 9px;
+		font-weight: 750;
+		letter-spacing: 0.11em;
+		text-transform: uppercase;
+	}
+
+	.game-hero__heading {
+		position: relative;
+		display: grid;
+		justify-items: center;
+		margin-top: 21px;
+		text-align: center;
+	}
+
+	.game-hero__heading .eyebrow {
+		margin-bottom: 6px;
+		color: #f29aa3;
+		font-size: 9px;
+	}
+
+	.game-hero__title {
+		margin-bottom: 7px;
+		font-size: clamp(20px, 3.2vw, 29px);
+	}
+
+	.game-hero__title span {
+		color: #8e9cb4;
+		font-family: Georgia, serif;
+		font-size: 0.7em;
+		font-style: italic;
+		font-weight: 400;
+	}
+
+	.game-hero__date {
+		color: #d8dfeb;
+		font-size: 12px;
+		font-weight: 620;
+	}
+
+	.game-matchup {
+		position: relative;
+		width: min(100%, 760px);
+		max-width: 760px;
+		grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr);
+		margin-top: 20px;
+	}
+
+	.game-side {
+		min-height: 128px;
+		grid-template-columns: auto minmax(0, 1fr);
+		justify-items: start;
+		align-content: center;
+		gap: 16px;
+		padding: 17px 20px;
+		border-color: rgb(255 255 255 / 14%);
+		border-radius: 16px;
+		background: rgb(255 255 255 / 8%);
+		box-shadow: inset 0 1px 0 rgb(255 255 255 / 7%);
+		text-align: left;
+		backdrop-filter: blur(10px);
+	}
+
+	.game-side:hover {
+		border-color: rgb(255 255 255 / 26%);
+		background: rgb(255 255 255 / 12%);
+	}
+
+	.game-side :global(.team-mark--large) {
+		width: 66px;
+		height: 66px;
+	}
+
+	.game-side__copy {
+		display: grid;
+		min-width: 0;
+		gap: 4px;
+	}
+
+	.game-side__copy strong {
+		font-size: 14px;
+	}
+
+	.game-side__copy small {
+		color: #aebbd2;
+		font-size: 9px;
+		font-weight: 650;
+	}
+
+	.game-score {
+		width: 112px;
+		border-color: rgb(255 255 255 / 13%);
+		background: rgb(8 16 31 / 48%);
+		box-shadow: none;
+	}
+
+	.matchup-briefing {
+		margin-top: 18px;
+		padding: 19px 20px 20px;
+		border: 1px solid var(--color-border);
+		border-radius: 17px;
+		background: #fff;
+	}
+
+	.section-heading {
+		display: flex;
+		align-items: end;
+		justify-content: space-between;
+		gap: 16px;
+		margin-bottom: 14px;
+	}
+
+	.section-heading .eyebrow,
+	.section-heading h2 {
+		margin: 0;
+	}
+
+	.section-heading h2 {
+		font-size: 18px;
+		letter-spacing: -0.025em;
+	}
+
+	.section-heading > span {
+		color: var(--color-muted);
+		font-size: 9px;
+	}
+
+	.matchup-briefing__grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr);
+		gap: 10px;
+	}
+
+	.team-context-card,
+	.series-card {
+		min-width: 0;
+		padding: 14px;
+		border: 1px solid #e8eaf0;
+		border-radius: 13px;
+		background: #fafbfc;
+	}
+
+	.team-context-card__heading {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 9px;
+	}
+
+	.team-context-card__heading span,
+	.series-card > span,
+	.team-context-card > p span {
+		display: block;
+		color: var(--color-muted);
+		font-size: 8px;
+		font-weight: 700;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+	}
+
+	.team-context-card__heading h3 {
+		margin: 2px 0 0;
+		font-size: 12px;
+		line-height: 1.2;
+	}
+
+	.team-context-card__heading > strong {
+		color: var(--sport-accent-strong);
+		font-size: 12px;
+		font-variant-numeric: tabular-nums;
+		white-space: nowrap;
+	}
+
+	.team-context-card > p {
+		margin: 12px 0 0;
+		padding-top: 10px;
+		border-top: 1px solid #e8eaf0;
+		font-size: 10px;
+		font-weight: 620;
+		line-height: 1.45;
+	}
+
+	.team-context-card > p span {
+		margin-bottom: 3px;
+	}
+
+	.series-card {
+		display: grid;
+		place-content: center;
+		justify-items: center;
+		text-align: center;
+	}
+
+	.series-card strong {
+		margin-top: 5px;
+		color: var(--color-navy);
+		font-size: 24px;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: -0.05em;
+	}
+
+	.series-card p {
+		margin: 3px 0 0;
+		color: var(--color-muted);
+		font-size: 8px;
+		line-height: 1.4;
+	}
+
+	.game-information {
+		display: grid;
+		grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+		gap: 17px;
+	}
+
+	.game-snapshot,
+	.venue-banner {
+		height: 100%;
+		box-sizing: border-box;
+	}
+
+	.game-snapshot {
+		padding: 21px;
+	}
+
+	.venue-banner {
+		margin-top: 0;
+		padding: 15px 18px 17px;
+	}
+
+	.venue-banner .stadium-diagram {
+		width: min(100%, 430px);
+	}
+
+	@media (max-width: 760px) {
+		.game-information {
+			grid-template-columns: 1fr;
+		}
+
+		.matchup-briefing__grid {
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.series-card {
+			grid-column: 1 / -1;
+			grid-row: 2;
+			min-height: 74px;
+		}
+	}
+
+	@media (max-width: 560px) {
+		.game-hero {
+			padding: 0 13px 20px;
+			border-radius: 19px;
+		}
+
+		.game-hero__meta {
+			min-height: 39px;
+			padding: 0 2px;
+		}
+
+		.game-hero__heading {
+			margin-top: 17px;
+		}
+
+		.game-hero__title {
+			font-size: clamp(18px, 5.5vw, 23px);
+		}
+
+		.game-matchup {
+			grid-template-columns: minmax(0, 1fr) clamp(72px, 21vw, 84px) minmax(0, 1fr);
+			gap: 7px;
+			margin-top: 17px;
+		}
+
+		.game-side {
+			min-height: 122px;
+			grid-template-columns: 1fr;
+			justify-items: center;
+			gap: 7px;
+			padding: 11px 4px 10px;
+			text-align: center;
+		}
+
+		.game-side :global(.team-mark--large) {
+			width: clamp(48px, 15vw, 59px);
+			height: clamp(48px, 15vw, 59px);
+		}
+
+		.game-side__copy {
+			justify-items: center;
+			gap: 2px;
+		}
+
+		.game-side__copy strong {
+			font-size: 10px;
+		}
+
+		.game-side__copy small {
+			font-size: 8px;
+		}
+
+		.game-score {
+			width: 100%;
+			padding: 9px 2px;
+		}
+
+		.matchup-briefing {
+			padding: 16px;
+		}
+
+		.matchup-briefing__grid {
+			grid-template-columns: 1fr;
+		}
+
+		.series-card {
+			grid-column: auto;
+			grid-row: auto;
+		}
+
+		.team-context-card__heading {
+			grid-template-columns: auto minmax(0, 1fr) auto;
+		}
+
+		.game-facts {
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

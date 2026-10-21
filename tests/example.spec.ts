@@ -70,6 +70,13 @@ test('compact home brings games, standings, and player search together', async (
 
 	await page.goto('/games/example-game');
 	await expect(page.getByRole('heading', { name: 'Before kickoff' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Matchup briefing' })).toBeVisible();
+	await expect(page.locator('.team-context-card')).toHaveCount(2);
+	await expect(page.locator('.team-context-card').first()).toContainText('0-1');
+	await expect(page.locator('.team-context-card').first()).toContainText('L 13-17 vs Jacksonville Jaguars');
+	await expect(page.locator('.series-card')).toContainText('Last 3 seasons');
+	await expect(page.locator('.series-card')).toContainText('PHI 0–1 JAX');
+	await expect(page.locator('.series-card')).toContainText('1 meeting in provider data');
 	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
 	await expect(page.getByRole('img', { name: 'Top-down illustration of EverBank Stadium, home of the Jacksonville Jaguars in Jacksonville, Florida' })).toBeVisible();
 	await expect(page.locator('.stadium-diagram').first()).toContainText('JAX');
@@ -91,8 +98,8 @@ test('compact home brings games, standings, and player search together', async (
 	await expect(page.getByRole('heading', { name: 'Final result' })).toBeVisible();
 	await expect(page.locator('.game-snapshot__summary')).toContainText('Kansas City Chiefs won by 7');
 	await expect(page.locator('.venue-banner')).toBeVisible();
-	expect(await page.locator('.venue-banner').evaluate((element) =>
-		Boolean(element.compareDocumentPosition(document.querySelector('[data-live-boxscore]')!) & Node.DOCUMENT_POSITION_FOLLOWING),
+	expect(await page.locator('[data-live-boxscore]').evaluate((element) =>
+		Boolean(element.compareDocumentPosition(document.querySelector('.venue-banner')!) & Node.DOCUMENT_POSITION_FOLLOWING),
 	)).toBe(true);
 	await expect(page.getByRole('img', { name: 'Top-down illustration of Arrowhead Stadium, home of the Kansas City Chiefs in Kansas City, Missouri' })).toBeVisible();
 	await expect(page.locator('.stadium-diagram').first()).toContainText('KC');
