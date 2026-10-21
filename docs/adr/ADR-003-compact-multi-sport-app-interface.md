@@ -11,7 +11,7 @@ The product is also expected to explore college football in a later release. The
 ## Decision
 
 - Retain V2.0 as the visual baseline: a centered, light editorial surface with a navy masthead and progressive detail pages. Do not introduce a desktop sidebar or dashboard shell.
-- Make the primary experience denser through a short masthead, an attached live/next-kickoff strip, compact score rows, collapsed weekly schedules, condensed standings, and persistent mobile navigation.
+- Make the primary experience feel app-like through a featured editorial masthead, an attached live/next-kickoff strip, compact score rows, collapsed weekly schedules, condensed standings, and persistent mobile navigation. The masthead may provide a deliberate introductory scroll while the controls and data rows remain dense.
 - Use semantic sport theme tokens. NFL is the only active mode and uses red for branded interaction states. CFB is registered as a planned mode with a blue theme, but is not selectable and has no routes or data source in V2.1.
 - Introduce a typed sport definition and capability model. Features such as player search, comparison, live scores, and calendar actions are declared as sport capabilities rather than assumed universally.
 - Introduce a provider registry that fails closed when a sport has no registered provider. Register only the existing NFL provider in V2.1.
