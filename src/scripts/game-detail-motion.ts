@@ -36,7 +36,10 @@ if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
 						outline,
 						{ strokeDashoffset: [completeOutlineLength, 0] },
 						{ duration: 0.85, delay: 0.12, ease: 'easeInOut' },
-					);
+					).finished.then(() => {
+						outline.style.strokeDasharray = '';
+						outline.style.strokeDashoffset = '';
+					});
 				}
 
 				animate(

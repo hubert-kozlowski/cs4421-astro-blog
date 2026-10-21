@@ -77,7 +77,6 @@ select {
 #schedule,
 #standings,
 #players,
-#matchups,
 #player-search-form {
 	scroll-margin-top: 84px;
 }
@@ -296,7 +295,6 @@ select {
 	#schedule,
 	#standings,
 	#players,
-	#matchups,
 	#player-search-form {
 		scroll-margin-top: 132px;
 	}

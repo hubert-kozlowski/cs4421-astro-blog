@@ -5,7 +5,7 @@ liveGameKickoff.setUTCDate(liveGameKickoff.getUTCDate() + 2);
 liveGameKickoff.setUTCHours(19, 0, 0, 0);
 const liveGameKickoffAt = liveGameKickoff.toISOString();
 
-test('dashboard brings games, standings, player search, and matchups together', async ({ browser }) => {
+test('dashboard brings games, standings, player search, and player search together', async ({ browser }) => {
 	const context = await browser.newContext({ timezoneId: 'Europe/Paris' });
 	const page = await context.newPage();
 	await page.goto('/');
@@ -53,13 +53,13 @@ test('dashboard brings games, standings, player search, and matchups together', 
 			return Array.isArray(sessions) && sessions.length > 0;
 		}),
 	).toBe(true);
-	await expect(page.getByRole('navigation', { name: 'Jump to a dashboard feature' }).getByRole('link')).toHaveCount(4);
+	await expect(page.getByRole('navigation', { name: 'Jump to a dashboard feature' }).getByRole('link')).toHaveCount(3);
 	await expect(page.locator('.quick-nav')).toHaveCount(0);
 	await expect(page.locator('.header-search')).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Pick your game.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'See who’s climbing.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Find your player.' })).toBeVisible();
-	await expect(page.getByRole('heading', { name: 'Set up a matchup.' })).toBeVisible();
+	await expect(page.locator('#matchups')).toHaveCount(0);
 	await expect(page.getByRole('searchbox', { name: 'Search NFL player names' })).toBeVisible();
 	await expect(page.locator('#team-filter option[value="JAX"]')).toHaveText('Jacksonville Jaguars');
 	expect(await page.locator('.schedule-toolbar').evaluate((element) =>
@@ -104,30 +104,24 @@ test('dashboard brings games, standings, player search, and matchups together', 
 	await context.close();
 });
 
-test('global and matchup styles load after a direct query navigation', async ({ page }) => {
+test('global styles load after a direct query navigation', async ({ page }) => {
 	const failedStylesheets: string[] = [];
 	page.on('requestfailed', (request) => {
 		if (request.resourceType() === 'stylesheet') failedStylesheets.push(request.url());
 	});
 
-	for (const load of [() => page.goto('/?team1=BUF&team2=KC#matchups'), () => page.reload()]) {
+	for (const load of [() => page.goto('/?week=1#schedule'), () => page.reload()]) {
 		await load();
-		await expect(page.locator('.matchup-result')).toBeVisible();
-		await expect(page.locator('.matchup-result')).toHaveAttribute('data-motion-played', 'true');
-		await expect(page.locator('#matchups .section-heading h2')).toHaveCSS('font-size', '30px');
-		await expect(page.locator('.matchup-result')).toHaveCSS('border-radius', '15px');
-		await expect(page.locator('.matchup-result')).toHaveCSS('background-color', 'rgb(244, 251, 246)');
+		await expect(page.locator('#schedule .section-heading h2')).toHaveCSS('font-size', '30px');
 	}
 	expect(failedStylesheets).toEqual([]);
 });
 
-test('dashboard entrance and matchup motion are skipped for reduced-motion users', async ({ page }) => {
+test('dashboard entrance motion is skipped for reduced-motion users', async ({ page }) => {
 	await page.emulateMedia({ reducedMotion: 'reduce' });
-	await page.goto('/?team1=BUF&team2=KC#matchups');
+	await page.goto('/');
 	await expect(page.locator('.dashboard-hero__copy')).toBeVisible();
-	await expect(page.locator('.matchup-result')).toBeVisible();
 	await expect(page.locator('.dashboard-hero__copy')).not.toHaveAttribute('data-motion-played', 'true');
-	await expect(page.locator('.matchup-result')).not.toHaveAttribute('data-motion-played', 'true');
 });
 
 test('game detail entrance and stadium reveal avoid layout shifts', async ({ page }) => {
@@ -139,10 +133,7 @@ test('game detail entrance and stadium reveal avoid layout shifts', async ({ pag
 	await expect(venue).toHaveAttribute('data-motion-played', 'true');
 	const outline = venue.locator('[data-motion-stadium-outline]');
 	await expect.poll(() => outline.evaluate((path) => getComputedStyle(path).strokeDashoffset)).toBe('0px');
-	expect(await outline.evaluate((path) => {
-		const svgPath = path as SVGPathElement;
-		return Number.parseFloat(svgPath.style.strokeDasharray) > svgPath.getTotalLength();
-	})).toBe(true);
+	await expect.poll(() => outline.evaluate((path) => (path as SVGPathElement).style.strokeDasharray)).toBe('');
 	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
 	expect(await venue.evaluate((element) => (element as HTMLElement).offsetTop)).toBe(venueLayoutTop);
 });

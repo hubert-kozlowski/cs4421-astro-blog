@@ -77,11 +77,18 @@ const teamLabel = homeTeamName.replace(/^the /i, '');
 	<text x="180" y="19" text-anchor="middle" fill="#526177" font-size="7" font-weight="800" letter-spacing=".8">
 		HOME TEAM · {homeTeamAbbr || 'NFL'} · {style.city.toUpperCase()}
 	</text>
-	<path d={terrain} fill="none" stroke={style.accent} stroke-opacity=".68" stroke-width="3" stroke-linecap="round" />
-	{style.setting === 'desert' && <circle cx="307" cy="41" r="11" fill="#ffcf70" />}
-	{style.setting === 'rain' && (
-		<path d="m75 39-4 11m13-11-4 11m13-11-4 11m180-11-4 11m13-11-4 11m13-11-4 11" stroke="#78a5c8" stroke-linecap="round" stroke-width="2" />
-	)}
+	<defs>
+		<clipPath id="stadium-backdrop-clip" clipPathUnits="userSpaceOnUse">
+			<rect x="5" y="5" width="350" height="180" rx="34" />
+		</clipPath>
+	</defs>
+	<g clip-path="url(#stadium-backdrop-clip)">
+		<path d={terrain} fill="none" stroke={style.accent} stroke-opacity=".68" stroke-width="3" stroke-linecap="round" />
+		{style.setting === 'desert' && <circle cx="307" cy="41" r="11" fill="#ffcf70" />}
+		{style.setting === 'rain' && (
+			<path d="m75 39-4 11m13-11-4 11m13-11-4 11m180-11-4 11m13-11-4 11m13-11-4 11" stroke="#78a5c8" stroke-linecap="round" stroke-width="2" />
+		)}
+	</g>
 	<defs>
 		<clipPath id="stadium-outline-clip" clipPathUnits="userSpaceOnUse">
 			<path d={stadiumProfile.outline} />
