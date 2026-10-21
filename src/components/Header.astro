@@ -116,7 +116,8 @@ const isCompare = path === '/compare';
 	.site-header { position: sticky; z-index: 20; top: 0; border-bottom: 1px solid rgb(230 232 236 / 85%); background: rgb(255 255 255 / 94%); backdrop-filter: saturate(180%) blur(20px); }
 	.site-header__inner { display: flex; width: min(100% - 48px, 1120px); min-height: 62px; align-items: center; justify-content: space-between; gap: 20px; margin: 0 auto; }
 	.brand { display: inline-flex; align-items: center; gap: 9px; color: var(--color-ink); text-decoration: none; }
-	.brand__mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 10px; background: linear-gradient(145deg, #17233b, #304e80); box-shadow: 0 4px 10px rgb(28 50 88 / 20%); color: #fff; font-size: 15px; font-weight: 800; letter-spacing: -0.07em; }
+	.brand__mark { position: relative; display: grid; width: 34px; height: 34px; overflow: hidden; place-items: center; border-radius: 10px; background: linear-gradient(145deg, #17233b, #304e80); box-shadow: 0 4px 10px rgb(28 50 88 / 20%); color: #fff; font-size: 15px; font-weight: 800; letter-spacing: -0.07em; }
+	.brand__mark::after { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; background: var(--sport-accent); clip-path: polygon(100% 0, 0 100%, 100% 100%); content: ""; }
 	.brand__name { font-size: 12px; font-weight: 800; letter-spacing: 0.04em; white-space: nowrap; }
 	.brand__name span { color: var(--color-muted); font-weight: 600; }
 	.desktop-nav { display: flex; align-items: center; gap: 3px; }
