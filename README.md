@@ -132,12 +132,12 @@ AWS CLI credentials need permission to authenticate and push to the ECR reposito
 
 AWS CDK defines two independently deployable services:
 
-| Service | CDK stack | Hosting | Deployment workflow |
-| --- | --- | --- | --- |
-| Static blog | `StaticSiteStack` | Tag `1.0.0`, published from private S3 through CloudFront | `deploy-static.yml` |
-| Live dashboard | `CdkStack` (implemented by `SsrSiteStack` in `cdk/lib/ssr-site-stack.ts`) | Current `main`, deployed to ECS Fargate behind an Application Load Balancer | `deploy-container.yml` |
+| Service | CDK stack | Hosting | GitHub environment | Deployment workflow |
+| --- | --- | --- | --- | --- |
+| Static blog | `StaticSiteStack` | Tag `1.0.0`, published from private S3 through CloudFront | `production-static` | `deploy-static.yml` |
+| Live dashboard | `CdkStack` (implemented by `SsrSiteStack` in `cdk/lib/ssr-site-stack.ts`) | Current `main`, deployed to ECS Fargate behind an Application Load Balancer | `production-ssr` | `deploy-container.yml` |
 
-Both workflows run after successful CI on `main` and can be dispatched manually from `main`. `deploy-static.yml` checks out and builds the immutable `1.0.0` tag before deploying `StaticSiteStack`; `deploy-container.yml` deploys the current `main` SSR application through `CdkStack`.
+Both workflows run after successful CI on `main` and can be dispatched manually from `main`. Successful deployments are recorded in GitHub under their respective environments. `deploy-static.yml` checks out and builds the immutable `1.0.0` tag before deploying `StaticSiteStack`; `deploy-container.yml` deploys the current `main` SSR application through `CdkStack`.
 
 The SSR service exposes two probe endpoints:
 
