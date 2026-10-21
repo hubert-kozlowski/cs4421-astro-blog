@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="atlas-app" x1="48" x2="464" y1="48" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17233b"/>
+      <stop offset="1" stop-color="#304e80"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#atlas-app)"/>
+  <path fill="#d2273b" d="M512 320 320 512h192Z"/>
+  <text x="256" y="324" fill="#fff" font-family="Arial, sans-serif" font-size="190" font-weight="800" letter-spacing="-14" text-anchor="middle">GA</text>
+</svg>

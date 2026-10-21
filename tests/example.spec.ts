@@ -12,6 +12,18 @@ test('compact home brings games, standings, and player search together', async (
 
 	await expect(page).toHaveTitle(/NFL dashboard \| Gridiron Atlas/);
 	await expect(page.getByRole('heading', { name: 'Every game. One place.' })).toBeVisible();
+	await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/apple-touch-icon.png');
+	await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest');
+	const manifestResponse = await page.request.get('/manifest.webmanifest');
+	expect(manifestResponse.ok()).toBe(true);
+	expect(await manifestResponse.json()).toMatchObject({
+		name: 'Gridiron Atlas',
+		display: 'standalone',
+		icons: [
+			{ src: '/app-icon-192.png', sizes: '192x192' },
+			{ src: '/app-icon-512.png', sizes: '512x512' },
+		],
+	});
 	await expect(page.locator('.dashboard-hero__copy')).toHaveAttribute('data-motion-played', 'true');
 	await expect(page.locator('.hero-score')).toHaveCount(0);
 	await expect(page.getByRole('heading', { name: 'Next session starts in' })).toBeVisible();
