@@ -37,6 +37,7 @@ const { event } = Astro.props;
 
 	.calendar-menu summary {
 		display: inline-flex;
+		min-height: 44px;
 		align-items: center;
 		gap: 6px;
 		padding: 4px 0;
@@ -91,6 +92,9 @@ const { event } = Astro.props;
 	}
 
 	.calendar-menu__options a {
+		display: flex;
+		min-height: 44px;
+		align-items: center;
 		padding: 7px 9px;
 		border-radius: 5px;
 		color: inherit;

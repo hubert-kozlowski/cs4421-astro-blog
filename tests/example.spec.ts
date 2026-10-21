@@ -783,7 +783,15 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 		return { labelCenter: label.top + label.height / 2, chevronCenter: chevron.top + chevron.height / 2, height: button.getBoundingClientRect().height };
 	});
 	expect(Math.abs(teamFilterAlignment.labelCenter - teamFilterAlignment.chevronCenter)).toBeLessThan(2);
-	expect(teamFilterAlignment.height).toBeLessThanOrEqual(28);
+	expect(teamFilterAlignment.height).toBeGreaterThanOrEqual(44);
+	const compactControlTargets = await page.locator('.schedule-toolbar--mobile button, .schedule-toolbar--mobile select, .mobile-more summary').evaluateAll((controls) =>
+		controls.map((control) => control.getBoundingClientRect().height),
+	);
+	expect(compactControlTargets.every((height) => height >= 44)).toBe(true);
+	const visualFilterHeight = await page.locator('[data-team-filter-open]').evaluate((button) =>
+		Number.parseFloat(getComputedStyle(button, '::before').height),
+	);
+	expect(visualFilterHeight).toBeLessThanOrEqual(28);
 	const appNavStyle = await page.locator('.mobile-nav').evaluate((element) => {
 		const bounds = element.getBoundingClientRect();
 		const style = getComputedStyle(element);
