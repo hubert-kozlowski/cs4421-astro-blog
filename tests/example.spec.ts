@@ -145,6 +145,38 @@ test('game detail entrance and stadium reveal avoid layout shifts', async ({ pag
 	expect(await venue.evaluate((element) => (element as HTMLElement).offsetTop)).toBe(venueLayoutTop);
 });
 
+test('scheduled game detail keeps the center status compact after live polling', async ({ page }) => {
+	await page.route('**/api/live/games?date=*', async (route) => {
+		await route.fulfill({
+			json: {
+				games: [{
+					eventId: 'scheduled-example',
+					kickoffAt: liveGameKickoffAt,
+					homeTeam: 'JAX',
+					awayTeam: 'PHI',
+					homeScore: 0,
+					awayScore: 0,
+					state: 'scheduled',
+					status: 'Thu, October 22nd at 8:15 PM EDT',
+					period: null,
+					clock: null,
+					boxScoreUpdatedAt: null,
+					lastPlay: null,
+					notice: null,
+					situation: null,
+					boxScore: [],
+				}],
+				fetchedAt: new Date().toISOString(),
+				stale: false,
+			},
+		});
+	});
+	await page.goto('/games/example-game');
+	await expect(page.locator('[data-game-live-status]')).toHaveText('SCHEDULED');
+	await expect(page.locator('[data-game-live-status]')).not.toContainText(/October|EDT|8:15/);
+	await expect(page.locator('.game-hero__date time')).not.toHaveText('Kickoff time');
+});
+
 test('stadium label stays clear and architectural strokes stay within the outline', async ({ page }) => {
 	await page.goto('/games/example-game');
 	const diagram = page.locator('.stadium-diagram');
