@@ -16,6 +16,10 @@ function dayKey(ms: number): string {
 	return new Date(ms).toISOString().slice(0, 10);
 }
 
+export function isHealthProbe(path: string): boolean {
+	return ['/api/health', '/api/ready', '/api/live'].includes(path.replace(/\/$/, ''));
+}
+
 export function recordRequest(status: number, durationMs: number, now = Date.now()): void {
 	const key = dayKey(now);
 	const bucket = buckets.get(key) ?? { requests: 0, errors: 0, totalMs: 0 };
@@ -44,7 +48,7 @@ export function getDailySeries(days: number, endMs = Date.now()): DailyPoint[] {
 			date,
 			requests: b?.requests ?? 0,
 			errors: b?.errors ?? 0,
-			avgLatencyMs: b && b.requests ? Math.round(b.totalMs / b.requests) : 0,
+			avgLatencyMs: b && b.requests ? b.totalMs / b.requests : 0,
 		};
 	});
 }

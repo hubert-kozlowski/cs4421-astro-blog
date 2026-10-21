@@ -63,6 +63,7 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: {
     command: 'node tests/start-playwright.mjs',
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 10_000 },
     url: process.env.PLAYWRIGHT_BASE_URL ?? 'http://127.0.0.1:4331',
     env: {
       NFL_DATA_API_BASE_URL: 'http://127.0.0.1:4322/v1',

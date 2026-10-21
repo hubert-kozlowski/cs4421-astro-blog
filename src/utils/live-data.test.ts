@@ -116,11 +116,11 @@ describe('getLiveGames', () => {
 
 		vi.setSystemTime(new Date(date.getTime() + LIVE_SCOREBOARD_CACHE_TTL_MS + 1));
 		await getLiveGames(date);
-		expect(fetchMock).toHaveBeenCalledTimes(7);
+		expect(fetchMock).toHaveBeenCalledTimes(5);
 
 		vi.setSystemTime(new Date(date.getTime() + LIVE_SUMMARY_CACHE_TTL_MS + 1));
 		await getLiveGames(date);
-		expect(fetchMock).toHaveBeenCalledTimes(11);
+		expect(fetchMock).toHaveBeenCalledTimes(7);
 	});
 
 	it('keeps provider box scores available for completed games', async () => {
@@ -164,6 +164,13 @@ describe('getLiveGames', () => {
 			boxScoreUpdatedAt: date.toISOString(),
 			boxScore: [{ team: 'KC', stats: [{ label: 'Total Yards', value: '350' }] }],
 		});
+		const fetchMock = vi.mocked(fetch);
+		expect(fetchMock).toHaveBeenCalledTimes(4);
+		vi.setSystemTime(new Date(date.getTime() + 30 * 60_000));
+		await getLiveGames(date);
+		// All three scoreboards expire, but the final summary is still cached.
+		expect(fetchMock).toHaveBeenCalledTimes(7);
+
 	});
 
 	it('identifies the two-minute warning from ESPN status, play text, or the period clock', async () => {

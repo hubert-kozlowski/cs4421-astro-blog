@@ -1,5 +1,5 @@
 import { animate } from 'motion';
-import { getLivePollInterval } from '../utils/live-update-policy';
+import { getLivePollInterval, getLiveRetryInterval } from '../utils/live-update-policy';
 import { teamPalette } from '../utils/team-colors';
 
 interface LiveStatAthlete {
@@ -75,6 +75,14 @@ let suppressedClickRow: HTMLElement | null = null;
 let suppressedClickUntil = 0;
 let pollTimer: number | undefined;
 let polling = false;
+let pollFailures = 0;
+
+function schedulePoll(delay: number) {
+	if (pollTimer !== undefined) window.clearTimeout(pollTimer);
+	pollTimer = undefined;
+	if (document.visibilityState === 'hidden' || !navigator.onLine) return;
+	pollTimer = window.setTimeout(() => void pollLiveGames(), delay);
+}
 
 function animateTouchdown(row: HTMLElement) {
 	if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -930,7 +938,9 @@ function renderBoxScore(game: LiveGame) {
 }
 
 async function pollLiveGames() {
-	if (polling || document.visibilityState === 'hidden') return;
+	if (polling || document.visibilityState === 'hidden' || !navigator.onLine) return;
+	if (pollTimer !== undefined) window.clearTimeout(pollTimer);
+	pollTimer = undefined;
 	polling = true;
 	try {
 		const gameDate = document.querySelector<HTMLElement>('[data-live-boxscore]')?.dataset.gameDate;
@@ -1041,7 +1051,8 @@ async function pollLiveGames() {
 				if (freshness) freshness.textContent = `Updated ${new Date(result.fetchedAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`;
 			});
 		}
-		pollTimer = window.setTimeout(() => void pollLiveGames(), getLivePollInterval(result.games));
+		pollFailures = 0;
+		schedulePoll(getLivePollInterval(result.games));
 	} catch (error) {
 		console.error('Live NFL updates could not be refreshed.', error);
 		liveCards.forEach((center) => {
@@ -1049,7 +1060,7 @@ async function pollLiveGames() {
 			const freshness = center.querySelector<HTMLElement>('[data-live-freshness]');
 			if (freshness) freshness.textContent = 'Feed unavailable — retrying';
 		});
-		pollTimer = window.setTimeout(() => void pollLiveGames(), 30_000);
+		schedulePoll(getLiveRetryInterval(++pollFailures));
 	} finally {
 		polling = false;
 	}
@@ -1058,12 +1069,12 @@ async function pollLiveGames() {
 if (liveCards.length > 0) {
 	liveCards.forEach(initializeLiveCenter);
 	void pollLiveGames();
-	document.addEventListener('visibilitychange', () => {
-		if (document.visibilityState === 'visible') {
-			if (pollTimer !== undefined) window.clearTimeout(pollTimer);
-			void pollLiveGames();
-		} else if (pollTimer !== undefined) {
-			window.clearTimeout(pollTimer);
-		}
-	});
+	const resume = () => {
+		if (pollTimer !== undefined) window.clearTimeout(pollTimer);
+		pollTimer = undefined;
+		void pollLiveGames();
+	};
+	document.addEventListener('visibilitychange', resume);
+	window.addEventListener('online', resume);
+	window.addEventListener('offline', resume);
 }

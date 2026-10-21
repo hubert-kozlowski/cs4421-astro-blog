@@ -26,6 +26,10 @@ export interface MetricsDashboard {
 const DAYS = 7;
 const CACHE_MS = 60_000;
 let cache: { at: number; value: MetricsDashboard } | null = null;
+let pendingDashboard: Promise<MetricsDashboard> | null = null;
+const cloudWatchClient = new CloudWatchClient({ region: process.env.AWS_REGION });
+const ssmClient = new SSMClient({ region: process.env.AWS_REGION });
+let resolvedAlb: { parameter: string; value: string } | undefined;
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 const avg = (xs: number[]) => (xs.length ? sum(xs) / xs.length : 0);
@@ -35,19 +39,19 @@ const pct = (n: number) => `${Math.round(n * 10) / 10}%`;
 async function cloudWatchConfig() {
 	const { ALB_DIMENSION, ALB_DIMENSION_PARAM, ECS_CLUSTER, ECS_SERVICE, AWS_REGION } = process.env;
 	if (!ECS_CLUSTER || !ECS_SERVICE || !(ALB_DIMENSION || ALB_DIMENSION_PARAM)) return null;
-	let alb = ALB_DIMENSION;
+	let alb = ALB_DIMENSION || (resolvedAlb?.parameter === ALB_DIMENSION_PARAM ? resolvedAlb?.value : undefined);
 	if (!alb && ALB_DIMENSION_PARAM) {
-		const res = await new SSMClient({ region: AWS_REGION }).send(
+		const res = await ssmClient.send(
 			new GetParameterCommand({ Name: ALB_DIMENSION_PARAM }),
 		);
 		alb = res.Parameter?.Value;
+		if (alb) resolvedAlb = { parameter: ALB_DIMENSION_PARAM, value: alb };
 	}
 	if (!alb) return null;
 	return { alb, cluster: ECS_CLUSTER, service: ECS_SERVICE, region: AWS_REGION };
 }
 
 async function fetchCloudWatchSeries(cfg: NonNullable<Awaited<ReturnType<typeof cloudWatchConfig>>>) {
-	const client = new CloudWatchClient({ region: cfg.region });
 	const end = new Date();
 	end.setUTCHours(24, 0, 0, 0);
 	const start = new Date(end.getTime() - DAYS * 2 * 86_400_000);
@@ -70,7 +74,7 @@ async function fetchCloudWatchSeries(cfg: NonNullable<Awaited<ReturnType<typeof 
 			Stat: stat,
 		},
 	});
-	const result = await client.send(
+	const result = await cloudWatchClient.send(
 		new GetMetricDataCommand({
 			StartTime: start,
 			EndTime: end,
@@ -78,7 +82,8 @@ async function fetchCloudWatchSeries(cfg: NonNullable<Awaited<ReturnType<typeof 
 			MetricDataQueries: [
 				q('req', 'AWS/ApplicationELB', 'RequestCount', albDims, 'Sum'),
 				q('err', 'AWS/ApplicationELB', 'HTTPCode_Target_5XX_Count', albDims, 'Sum'),
-				q('lat', 'AWS/ApplicationELB', 'TargetResponseTime', albDims, 'Average'),
+				q('lat', 'AWS/ApplicationELB', 'TargetResponseTime', albDims, 'Sum'),
+				q('latn', 'AWS/ApplicationELB', 'TargetResponseTime', albDims, 'SampleCount'),
 				q('cpu', 'AWS/ECS', 'CPUUtilization', ecsDims, 'Average'),
 				q('mem', 'AWS/ECS', 'MemoryUtilization', ecsDims, 'Average'),
 				q('stu', 'ECS/ContainerInsights', 'EphemeralStorageUtilized', ecsDims, 'Average'),
@@ -99,13 +104,14 @@ async function fetchCloudWatchSeries(cfg: NonNullable<Awaited<ReturnType<typeof 
 		const m = byDate(id);
 		return dates.map((d) => m.get(d) ?? 0);
 	};
-	return { dates, req: get('req'), err: get('err'), lat: get('lat'), cpu: get('cpu'), mem: get('mem'), stu: get('stu'), str: get('str') };
+	return { dates, req: get('req'), err: get('err'), lat: get('lat'), latn: get('latn'), cpu: get('cpu'), mem: get('mem'), stu: get('stu'), str: get('str') };
 }
 
-function buildCards(input: {
+export function buildCards(input: {
 	req: number[];
 	err: number[];
 	latMs: number[];
+	latSamples: number[];
 	cpu: number[];
 	mem: number[];
 	storage: number[] | null;
@@ -116,6 +122,10 @@ function buildCards(input: {
 	const [reqPrev, reqCur] = split(input.req);
 	const [errPrev, errCur] = split(input.err);
 	const [latPrev, latCur] = split(input.latMs);
+	const [samplesPrev, samplesCur] = split(input.latSamples);
+	const latency = (durations: number[], counts: number[]) => sum(counts) ? sum(durations) / sum(counts) : 0;
+	const currentLatency = latency(latCur, samplesCur);
+	const previousLatency = latency(latPrev, samplesPrev);
 	const [cpuPrev, cpuCur] = split(input.cpu);
 	const [memPrev, memCur] = split(input.mem);
 
@@ -123,7 +133,7 @@ function buildCards(input: {
 	const cards: StatCard[] = [
 		{
 			key: 'requests',
-			label: 'API requests (7d)',
+			label: 'HTTP requests (7d)',
 			value: fmt(sum(reqCur)),
 			detail: `${fmt(sum(reqCur) / DAYS)} / day avg`,
 			trend: computeTrend(sum(reqCur), sum(reqPrev)),
@@ -138,8 +148,9 @@ function buildCards(input: {
 		{
 			key: 'latency',
 			label: 'Avg response time',
-			value: `${fmt(avg(latCur))} ms`,
-			trend: computeTrend(avg(latCur), avg(latPrev), true),
+			detail: 'Weighted by response samples',
+			value: `${fmt(currentLatency)} ms`,
+			trend: computeTrend(currentLatency, previousLatency, true),
 		},
 	];
 
@@ -178,6 +189,7 @@ async function build(): Promise<MetricsDashboard> {
 				req: s.req,
 				err: s.err,
 				latMs: s.lat.map((v) => v * 1000),
+				latSamples: s.latn,
 				cpu: s.cpu,
 				mem: s.mem,
 				storage: storage.some((v) => v > 0) ? storage : null,
@@ -186,7 +198,7 @@ async function build(): Promise<MetricsDashboard> {
 				date,
 				requests: s.req[DAYS + i],
 				errors: s.err[DAYS + i],
-				avgLatencyMs: Math.round(s.lat[DAYS + i] * 1000),
+				avgLatencyMs: s.latn[DAYS + i] ? Math.round(s.lat[DAYS + i] * 1000 / s.latn[DAYS + i]) : 0,
 			})));
 		}
 		note = 'CloudWatch not configured; showing this instance’s in-process data since it started.';
@@ -200,7 +212,8 @@ async function build(): Promise<MetricsDashboard> {
 	const { cards, resources } = buildCards({
 		req: series.map((d) => d.requests),
 		err: series.map((d) => d.errors),
-		latMs: series.map((d) => d.avgLatencyMs),
+		latMs: series.map((d) => d.avgLatencyMs * d.requests),
+		latSamples: series.map((d) => d.requests),
 		cpu: flat(snap.cpuPercent),
 		mem: flat(snap.memoryPercent),
 		storage: snap.storagePercent === null ? null : flat(snap.storagePercent),
@@ -233,7 +246,11 @@ function finish(
 
 export async function getDashboard(): Promise<MetricsDashboard> {
 	if (cache && Date.now() - cache.at < CACHE_MS) return cache.value;
-	const value = await build();
-	cache = { at: Date.now(), value };
-	return value;
+	if (!pendingDashboard) {
+		pendingDashboard = build().then((value) => {
+			cache = { at: Date.now(), value };
+			return value;
+		}).finally(() => { pendingDashboard = null; });
+	}
+	return pendingDashboard;
 }

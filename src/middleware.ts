@@ -1,7 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { log } from './utils/logger';
 import { isAuthorized, isMetricsPath, unauthorizedResponse } from './utils/metrics-auth';
-import { recordRequest } from './utils/runtime-metrics';
+import { isHealthProbe, recordRequest } from './utils/runtime-metrics';
 
 export const onRequest = defineMiddleware(async ({ request, url }, next) => {
 	const startedAt = performance.now();
@@ -17,12 +17,12 @@ export const onRequest = defineMiddleware(async ({ request, url }, next) => {
 		const response = await next();
 		const status = response.status;
 		const durationMs = Math.round(performance.now() - startedAt);
-		recordRequest(status, durationMs);
+		if (!isHealthProbe(url.pathname)) recordRequest(status, durationMs);
 		log(status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info', { ...base, status, durationMs });
 		return response;
 	} catch (error) {
 		const durationMs = Math.round(performance.now() - startedAt);
-		recordRequest(500, durationMs);
+		if (!isHealthProbe(url.pathname)) recordRequest(500, durationMs);
 		log('error', {
 			...base,
 			status: 500,
