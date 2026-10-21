@@ -8,13 +8,11 @@ import SiteLayout from '../../layouts/SiteLayout.astro';
 import {
 	getApiMetadata,
 	buildTeamRecords,
-	compareTeams,
 	getGame,
 	getGameBroadcastLabel,
 	getGameStatus,
 	getSeasonGames,
 	type ApiResult,
-	type HeadToHead,
 	type NflGame,
 	type NflTeam,
 	type TeamRecord,
@@ -31,7 +29,7 @@ let gameResult: ApiResult<NflGame> | undefined;
 let teams: NflTeam[] = [];
 let metadataResult: ApiResult<{ seasons: number[]; teams: NflTeam[] }> | undefined;
 let seasonGamesResult: ApiResult<{ data: NflGame[]; total: number; limit: number; offset: number }> | undefined;
-let headToHeadResult: ApiResult<HeadToHead> | undefined;
+let recentSeasonResults: ApiResult<{ data: NflGame[]; total: number; limit: number; offset: number }>[] = [];
 let unavailable = false;
 try {
 	[gameResult, metadataResult] = await Promise.all([getGame(gameId), getApiMetadata()]);
@@ -50,12 +48,12 @@ try {
 
 const game = gameResult?.value;
 if (game) {
-	const supplemental = await Promise.allSettled([
-		getSeasonGames(game.season ?? new Date().getUTCFullYear()),
-		game.home_team && game.away_team ? compareTeams(game.away_team, game.home_team) : Promise.resolve(undefined),
-	]);
+	const gameSeason = game.season ?? new Date().getUTCFullYear();
+	const supplemental = await Promise.allSettled(
+		[gameSeason, gameSeason - 1, gameSeason - 2].map((season) => getSeasonGames(season)),
+	);
 	if (supplemental[0].status === 'fulfilled') seasonGamesResult = supplemental[0].value;
-	if (supplemental[1].status === 'fulfilled') headToHeadResult = supplemental[1].value;
+	recentSeasonResults = supplemental.flatMap((result) => result.status === 'fulfilled' ? [result.value] : []);
 }
 const homeTeam = teams.find((team) => team.abbr === game?.home_team);
 const awayTeam = teams.find((team) => team.abbr === game?.away_team);
@@ -118,14 +116,32 @@ const lastGameLabel = (candidate: NflGame | undefined, team: string | null | und
 	const result = teamScore === opponentScore ? 'T' : teamScore > opponentScore ? 'W' : 'L';
 	return `${result} ${teamScore}-${opponentScore} vs ${getTeamDisplayName(opponent)}`;
 };
-const series = headToHeadResult?.value;
-const awaySeriesRecord = game?.away_team ? series?.record[game.away_team] : undefined;
-const homeSeriesRecord = game?.home_team ? series?.record[game.home_team] : undefined;
-const supplementalStale = Boolean(seasonGamesResult?.stale || headToHeadResult?.stale);
-const freshestFetchedAt = [gameResult?.fetchedAt, seasonGamesResult?.fetchedAt, headToHeadResult?.fetchedAt]
+const recentMeetings = Array.from(new Map(recentSeasonResults
+	.flatMap((result) => result.value.data)
+	.filter((candidate) => {
+		const matchesPair = candidate.away_team === game?.away_team && candidate.home_team === game?.home_team
+			|| candidate.away_team === game?.home_team && candidate.home_team === game?.away_team;
+		return matchesPair && typeof candidate.away_score === 'number' && typeof candidate.home_score === 'number';
+	})
+	.map((candidate) => [candidate.game_id, candidate])).values());
+const recentSeriesRecord = (team: string | null | undefined) => recentMeetings.reduce((record, candidate) => {
+	if (!team) return record;
+	const teamScore = candidate.home_team === team ? candidate.home_score : candidate.away_score;
+	const opponentScore = candidate.home_team === team ? candidate.away_score : candidate.home_score;
+	if (teamScore === opponentScore) record.ties += 1;
+	else if ((teamScore ?? 0) > (opponentScore ?? 0)) record.wins += 1;
+	else record.losses += 1;
+	return record;
+}, { wins: 0, losses: 0, ties: 0 });
+const awayRecentRecord = recentSeriesRecord(game?.away_team);
+const homeRecentRecord = recentSeriesRecord(game?.home_team);
+const supplementalStale = recentSeasonResults.some((result) => result.stale);
+const freshestFetchedAt = [gameResult?.fetchedAt, ...recentSeasonResults.map((result) => result.fetchedAt)]
 	.filter((value): value is string => Boolean(value))
 	.sort((left, right) => Date.parse(right) - Date.parse(left))[0];
-const seriesAvailable = Boolean(series?.total_games && awaySeriesRecord && homeSeriesRecord);
+const recentSeriesAvailable = recentMeetings.length > 0;
+const recentSeasonStart = (game?.season ?? new Date().getUTCFullYear()) - 2;
+const recentSeasonEnd = game?.season ?? new Date().getUTCFullYear();
 const scheduledSummary = `${awayTeamName} visits ${homeTeamName}${stadiumName ? ` at ${stadiumName}` : ''} for this ${matchupType.toLowerCase()}.`;
 ---
 
@@ -221,11 +237,14 @@ const scheduledSummary = `${awayTeamName} visits ${homeTeamName}${stadiumName ? 
 						<p><span>Last time out</span>{lastGameLabel(awayLastGame, game.away_team)}</p>
 					</article>
 					<article class="series-card">
-						<span>All-time series</span>
-						{seriesAvailable ? (
-							<><strong>{awaySeriesRecord?.wins}–{homeSeriesRecord?.wins}</strong><p>{series?.total_games} meetings · {game.away_team}–{game.home_team}</p></>
+						<span>Last 3 seasons</span>
+						{recentSeriesAvailable ? (
+							<>
+								<strong>{game.away_team} {awayRecentRecord.wins}–{homeRecentRecord.wins} {game.home_team}</strong>
+								<p>{recentMeetings.length} {recentMeetings.length === 1 ? 'meeting' : 'meetings'} in provider data · {recentSeasonStart}–{recentSeasonEnd}{awayRecentRecord.ties ? ` · ${awayRecentRecord.ties} tied` : ''}</p>
+							</>
 						) : (
-							<><strong>—</strong><p>Series history is not available</p></>
+							<><strong>—</strong><p>No meetings found from {recentSeasonStart}–{recentSeasonEnd}</p></>
 						)}
 					</article>
 					<article class="team-context-card">

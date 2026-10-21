@@ -74,7 +74,9 @@ test('compact home brings games, standings, and player search together', async (
 	await expect(page.locator('.team-context-card')).toHaveCount(2);
 	await expect(page.locator('.team-context-card').first()).toContainText('0-1');
 	await expect(page.locator('.team-context-card').first()).toContainText('L 13-17 vs Jacksonville Jaguars');
-	await expect(page.locator('.series-card')).toContainText('1–0');
+	await expect(page.locator('.series-card')).toContainText('Last 3 seasons');
+	await expect(page.locator('.series-card')).toContainText('PHI 0–1 JAX');
+	await expect(page.locator('.series-card')).toContainText('1 meeting in provider data');
 	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
 	await expect(page.getByRole('img', { name: 'Top-down illustration of EverBank Stadium, home of the Jacksonville Jaguars in Jacksonville, Florida' })).toBeVisible();
 	await expect(page.locator('.stadium-diagram').first()).toContainText('JAX');
