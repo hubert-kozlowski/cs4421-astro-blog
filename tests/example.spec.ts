@@ -33,6 +33,10 @@ test('compact home brings games, standings, and player search together', async (
 		}).format(new Date(time.dateTime));
 	})).toBe(true);
 	await expect(kickoffTime).not.toContainText(/EDT|EST|GMT|UTC|PDT|PST/);
+	const compactDate = page.locator('time[data-device-game-date]').first();
+	await expect(compactDate).toHaveText(/^[A-Z]{3} · [A-Z]{3} \d{1,2}$/);
+	await expect(compactDate).not.toContainText(/AM|PM|EDT|EST|GMT|UTC/);
+	expect(await compactDate.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(14);
 	expect(await page.locator('time[data-device-time]').evaluateAll((times) =>
 		times.every((element) => {
 			const time = element as HTMLTimeElement;

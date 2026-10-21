@@ -18,6 +18,12 @@ const status = getGameStatus(game);
 const upset = getGameUpset(game);
 const kickoff = isAbsoluteTimestamp(game.kickoff_at ?? undefined) ? game.kickoff_at : undefined;
 const hasScore = typeof game.home_score === 'number' && typeof game.away_score === 'number';
+const scheduledDate = game.gameday
+	? new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })
+		.format(new Date(`${game.gameday}T00:00:00Z`))
+		.replace(',', ' ·')
+		.toUpperCase()
+	: 'SCHEDULED';
 ---
 
 <a
@@ -34,7 +40,10 @@ const hasScore = typeof game.home_score === 'number' && typeof game.away_score =
 		'game-status--score': status === 'Score posted',
 		'game-status--pending': status === 'Result pending',
 	}]}>
-		<span class="game-status__dot" aria-hidden="true"></span>{status}
+		<span class="game-status__dot" aria-hidden="true"></span>
+		{status === 'Scheduled' && kickoff
+			? <time datetime={kickoff} data-device-game-date>{scheduledDate}</time>
+			: status === 'Scheduled' ? scheduledDate : status}
 	</span>
 	<span class="game-row__teams">
 		<span class="game-row__team">
@@ -73,7 +82,8 @@ const hasScore = typeof game.home_score === 'number' && typeof game.away_score =
 	}
 	.game-row:hover { transform: translateY(-1px); border-color: #cbd1dc; box-shadow: 0 8px 20px rgb(20 29 48 / 7%); }
 	.game-row.game-card--live-change { border-color: var(--sport-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sport-accent) 14%, transparent); }
-	.game-status { display: inline-flex; align-items: center; gap: 5px; color: #2c6e53; font-size: 8px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+	.game-status { display: inline-flex; align-items: center; gap: 5px; color: #2c6e53; font-size: 8px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+	.game-status time { color: inherit; font: inherit; letter-spacing: inherit; }
 	.game-status__dot { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 50%; background: #47a577; }
 	.game-status--final { color: #6a7180; }
 	.game-status--final .game-status__dot { background: #a2a7b0; }
@@ -95,7 +105,9 @@ const hasScore = typeof game.home_score === 'number' && typeof game.away_score =
 	.game-row__arrow { color: var(--color-faint); font-size: 20px; }
 
 	@media (max-width: 560px) {
-		.game-row { grid-template-columns: 64px minmax(0, 1fr) 72px 8px; min-height: 62px; gap: 6px; padding: 6px 8px; border-radius: 11px; }
+		.game-row { grid-template-columns: 74px minmax(0, 1fr) 66px 8px; min-height: 62px; gap: 5px; padding: 6px 8px; border-radius: 11px; }
+		.game-status { gap: 4px; font-size: 7.5px; }
+		.game-status__dot { width: 5px; height: 5px; }
 		.game-row__venue { display: none; }
 		.game-row__name span { display: none; }
 		.game-row__meta { font-size: 8px; }

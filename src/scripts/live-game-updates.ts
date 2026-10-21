@@ -370,7 +370,7 @@ function updateScheduleCard(game: LiveGame, changed: boolean) {
 	document.querySelectorAll<HTMLElement>('[data-live-home][data-live-away]').forEach((card) => {
 		if (!isRelevantGameForCard(card, game)) return;
 		const status = card.querySelector<HTMLElement>('.game-status');
-		if (status) {
+		if (status && game.state !== 'scheduled') {
 			status.classList.remove('game-status--final', 'game-status--score', 'game-status--pending', 'game-status--live');
 			const label = liveStatusLabel(game);
 			status.textContent = '';
