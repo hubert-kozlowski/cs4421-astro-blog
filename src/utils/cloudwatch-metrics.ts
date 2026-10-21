@@ -1,3 +1,4 @@
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { CloudWatchClient, GetMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { getDailySeries, getResourceSnapshot, type DailyPoint } from './runtime-metrics';
 import { computeTrend, utilizationSeverity, type Severity, type Trend } from './trend';
@@ -31,13 +32,21 @@ const avg = (xs: number[]) => (xs.length ? sum(xs) / xs.length : 0);
 const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
 const pct = (n: number) => `${Math.round(n * 10) / 10}%`;
 
-function cloudWatchConfig() {
-	const { ALB_DIMENSION, ECS_CLUSTER, ECS_SERVICE, AWS_REGION } = process.env;
-	if (!ALB_DIMENSION || !ECS_CLUSTER || !ECS_SERVICE) return null;
-	return { alb: ALB_DIMENSION, cluster: ECS_CLUSTER, service: ECS_SERVICE, region: AWS_REGION };
+async function cloudWatchConfig() {
+	const { ALB_DIMENSION, ALB_DIMENSION_PARAM, ECS_CLUSTER, ECS_SERVICE, AWS_REGION } = process.env;
+	if (!ECS_CLUSTER || !ECS_SERVICE || !(ALB_DIMENSION || ALB_DIMENSION_PARAM)) return null;
+	let alb = ALB_DIMENSION;
+	if (!alb && ALB_DIMENSION_PARAM) {
+		const res = await new SSMClient({ region: AWS_REGION }).send(
+			new GetParameterCommand({ Name: ALB_DIMENSION_PARAM }),
+		);
+		alb = res.Parameter?.Value;
+	}
+	if (!alb) return null;
+	return { alb, cluster: ECS_CLUSTER, service: ECS_SERVICE, region: AWS_REGION };
 }
 
-async function fetchCloudWatchSeries(cfg: NonNullable<ReturnType<typeof cloudWatchConfig>>) {
+async function fetchCloudWatchSeries(cfg: NonNullable<Awaited<ReturnType<typeof cloudWatchConfig>>>) {
 	const client = new CloudWatchClient({ region: cfg.region });
 	const end = new Date();
 	end.setUTCHours(24, 0, 0, 0);
@@ -159,10 +168,10 @@ function buildCards(input: {
 }
 
 async function build(): Promise<MetricsDashboard> {
-	const cfg = cloudWatchConfig();
 	let note: string | undefined;
-	if (cfg) {
-		try {
+	try {
+		const cfg = await cloudWatchConfig();
+		if (cfg) {
 			const s = await fetchCloudWatchSeries(cfg);
 			const storage = s.stu.map((u, i) => (s.str[i] ? (u / s.str[i]) * 100 : 0));
 			const { cards, resources } = buildCards({
@@ -179,11 +188,10 @@ async function build(): Promise<MetricsDashboard> {
 				errors: s.err[DAYS + i],
 				avgLatencyMs: Math.round(s.lat[DAYS + i] * 1000),
 			})));
-		} catch (error) {
-			note = `CloudWatch unavailable (${error instanceof Error ? error.name : 'error'}); showing in-process data.`;
 		}
-	} else {
 		note = 'CloudWatch not configured; showing this instance’s in-process data since it started.';
+	} catch (error) {
+		note = `CloudWatch unavailable (${error instanceof Error ? error.name : 'error'}); showing in-process data.`;
 	}
 
 	const series = getDailySeries(DAYS * 2);

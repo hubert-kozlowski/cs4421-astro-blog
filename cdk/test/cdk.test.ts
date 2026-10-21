@@ -13,6 +13,13 @@ describe('SsrSiteStack', () => {
 		template.resourceCountIs('AWS::ElasticLoadBalancingV2::LoadBalancer', 1);
 		template.resourceCountIs('AWS::S3::Bucket', 0);
 		template.resourceCountIs('AWS::CloudFront::Distribution', 0);
+		template.resourceCountIs('AWS::CloudWatch::Alarm', 4);
+		template.resourceCountIs('AWS::CloudWatch::Dashboard', 1);
+		template.resourceCountIs('AWS::Logs::MetricFilter', 1);
+		template.hasResourceProperties('AWS::SSM::Parameter', { Name: '/blog/metrics/alb-dimension' });
+		template.hasResourceProperties('AWS::ECS::Cluster', {
+			ClusterSettings: [{ Name: 'containerInsights', Value: 'enabled' }],
+		});
 		template.hasResourceProperties('AWS::ECS::TaskDefinition', {
 			Cpu: '256',
 			Memory: '512',
