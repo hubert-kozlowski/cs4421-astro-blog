@@ -6,5 +6,6 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" fill="url(#atlas)" rx="18"/>
+  <path fill="#d2273b" d="M64 39 39 64h25Z"/>
   <text x="32" y="40" fill="#fff" font-family="Arial, sans-serif" font-size="24" font-weight="800" letter-spacing="-2" text-anchor="middle">GA</text>
 </svg>
