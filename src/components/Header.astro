@@ -19,7 +19,7 @@ const isCompare = path === '/compare';
 			<a href="/#standings" data-nav-section="standings">Standings</a>
 			<a href="/players" aria-current={isPlayer ? 'page' : undefined}>Players</a>
 			<details class="more-menu">
-				<summary aria-label="More destinations">More</summary>
+				<summary aria-label="More destinations">More<span class="menu-chevron" aria-hidden="true"></span></summary>
 				<div class="more-menu__panel">
 					<a href="/teams" aria-current={isTeam ? 'page' : undefined}>Teams</a>
 					<a href="/compare" aria-current={isCompare ? 'page' : undefined}>Compare teams</a>
@@ -27,7 +27,7 @@ const isCompare = path === '/compare';
 			</details>
 		</nav>
 		<details class="mobile-more more-menu">
-			<summary aria-label="Open more destinations">More</summary>
+			<summary aria-label="Open more destinations">More<span class="menu-chevron" aria-hidden="true"></span></summary>
 			<div class="more-menu__panel">
 				<a href="/teams" aria-current={isTeam ? 'page' : undefined}>Teams</a>
 				<a href="/compare" aria-current={isCompare ? 'page' : undefined}>Compare teams</a>
@@ -93,7 +93,8 @@ const isCompare = path === '/compare';
 	.more-menu { position: relative; }
 	.more-menu > summary { list-style: none; }
 	.more-menu > summary::-webkit-details-marker { display: none; }
-	.more-menu > summary::after { margin-left: 5px; content: "⌄"; }
+	.menu-chevron { display: block; width: 6px; height: 6px; flex: 0 0 auto; margin: -3px 1px 0 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: margin 140ms ease, transform 140ms ease; }
+	.more-menu[open] > summary .menu-chevron { margin-top: 3px; transform: rotate(225deg); }
 	.more-menu__panel { position: absolute; top: calc(100% + 7px); right: 0; z-index: 30; display: grid; min-width: 150px; padding: 6px; border: 1px solid var(--color-border); border-radius: 12px; background: #fff; box-shadow: 0 15px 35px rgb(20 29 48 / 14%); }
 	.more-menu__panel a[aria-current="page"] { color: var(--sport-accent-strong); background: var(--sport-accent-soft); }
 	.mobile-more, .mobile-nav { display: none; }

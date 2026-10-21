@@ -769,6 +769,21 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto('/');
 	await expect(page.getByRole('navigation', { name: 'App navigation' })).toBeVisible();
+	const mobileMoreAlignment = await page.locator('.mobile-more summary').evaluate((summary) => {
+		const label = summary.firstChild instanceof Text ? summary : null;
+		const chevron = summary.querySelector('.menu-chevron')?.getBoundingClientRect();
+		const bounds = summary.getBoundingClientRect();
+		return { hasText: Boolean(label?.textContent?.trim()), chevronCenter: chevron ? chevron.top + chevron.height / 2 : 0, controlCenter: bounds.top + bounds.height / 2 };
+	});
+	expect(mobileMoreAlignment.hasText).toBe(true);
+	expect(Math.abs(mobileMoreAlignment.chevronCenter - mobileMoreAlignment.controlCenter)).toBeLessThan(2);
+	const teamFilterAlignment = await page.locator('[data-team-filter-open]').evaluate((button) => {
+		const label = button.querySelector('span:first-child')!.getBoundingClientRect();
+		const chevron = button.querySelector('.control-chevron')!.getBoundingClientRect();
+		return { labelCenter: label.top + label.height / 2, chevronCenter: chevron.top + chevron.height / 2, height: button.getBoundingClientRect().height };
+	});
+	expect(Math.abs(teamFilterAlignment.labelCenter - teamFilterAlignment.chevronCenter)).toBeLessThan(2);
+	expect(teamFilterAlignment.height).toBeLessThanOrEqual(28);
 	const appNavStyle = await page.locator('.mobile-nav').evaluate((element) => {
 		const bounds = element.getBoundingClientRect();
 		const style = getComputedStyle(element);

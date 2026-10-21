@@ -128,7 +128,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 						<button type="submit">Go</button>
 					</form>
 					<button class="team-filter-trigger" type="button" data-team-filter-open>
-						{teamFilter ? getTeamDisplayName(teamFilter) : 'All teams'} <span aria-hidden="true">⌄</span>
+						<span>{teamFilter ? getTeamDisplayName(teamFilter) : 'All teams'}</span><span class="control-chevron" aria-hidden="true"></span>
 					</button>
 				</div>
 				<dialog class="team-filter-sheet" data-team-filter-dialog aria-labelledby="team-filter-title">
@@ -897,11 +897,21 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 	.section-heading { align-items: center; margin-bottom: 10px; }
 	.section-heading .eyebrow { margin-bottom: 2px; font-size: 9px; }
 	.section-heading h2 { font-size: clamp(20px, 2.4vw, 25px); }
-	.schedule-toolbar { gap: 7px; margin-bottom: 8px; padding: 4px 7px; border-radius: 10px; }
+	.schedule-toolbar { gap: 6px; min-height: 34px; margin-bottom: 8px; padding: 2px 6px; border-radius: 9px; }
 	.schedule-filter { gap: 6px 8px; }
 	.schedule-filter label { font-size: 9px; }
-	.schedule-filter select { min-height: 30px; padding: 0 25px 0 9px; border-radius: 8px; font-size: 10px; }
-	.schedule-filter button { min-height: 30px; padding: 0 13px; border-radius: 8px; background: var(--sport-accent); font-size: 10px; }
+	.schedule-filter select { min-height: 28px; padding: 0 25px 0 8px; border-radius: 7px; font-size: 10px; }
+	.schedule-filter button { min-height: 28px; padding: 0 12px; border-radius: 7px; background: var(--sport-accent); font-size: 10px; }
+	.schedule-filter select, .mobile-week-filter select {
+		appearance: none;
+		background-color: #fff;
+		background-image:
+			linear-gradient(45deg, transparent 50%, #737a87 50%),
+			linear-gradient(135deg, #737a87 50%, transparent 50%);
+		background-position: calc(100% - 11px) 50%, calc(100% - 7px) 50%;
+		background-repeat: no-repeat;
+		background-size: 4px 4px, 4px 4px;
+	}
 	.browse-teams { margin-left: 2px; font-size: 10px; }
 	.schedule-filter button:hover { background: var(--sport-accent-strong); }
 	.browse-teams, .text-link { color: var(--sport-accent-strong); }
@@ -939,12 +949,14 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		#schedule { margin-top: 8px; }
 		.section-heading { align-items: center; flex-direction: row; gap: 8px; margin-bottom: 7px; }
 		.schedule-toolbar--desktop { display: none; }
-		.schedule-toolbar--mobile { display: flex; width: 100%; min-height: 36px; justify-content: space-between; }
+		.schedule-toolbar--mobile { display: flex; width: 100%; min-height: 32px; justify-content: space-between; }
 		.mobile-week-filter { display: flex; align-items: center; gap: 4px; }
 		.mobile-week-filter label { color: var(--color-muted); font-size: 9px; font-weight: 700; }
-		.mobile-week-filter select { min-height: 28px; padding: 0 20px 0 8px; border: 1px solid var(--color-border); border-radius: 7px; background: #fff; font-size: 10px; }
-		.mobile-week-filter button { min-height: 28px; padding: 0 9px; border: 0; border-radius: 7px; background: var(--sport-accent); color: #fff; font-size: 9px; font-weight: 750; }
-		.team-filter-trigger { min-width: 0; min-height: 28px; overflow: hidden; padding: 0 9px; border: 1px solid var(--color-border); border-radius: 7px; background: #fff; color: var(--color-ink); font-size: 9px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+		.mobile-week-filter select { min-height: 26px; padding: 0 20px 0 7px; border: 1px solid var(--color-border); border-radius: 6px; font-size: 9px; }
+		.mobile-week-filter button { min-height: 26px; padding: 0 8px; border: 0; border-radius: 6px; background: var(--sport-accent); color: #fff; font-size: 9px; font-weight: 750; }
+		.team-filter-trigger { display: inline-flex; min-width: 0; min-height: 26px; align-items: center; gap: 7px; overflow: hidden; padding: 0 8px; border: 1px solid var(--color-border); border-radius: 6px; background: #fff; color: var(--color-ink); font-size: 9px; font-weight: 700; white-space: nowrap; }
+		.team-filter-trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+		.control-chevron { width: 5px; height: 5px; flex: 0 0 auto; margin-top: -3px; border-right: 1.25px solid currentColor; border-bottom: 1.25px solid currentColor; transform: rotate(45deg); }
 		.game-grid, .player-grid { grid-template-columns: 1fr; gap: 6px; }
 		.team-filter-sheet[open] { position: fixed; inset: auto 0 0; display: block; width: 100%; max-width: none; margin: 0; padding: 0; border: 0; border-radius: 18px 18px 0 0; background: #fff; color: var(--color-ink); }
 		.team-filter-sheet::backdrop { background: rgb(10 17 30 / 48%); }
