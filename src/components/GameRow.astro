@@ -23,6 +23,7 @@ const hasScore = typeof game.home_score === 'number' && typeof game.away_score =
 <a
 	class="game-row game-card"
 	href={`/games/${encodeURIComponent(game.game_id)}`}
+	data-motion-hover
 	data-schedule-extra={extra ? '' : undefined}
 	data-live-home={game.home_team}
 	data-live-away={game.away_team}

@@ -1,6 +1,6 @@
 # Gridiron Atlas
 
-Gridiron Atlas is a server-rendered NFL dashboard for following the schedule, scores, teams, players, and games from one place.
+Gridiron Atlas is a compact, server-rendered NFL app for following the schedule, scores, teams, players, and games from one centered experience.
 
 Explore upcoming and completed games, check standings and team records, search player profiles and season stats, compare teams, and open detailed game pages. During games, live updates bring scores, game state, recent plays, and available stats into the dashboard. Live information is best effort and may be delayed or unavailable when an upstream provider is unavailable.
 
@@ -25,7 +25,7 @@ The application is built with **Astro** using server-side rendering and the Node
 
 Provider results are cached in memory and on disk under `NFL_DATA_DIR/api-cache` (default: `.data/api-cache`). Concurrent requests are coalesced where applicable. When an upstream source is unavailable, saved data may be served with a stale-data indication rather than presented as current.
 
-The interface uses Astro components and Motion for restrained UI animations, with reduced-motion support. Team marks and player avatars are original, text-based SVGs rather than downloaded NFL logos or player photos.
+The interface uses Astro components and Motion for restrained UI animations, with reduced-motion support. Its sport registry and provider boundary default to the active NFL experience; a planned CFB definition establishes future blue theming and capability gates but is not publicly selectable or available in V2.1. Team marks and player avatars are original, text-based SVGs rather than downloaded NFL logos or player photos.
 
 ## Technology
 
