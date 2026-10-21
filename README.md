@@ -128,3 +128,9 @@ npm test
 npm run build
 npx cdk synth
 ```
+
+## Metrics & observability
+
+- `/metrics` (and `/api/metrics.json`) shows 7-day API requests, error rate, latency, CPU, RAM and storage with week-over-week trends. Protected by HTTP Basic auth; the password is `METRICS_PASSWORD` (defaults to `password` — override in production).
+- With `ALB_DIMENSION`, `ECS_CLUSTER`, `ECS_SERVICE` (set by the CDK stack) data comes from CloudWatch; otherwise from in-process counters.
+- Every request emits one JSON log line (`event: "http_request"`, `level`, `status`, `durationMs`, `requestId`). The CDK stack adds a metric filter on `level=error`, alarms (CPU, memory, 5xx, error logs) and a CloudWatch dashboard.

@@ -1,45 +1,34 @@
 import { defineMiddleware } from 'astro:middleware';
+import { log } from './utils/logger';
+import { isAuthorized, isMetricsPath, unauthorizedResponse } from './utils/metrics-auth';
+import { recordRequest } from './utils/runtime-metrics';
 
 export const onRequest = defineMiddleware(async ({ request, url }, next) => {
 	const startedAt = performance.now();
-	const timestamp = new Date().toISOString();
 	const requestId = crypto.randomUUID();
+	const base = { event: 'http_request', requestId, method: request.method, path: url.pathname };
+
+	if (isMetricsPath(url.pathname) && !isAuthorized(request.headers.get('authorization'))) {
+		log('warn', { ...base, status: 401, durationMs: 0, reason: 'metrics_auth_failed' });
+		return unauthorizedResponse();
+	}
 
 	try {
 		const response = await next();
 		const status = response.status;
-		const log = {
-			timestamp,
-			level: status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info',
-			requestId,
-			method: request.method,
-			path: url.pathname,
-			status,
-			durationMs: Math.round(performance.now() - startedAt),
-		};
-
-		if (status >= 500) {
-			console.error(JSON.stringify(log));
-		} else if (status >= 400) {
-			console.warn(JSON.stringify(log));
-		} else {
-			console.log(JSON.stringify(log));
-		}
-
+		const durationMs = Math.round(performance.now() - startedAt);
+		recordRequest(status, durationMs);
+		log(status >= 500 ? 'error' : status >= 400 ? 'warn' : 'info', { ...base, status, durationMs });
 		return response;
 	} catch (error) {
-		console.error(
-			JSON.stringify({
-				timestamp,
-				level: 'error',
-				requestId,
-				method: request.method,
-				path: url.pathname,
-				status: 500,
-				durationMs: Math.round(performance.now() - startedAt),
-				error: error instanceof Error ? error.name : 'UnknownError',
-			}),
-		);
+		const durationMs = Math.round(performance.now() - startedAt);
+		recordRequest(500, durationMs);
+		log('error', {
+			...base,
+			status: 500,
+			durationMs,
+			error: error instanceof Error ? error.name : 'UnknownError',
+		});
 		throw error;
 	}
 });

@@ -20,6 +20,7 @@
     "@astrojs/node": "^11.1.7",
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.4",
+    "@aws-sdk/client-cloudwatch": "^3.1154.0",
     "astro": "^7.3.8",
     "astro-icon": "^1.2.0",
     "motion": "^14.1.0",
