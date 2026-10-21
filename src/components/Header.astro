@@ -58,7 +58,10 @@ const isCompare = path === '/compare';
 {path === '/' && (
 	<script>
 		const navItems = [...document.querySelectorAll<HTMLElement>('[data-mobile-nav-item]')];
+		let activeName = '';
 		const setActive = (name: string) => {
+			if (name === activeName) return;
+			activeName = name;
 			navItems.forEach((item) => {
 				if (item.dataset.mobileNavItem === name) item.setAttribute('aria-current', 'page');
 				else item.removeAttribute('aria-current');
@@ -67,16 +70,39 @@ const isCompare = path === '/compare';
 		const sections = ['schedule', 'standings', 'players']
 			.map((id) => document.getElementById(id))
 			.filter((section): section is HTMLElement => Boolean(section));
-		const observer = new IntersectionObserver((entries) => {
-			const visible = entries.filter((entry) => entry.isIntersecting)
-				.sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-			if (visible?.target.id) setActive(visible.target.id);
-			else if (window.scrollY < 100) setActive('home');
-		}, { rootMargin: '-25% 0px -60% 0px', threshold: [0, 0.1, 0.5] });
-		sections.forEach((section) => observer.observe(section));
-		window.addEventListener('scroll', () => {
-			if (window.scrollY < 100) setActive('home');
-		}, { passive: true });
+		const activeSection = () => {
+			if (window.scrollY < 100) return 'home';
+			const activationLine = Math.max(150, Math.min(window.innerHeight * 0.45, 380));
+			let current = 'home';
+			for (const section of sections) {
+				if (section.getBoundingClientRect().top > activationLine) break;
+				current = section.id;
+			}
+			const finalSection = sections.at(-1);
+			if (finalSection && finalSection.getBoundingClientRect().top <= window.innerHeight * 0.65) {
+				current = finalSection.id;
+			}
+			return current;
+		};
+		let updateFrame: number | undefined;
+		const updateActiveSection = () => {
+			updateFrame = undefined;
+			setActive(activeSection());
+		};
+		const queueActiveSectionUpdate = () => {
+			if (updateFrame !== undefined) return;
+			updateFrame = window.requestAnimationFrame(updateActiveSection);
+		};
+		navItems.forEach((item) => {
+			item.addEventListener('click', () => {
+				const destination = item.dataset.mobileNavItem;
+				if (destination) setActive(destination);
+			});
+		});
+		window.addEventListener('scroll', queueActiveSectionUpdate, { passive: true });
+		window.addEventListener('resize', queueActiveSectionUpdate, { passive: true });
+		window.addEventListener('hashchange', queueActiveSectionUpdate);
+		queueActiveSectionUpdate();
 	</script>
 )}
 

@@ -809,6 +809,23 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 	expect(appNavStyle.bottom).toBeGreaterThanOrEqual(10);
 	expect(appNavStyle.borderRadius).toBeGreaterThanOrEqual(24);
 	expect(appNavStyle.backdropFilter).toContain('blur');
+	const activeBottomItem = () => page.locator('.mobile-nav a[aria-current="page"]');
+	await expect(activeBottomItem()).toHaveCount(1);
+	await expect(activeBottomItem()).toHaveAttribute('data-mobile-nav-item', 'home');
+	for (const section of ['schedule', 'standings', 'players']) {
+		await page.locator(`#${section}`).evaluate((element, sectionName) => {
+			document.documentElement.style.scrollBehavior = 'auto';
+			const activationLine = Math.max(150, Math.min(window.innerHeight * 0.45, 380));
+			const target = sectionName === 'schedule'
+				? 101
+				: sectionName === 'players'
+					? document.documentElement.scrollHeight - window.innerHeight
+					: window.scrollY + element.getBoundingClientRect().top - activationLine + 1;
+			window.scrollTo(0, target);
+		}, section);
+		await expect(activeBottomItem()).toHaveCount(1);
+		await expect(activeBottomItem()).toHaveAttribute('data-mobile-nav-item', section);
+	}
 	const visibleRows = await page.locator('[data-schedule-list] .game-row').evaluateAll((rows) =>
 		rows.filter((row) => {
 			const bounds = row.getBoundingClientRect();
