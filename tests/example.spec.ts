@@ -765,6 +765,22 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto('/');
 	await expect(page.getByRole('navigation', { name: 'App navigation' })).toBeVisible();
+	const appNavStyle = await page.locator('.mobile-nav').evaluate((element) => {
+		const bounds = element.getBoundingClientRect();
+		const style = getComputedStyle(element);
+		return {
+			left: bounds.left,
+			right: window.innerWidth - bounds.right,
+			bottom: window.innerHeight - bounds.bottom,
+			borderRadius: Number.parseFloat(style.borderRadius),
+			backdropFilter: style.backdropFilter || style.getPropertyValue('-webkit-backdrop-filter'),
+		};
+	});
+	expect(appNavStyle.left).toBeGreaterThanOrEqual(12);
+	expect(appNavStyle.right).toBeGreaterThanOrEqual(12);
+	expect(appNavStyle.bottom).toBeGreaterThanOrEqual(10);
+	expect(appNavStyle.borderRadius).toBeGreaterThanOrEqual(24);
+	expect(appNavStyle.backdropFilter).toContain('blur');
 	const visibleRows = await page.locator('[data-schedule-list] .game-row').evaluateAll((rows) =>
 		rows.filter((row) => {
 			const bounds = row.getBoundingClientRect();

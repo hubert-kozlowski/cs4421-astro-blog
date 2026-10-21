@@ -313,7 +313,7 @@ select {
 	.site-main {
 		width: min(100% - 32px, 1120px);
 		min-height: calc(100vh - 150px);
-		padding: 12px 0 calc(82px + env(safe-area-inset-bottom));
+		padding: 12px 0 calc(94px + env(safe-area-inset-bottom));
 	}
 
 	.page-heading {

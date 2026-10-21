@@ -103,9 +103,72 @@ const isCompare = path === '/compare';
 		.desktop-nav { display: none; }
 		.mobile-more { display: block; }
 		.mobile-more > summary { min-height: 34px; padding: 0 8px; font-size: 11px; }
-		.mobile-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 25; display: grid; grid-template-columns: repeat(4, 1fr); min-height: calc(58px + env(safe-area-inset-bottom)); padding: 4px max(8px, env(safe-area-inset-right)) env(safe-area-inset-bottom) max(8px, env(safe-area-inset-left)); border-top: 1px solid var(--color-border); background: rgb(255 255 255 / 96%); box-shadow: 0 -10px 30px rgb(20 29 48 / 8%); backdrop-filter: blur(18px); }
-		.mobile-nav a { display: grid; min-height: 50px; place-items: center; align-content: center; gap: 1px; border-radius: 10px; color: #7b818d; font-size: 9px; font-weight: 700; text-decoration: none; }
-		.mobile-nav a[aria-current="page"] { color: var(--sport-accent); }
+		.mobile-nav {
+			position: fixed;
+			right: max(12px, env(safe-area-inset-right));
+			bottom: max(10px, env(safe-area-inset-bottom));
+			left: max(12px, env(safe-area-inset-left));
+			z-index: 25;
+			isolation: isolate;
+			display: grid;
+			grid-template-columns: repeat(4, 1fr);
+			max-width: 430px;
+			min-height: 62px;
+			margin: 0 auto;
+			overflow: hidden;
+			padding: 5px;
+			border: 1px solid rgb(255 255 255 / 72%);
+			border-radius: 24px;
+			background:
+				linear-gradient(135deg, rgb(255 255 255 / 78%), rgb(247 249 252 / 62%));
+			box-shadow:
+				0 18px 45px rgb(17 27 48 / 18%),
+				0 3px 12px rgb(17 27 48 / 10%),
+				inset 0 1px 0 rgb(255 255 255 / 88%),
+				inset 0 -1px 0 rgb(125 138 162 / 12%);
+			-webkit-backdrop-filter: saturate(180%) blur(26px);
+			backdrop-filter: saturate(180%) blur(26px);
+		}
+		.mobile-nav::before {
+			position: absolute;
+			z-index: -1;
+			top: -18px;
+			right: 10%;
+			left: 10%;
+			height: 34px;
+			border-radius: 50%;
+			background: rgb(255 255 255 / 48%);
+			filter: blur(12px);
+			content: "";
+			pointer-events: none;
+		}
+		.mobile-nav a {
+			position: relative;
+			z-index: 1;
+			display: grid;
+			min-height: 50px;
+			place-items: center;
+			align-content: center;
+			gap: 1px;
+			border: 1px solid transparent;
+			border-radius: 18px;
+			color: #747b88;
+			font-size: 9px;
+			font-weight: 700;
+			text-decoration: none;
+			transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+		}
+		.mobile-nav a[aria-current="page"] {
+			border-color: rgb(255 255 255 / 78%);
+			background:
+				linear-gradient(145deg, rgb(255 255 255 / 84%), rgb(255 255 255 / 46%)),
+				var(--sport-accent-soft);
+			box-shadow:
+				0 5px 14px rgb(25 35 55 / 10%),
+				inset 0 1px 0 rgb(255 255 255 / 92%);
+			color: var(--sport-accent);
+		}
+		.mobile-nav a:active { transform: scale(.96); }
 		.mobile-nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; }
 	}
 </style>
