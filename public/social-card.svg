@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Gridiron Atlas</title>
+  <desc id="desc">NFL schedules, scores, standings, teams, and players in one place.</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#08111f"/>
+      <stop offset="1" stop-color="#142b48"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.75" cy="0.25" r="0.75">
+      <stop offset="0" stop-color="#ff4d55" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ff4d55" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" rx="36" fill="url(#background)"/>
+  <rect width="1200" height="630" rx="36" fill="url(#glow)"/>
+  <g opacity="0.16" stroke="#b8d7ff" fill="none">
+    <path d="M790 90h280c44 0 80 36 80 80v290c0 44-36 80-80 80H790c-44 0-80-36-80-80V170c0-44 36-80 80-80Z" stroke-width="5"/>
+    <path d="M930 90v450M710 315h440" stroke-width="3"/>
+    <circle cx="930" cy="315" r="52" stroke-width="3"/>
+    <path d="M745 190h55v250h-55M1115 190h-55v250h55" stroke-width="3"/>
+  </g>
+  <g transform="translate(72 72)">
+    <rect width="104" height="104" rx="26" fill="#ff4d55"/>
+    <path d="M27 76 52 20l25 56M37 56h30" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="72" y="250" fill="#ff747a" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="5">THE NFL, MAPPED</text>
+  <text x="72" y="345" fill="#fff" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="800">Gridiron Atlas</text>
+  <text x="72" y="410" fill="#c8d8ec" font-family="Arial, Helvetica, sans-serif" font-size="30">Scores · Schedules · Standings · Players</text>
+  <rect x="72" y="492" width="420" height="2" fill="#ff4d55"/>
+  <text x="72" y="542" fill="#8fa9c7" font-family="Arial, Helvetica, sans-serif" font-size="22">Created by Hubert Kozlowski</text>
+</svg>

@@ -54,6 +54,11 @@ The site runs at <http://localhost:4321>. Useful commands:
 | `npm run build` | Production build |
 | `npm run preview` | Preview the production build |
 
+Set `SITE_URL` to the public HTTPS origin when building for production. Canonical URLs,
+structured data, `robots.txt`, the sitemap, and social previews will then use that origin.
+The container deployment reads the `SITE_URL` GitHub Actions variable, so moving to a
+custom domain does not require a source change.
+
 Playwright uses local NFL and ESPN fixtures so browser tests do not depend on external providers.
 
 ## Run with Docker

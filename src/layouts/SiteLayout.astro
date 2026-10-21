@@ -10,16 +10,17 @@ interface Props {
 	title: string;
 	description: string;
 	sport?: SportId;
+	noindex?: boolean;
 }
 
-const { title, description, sport = DEFAULT_SPORT } = Astro.props;
+const { title, description, sport = DEFAULT_SPORT, noindex = false } = Astro.props;
 const sportDefinition = getSportDefinition(sport);
 ---
 
 <!doctype html>
 <html lang="en">
 	<head>
-		<BaseHead title={`${title} | ${SITE_TITLE}`} description={description} />
+		<BaseHead title={`${title} | ${SITE_TITLE}`} description={description} noindex={noindex} />
 	</head>
 	<body data-sport={sport} data-sport-status={sportDefinition.status}>
 		<Header />
