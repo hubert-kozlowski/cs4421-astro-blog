@@ -133,10 +133,7 @@ test('game detail entrance and stadium reveal avoid layout shifts', async ({ pag
 	await expect(venue).toHaveAttribute('data-motion-played', 'true');
 	const outline = venue.locator('[data-motion-stadium-outline]');
 	await expect.poll(() => outline.evaluate((path) => getComputedStyle(path).strokeDashoffset)).toBe('0px');
-	expect(await outline.evaluate((path) => {
-		const svgPath = path as SVGPathElement;
-		return Number.parseFloat(svgPath.style.strokeDasharray) > svgPath.getTotalLength();
-	})).toBe(true);
+	await expect.poll(() => outline.evaluate((path) => (path as SVGPathElement).style.strokeDasharray)).toBe('');
 	await expect(page.getByRole('heading', { name: 'EverBank Stadium' })).toBeVisible();
 	expect(await venue.evaluate((element) => (element as HTMLElement).offsetTop)).toBe(venueLayoutTop);
 });
