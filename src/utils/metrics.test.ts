@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isAuthorized } from './metrics-auth';
-import { getDailySeries, recordRequest } from './runtime-metrics';
+import { getDailySeries, isHealthProbe, recordRequest } from './runtime-metrics';
 import { computeTrend, utilizationSeverity } from './trend';
 
 describe('computeTrend', () => {
@@ -39,4 +39,10 @@ describe('isAuthorized', () => {
 		expect(isAuthorized(header('bad'), 'pw')).toBe(false);
 		expect(isAuthorized(null, 'pw')).toBe(false);
 	});
+});
+
+it('excludes health probes but keeps live game API traffic', () => {
+	expect(['/api/health', '/api/ready/', '/api/live'].every(isHealthProbe)).toBe(true);
+	expect(isHealthProbe('/api/live/games')).toBe(false);
+	expect(isHealthProbe('/')).toBe(false);
 });

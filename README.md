@@ -131,6 +131,31 @@ npx cdk synth
 
 ## Metrics & observability
 
-- `/metrics` (and `/api/metrics.json`) shows 7-day API requests, error rate, latency, CPU, RAM and storage with week-over-week trends. Protected by HTTP Basic auth; the password is `METRICS_PASSWORD` (defaults to `password` — override in production).
+- `/metrics` (and `/api/metrics.json`) shows 7-day incoming HTTP requests, error rate, latency, CPU, RAM and storage with week-over-week trends. Protected by HTTP Basic auth; the password is `METRICS_PASSWORD` (defaults to `password` — override in production).
 - With `ALB_DIMENSION`, `ECS_CLUSTER`, `ECS_SERVICE` (set by the CDK stack) data comes from CloudWatch; otherwise from in-process counters.
 - Every request emits one JSON log line (`event: "http_request"`, `level`, `status`, `durationMs`, `requestId`). The CDK stack adds a metric filter on `level=error`, alarms (CPU, memory, 5xx, error logs) and a CloudWatch dashboard.
+
+### Request volume and latency
+
+CloudWatch request totals include pages, assets, and API endpoints forwarded by the load balancer; they are **not outbound NFL/ESPN API calls**. ALB health checks are excluded by AWS. In-process counters exclude `/api/health`, `/api/ready`, and `/api/live`, and cover only requests passing through Astro middleware since this instance started. Static assets can bypass these counters.
+
+Charts use UTC calendar days including the incomplete current day. The daily average divides the displayed seven calendar-day buckets by seven; week-over-week comparisons therefore include an incomplete current day. Response latency uses total measured duration divided by response sample count, rather than averaging daily averages. ALB timing ends at response headers; process timing measures Astro middleware handling. Neither is full browser page-load time.
+
+Live scores retain 10-second polling during games. Pregame checks run every minute inside 90 minutes of kickoff; idle checks run every 30 minutes and wake early at the pregame boundary. This reduces a continuously visible idle tab from 288 to 48 scheduled polls/day, plus its initial request. Hidden/offline tabs pause, and failures back off from 30 seconds to five minutes. Schedules, rather than weekdays, determine activity so international and rescheduled games still work.
+
+ESPN scoreboards use the same activity-aware cache policy per date. Concurrent requests share fetches; failures cool down for 30 seconds and may serve validated cached data, explicitly marked stale, for up to 24 hours. Active box scores refresh every minute in the background when cached; final summaries have a separate 24-hour cache so the first final fetch captures the completed game. Each process retains at most 256 response entries and 256 cooldown entries. Cold requests still wait for the provider, with an eight-second timeout.
+
+Use these CloudWatch Logs Insights queries on the SSR application's log group to compare equal traffic windows before and after deployment. Structured logging only covers deployments that emit these events, so it cannot reconstruct a complete history retroactively.
+
+```text
+filter event = "http_request" and path not in ["/api/health", "/api/ready", "/api/live"]
+| stats count(*) as requests, avg(durationMs) as avgMs, pct(durationMs, 95) as p95Ms by path, status
+| sort requests desc
+```
+
+```text
+filter event in ["live_provider_fetch", "live_provider_cache"]
+| stats count(*) as events, avg(durationMs) as avgFetchMs by kind, outcome
+```
+
+Provider logs contain only resource kind, cache outcome, and fetch duration; they omit URLs, parameters, and credentials. Fetch-success and fetch-failure counts distinguish actual upstream calls from cache hits. Compare active-game windows separately from idle windows; the optimisation does not impose a lower request count on genuine live traffic.

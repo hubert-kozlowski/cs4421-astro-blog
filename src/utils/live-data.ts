@@ -1,3 +1,6 @@
+import { LiveProviderCache } from './live-provider-cache';
+import { getLivePollInterval } from './live-update-policy';
+
 const ESPN_BASE_URL =
 	process.env.NFL_LIVE_ESPN_BASE_URL ?? 'https://site.api.espn.com/apis/site/v2/sports/football/nfl';
 export const LIVE_SCOREBOARD_CACHE_TTL_MS = 10_000;
@@ -64,13 +67,7 @@ export interface LiveGamesResult {
 	stale: boolean;
 }
 
-interface CachedValue {
-	fetchedAt: number;
-	value: unknown;
-}
-
-const responseCache = new Map<string, CachedValue>();
-const requests = new Map<string, Promise<unknown>>();
+const providerCache = new LiveProviderCache();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -413,53 +410,56 @@ function parseLiveEvent(event: Record<string, unknown>, now: number): LiveGame |
 	};
 }
 
-async function fetchJson(url: string, cacheKey: string, ttlMs: number): Promise<{ value: unknown; fetchedAt: number }> {
-	const cached = responseCache.get(cacheKey);
-	if (cached && Date.now() - cached.fetchedAt < ttlMs) return cached;
-	let pending = requests.get(cacheKey);
-	if (!pending) {
-		pending = fetch(url, {
+async function fetchJson(
+	url: string,
+	cacheKey: string,
+	ttlMs: number | ((value: unknown, fetchedAt: number) => number),
+	validate: (value: unknown) => boolean,
+	background = false,
+) {
+	return providerCache.get(cacheKey, async () => {
+		const response = await fetch(url, {
 			headers: { Accept: 'application/json' },
 			signal: AbortSignal.timeout(LIVE_REQUEST_TIMEOUT_MS),
-		}).then(async (response) => {
-			if (!response.ok) throw new Error(`Live provider returned HTTP ${response.status}.`);
-			return response.json() as Promise<unknown>;
 		});
-		requests.set(cacheKey, pending);
-	}
-	try {
-		const value = await pending;
-		const entry = { value, fetchedAt: Date.now() };
-		responseCache.set(cacheKey, entry);
-		return entry;
-	} finally {
-		requests.delete(cacheKey);
-	}
+		if (!response.ok) throw new Error(`Live provider returned HTTP ${response.status}.`);
+		return response.json() as Promise<unknown>;
+	}, validate, ttlMs, background);
 }
 
 function dayKey(date: Date): string {
 	return date.toISOString().slice(0, 10).replaceAll('-', '');
 }
 
-async function fetchScoreboard(date: string): Promise<{ events: Record<string, unknown>[]; fetchedAt: number }> {
+async function fetchScoreboard(date: string): Promise<{ events: Record<string, unknown>[]; fetchedAt: number; stale: boolean }> {
 	const query = new URLSearchParams({ dates: date });
-	const { value, fetchedAt } = await fetchJson(
+	const { value, fetchedAt, stale } = await fetchJson(
 		`${ESPN_BASE_URL}/scoreboard?${query}`,
 		`live-scoreboard-${date}`,
-		LIVE_SCOREBOARD_CACHE_TTL_MS,
+		(value, fetchedAt) => {
+			if (!isRecord(value) || !Array.isArray(value.events)) return LIVE_SCOREBOARD_CACHE_TTL_MS;
+			const games = value.events.flatMap((event) => {
+				const game = isRecord(event) ? parseLiveEvent(event, fetchedAt) : null;
+				return game ? [game] : [];
+			});
+			return getLivePollInterval(games, fetchedAt);
+		},
+		(value) => isRecord(value) && Array.isArray(value.events) && value.events.every(isRecord),
 	);
 	if (!isRecord(value) || !Array.isArray(value.events) || !value.events.every(isRecord)) {
 		throw new Error('Live provider returned a scoreboard with an unexpected shape.');
 	}
-	return { events: value.events, fetchedAt };
+	return { events: value.events, fetchedAt, stale };
 }
 
-async function fetchSummary(eventId: string): Promise<{ value: unknown; fetchedAt: number }> {
+async function fetchSummary(eventId: string, final: boolean) {
 	const query = new URLSearchParams({ event: eventId });
 	const result = await fetchJson(
 		`${ESPN_BASE_URL}/summary?${query}`,
-		`live-summary-${eventId}`,
-		LIVE_SUMMARY_CACHE_TTL_MS,
+		`live-summary-${eventId}${final ? '-final' : ''}`,
+		final ? 24 * 60 * 60_000 : LIVE_SUMMARY_CACHE_TTL_MS,
+		isRecord,
+		true,
 	);
 	if (!isRecord(result.value)) throw new Error('Live provider returned a game summary with an unexpected shape.');
 	return result;
@@ -486,14 +486,14 @@ export async function getLiveGames(date = new Date()): Promise<LiveGamesResult> 
 		}
 	}
 
-	let stale = successful.length !== days.length;
+	let stale = successful.length !== days.length || successful.some((result) => result.stale);
 	const games = [...uniqueEvents.values()].sort((left, right) => Date.parse(left.kickoffAt) - Date.parse(right.kickoffAt));
 	const summaries = await Promise.all(
 		games.filter((game) =>
 			game.state === 'in_progress' || game.state === 'halftime' || game.state === 'final',
 		).map(async (game) => {
 			try {
-				return { eventId: game.eventId, value: await fetchSummary(game.eventId) };
+				return { eventId: game.eventId, value: await fetchSummary(game.eventId, game.state === 'final') };
 			} catch (error) {
 				stale = true;
 				console.warn(
@@ -510,6 +510,7 @@ export async function getLiveGames(date = new Date()): Promise<LiveGamesResult> 
 	);
 	for (const summary of summaries) {
 		if (!summary) continue;
+		if (summary.value.stale) stale = true;
 		const game = uniqueEvents.get(summary.eventId);
 		if (game) {
 			game.boxScore = parseBoxScore(summary.value.value);

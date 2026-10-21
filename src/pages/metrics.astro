@@ -18,8 +18,12 @@ const arrow = (d: string) => (d === 'up' ? '▲' : d === 'down' ? '▼' : '–')
 			<h1>Metrics</h1>
 			<p class="meta">
 				Source: <strong>{data.source === 'cloudwatch' ? 'CloudWatch' : 'In-process'}</strong> · updated {data.generatedAt}
-				· trends vs previous 7 days
+				· UTC calendar days, today is incomplete · trends vs previous 7 days
 			</p>
+			<p class="meta">{data.source === 'cloudwatch'
+				? 'Incoming load-balancer traffic, including pages, assets and API endpoints. Health checks are excluded.'
+				: 'Requests handled by this app instance, excluding health probes. Static files may bypass app counters.'}
+				These counts do not measure outbound data-provider calls.</p>
 			{data.note && <p class="note">{data.note}</p>}
 		</header>
 
@@ -50,8 +54,8 @@ const arrow = (d: string) => (d === 'up' ? '▲' : d === 'down' ? '▼' : '–')
 		</div>
 
 		<article class="card chart">
-			<h2>API requests, last 7 days</h2>
-			<div class="bars" role="img" aria-label="Daily API requests bar chart">
+			<h2>HTTP requests, last 7 days</h2>
+			<div class="bars" role="img" aria-label="Daily HTTP requests bar chart">
 				{
 					data.daily.map((d) => (
 						<div class="bar-col">

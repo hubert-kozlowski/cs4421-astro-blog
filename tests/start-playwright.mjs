@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -163,23 +163,32 @@ const provider = createServer((request, response) => {
 	response.end(JSON.stringify(payload));
 });
 
+const status = spawnSync('npm', ['run', 'dev', '--', 'status'], { encoding: 'utf8' });
+if (status.status !== 0 || /Dev server running at/.test(status.stdout)) {
+	throw new Error('Stop the existing Astro dev server with astro dev stop before running browser tests.');
+}
+
 const dataDirectory = await mkdtemp(join(tmpdir(), 'gridiron-playwright-'));
 process.env.NFL_DATA_DIR = dataDirectory;
 await new Promise((resolve) => provider.listen(4322, '127.0.0.1', resolve));
-const app = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', '4331', '--ignore-lock'], {
+const app = spawn('npm', ['run', 'dev', '--', '--host', '127.0.0.1', '--port', '4331', '--background'], {
 	stdio: 'inherit',
 	env: process.env,
 });
 
-function shutdown() {
-	provider.close();
-	if (app.exitCode === null) app.kill('SIGTERM');
-}
-
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
-app.on('exit', async (code) => {
+let stopping = false;
+async function shutdown(code = 0) {
+	if (stopping) return;
+	stopping = true;
+	const stop = spawn('npm', ['run', 'dev', '--', 'stop'], { stdio: 'inherit', env: process.env });
+	await new Promise((resolve) => stop.on('exit', resolve));
 	provider.close();
 	await rm(dataDirectory, { recursive: true, force: true });
-	process.exit(code ?? 1);
+	process.exit(code);
+}
+
+process.on('SIGINT', () => void shutdown());
+process.on('SIGTERM', () => void shutdown());
+app.on('exit', (code) => {
+	if (code !== 0) void shutdown(code ?? 1);
 });
