@@ -55,6 +55,12 @@ const isCompare = path === '/compare';
 	</a>
 </nav>
 
+<script>
+	const standaloneNavigator = navigator as Navigator & { standalone?: boolean };
+	const standalone = window.matchMedia('(display-mode: standalone)').matches || standaloneNavigator.standalone === true;
+	document.documentElement.dataset.displayMode = standalone ? 'standalone' : 'browser';
+</script>
+
 {path === '/' && (
 	<script>
 		const navItems = [...document.querySelectorAll<HTMLElement>('[data-mobile-nav-item]')];
@@ -132,42 +138,34 @@ const isCompare = path === '/compare';
 		.mobile-more > summary { min-height: 44px; padding: 0 8px; font-size: 11px; }
 		.mobile-nav {
 			position: fixed;
-			right: max(12px, env(safe-area-inset-right));
-			bottom: max(10px, env(safe-area-inset-bottom));
-			left: max(12px, env(safe-area-inset-left));
+			right: 0;
+			bottom: 0;
+			left: 0;
 			z-index: 25;
 			isolation: isolate;
 			display: grid;
 			grid-template-columns: repeat(4, 1fr);
-			max-width: 430px;
+			box-sizing: border-box;
+			width: 100%;
+			max-width: none;
 			min-height: 62px;
 			margin: 0 auto;
 			overflow: hidden;
-			padding: 5px;
-			border: 1px solid rgb(255 255 255 / 72%);
-			border-radius: 24px;
+			padding: 5px max(10px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+			border: 0;
+			border-top: 1px solid rgb(210 215 225 / 72%);
+			border-radius: 0;
 			background:
-				linear-gradient(135deg, rgb(255 255 255 / 78%), rgb(247 249 252 / 62%));
+				linear-gradient(180deg, rgb(255 255 255 / 91%), rgb(247 249 252 / 86%));
 			box-shadow:
-				0 18px 45px rgb(17 27 48 / 18%),
-				0 3px 12px rgb(17 27 48 / 10%),
+				0 -1px 8px rgb(17 27 48 / 7%),
 				inset 0 1px 0 rgb(255 255 255 / 88%),
 				inset 0 -1px 0 rgb(125 138 162 / 12%);
 			-webkit-backdrop-filter: saturate(180%) blur(26px);
 			backdrop-filter: saturate(180%) blur(26px);
 		}
 		.mobile-nav::before {
-			position: absolute;
-			z-index: -1;
-			top: -18px;
-			right: 10%;
-			left: 10%;
-			height: 34px;
-			border-radius: 50%;
-			background: rgb(255 255 255 / 48%);
-			filter: blur(12px);
-			content: "";
-			pointer-events: none;
+			display: none;
 		}
 		.mobile-nav a {
 			position: relative;
@@ -197,5 +195,37 @@ const isCompare = path === '/compare';
 		}
 		.mobile-nav a:active { transform: scale(.96); }
 		.mobile-nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+
+		:global(html[data-display-mode="standalone"]) .mobile-nav {
+				right: max(18px, env(safe-area-inset-right));
+				bottom: max(12px, env(safe-area-inset-bottom));
+				left: max(18px, env(safe-area-inset-left));
+				width: auto;
+				max-width: 430px;
+				padding: 5px;
+				border: 1px solid rgb(255 255 255 / 72%);
+				border-radius: 24px;
+				background: linear-gradient(135deg, rgb(255 255 255 / 78%), rgb(247 249 252 / 62%));
+				box-shadow:
+					0 14px 32px rgb(17 27 48 / 14%),
+					0 3px 10px rgb(17 27 48 / 8%),
+					inset 0 1px 0 rgb(255 255 255 / 88%),
+					inset 0 -1px 0 rgb(125 138 162 / 12%);
+		}
+
+		:global(html[data-display-mode="standalone"]) .mobile-nav::before {
+				position: absolute;
+				z-index: -1;
+				top: -18px;
+				right: 10%;
+				left: 10%;
+				display: block;
+				height: 34px;
+				border-radius: 50%;
+				background: rgb(255 255 255 / 48%);
+				filter: blur(12px);
+				content: "";
+				pointer-events: none;
+		}
 	}
 </style>

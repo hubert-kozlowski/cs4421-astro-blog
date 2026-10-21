@@ -734,6 +734,14 @@ test('mobile team filter opens as a focusable sheet and closes with Escape', asy
 	const dialog = page.locator('[data-team-filter-dialog]');
 	await expect(dialog).toBeVisible();
 	expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+	await expect(dialog.locator('select')).toHaveCount(0);
+	const jaguars = dialog.getByRole('radio', { name: /JAX.*Jacksonville Jaguars/ });
+	await jaguars.check();
+	await expect(jaguars).toBeChecked();
+	await dialog.getByRole('button', { name: 'Apply filter' }).click();
+	await expect(page).toHaveURL(/team=JAX/);
+	await page.locator('[data-team-filter-open]').click();
+	await expect(dialog).toBeVisible();
 	await page.keyboard.press('Escape');
 	await expect(dialog).toBeHidden();
 });
@@ -793,6 +801,24 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 		Number.parseFloat(getComputedStyle(button, '::before').height),
 	);
 	expect(visualFilterHeight).toBeLessThanOrEqual(28);
+	const weekFilter = page.locator('#week-filter-mobile');
+	await weekFilter.focus();
+	const weekFocusStyle = await weekFilter.evaluate((select) => ({
+		outline: getComputedStyle(select).outlineStyle,
+		visualHeight: Number.parseFloat(getComputedStyle(select.parentElement!, '::before').height),
+		visualShadow: getComputedStyle(select.parentElement!, '::before').boxShadow,
+	}));
+	expect(weekFocusStyle.outline).toBe('none');
+	expect(weekFocusStyle.visualHeight).toBeLessThanOrEqual(28);
+	expect(weekFocusStyle.visualShadow).not.toBe('none');
+	const goButton = page.locator('.mobile-week-filter button');
+	await goButton.focus();
+	const goFocusStyle = await goButton.evaluate((button) => ({
+		outline: getComputedStyle(button).outlineStyle,
+		visualHeight: Number.parseFloat(getComputedStyle(button, '::before').height),
+	}));
+	expect(goFocusStyle.outline).toBe('none');
+	expect(goFocusStyle.visualHeight).toBeLessThanOrEqual(28);
 	const appNavStyle = await page.locator('.mobile-nav').evaluate((element) => {
 		const bounds = element.getBoundingClientRect();
 		const style = getComputedStyle(element);
@@ -801,13 +827,15 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 			right: window.innerWidth - bounds.right,
 			bottom: window.innerHeight - bounds.bottom,
 			borderRadius: Number.parseFloat(style.borderRadius),
+			boxShadow: style.boxShadow,
 			backdropFilter: style.backdropFilter || style.getPropertyValue('-webkit-backdrop-filter'),
 		};
 	});
-	expect(appNavStyle.left).toBeGreaterThanOrEqual(12);
-	expect(appNavStyle.right).toBeGreaterThanOrEqual(12);
-	expect(appNavStyle.bottom).toBeGreaterThanOrEqual(10);
-	expect(appNavStyle.borderRadius).toBeGreaterThanOrEqual(24);
+	expect(appNavStyle.left).toBe(0);
+	expect(appNavStyle.right).toBe(0);
+	expect(appNavStyle.bottom).toBe(0);
+	expect(appNavStyle.borderRadius).toBe(0);
+	expect(appNavStyle.boxShadow).toContain('-1px 8px');
 	expect(appNavStyle.backdropFilter).toContain('blur');
 	const activeBottomItem = () => page.locator('.mobile-nav a[aria-current="page"]');
 	await expect(activeBottomItem()).toHaveCount(1);
@@ -833,4 +861,22 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 		}).length,
 	);
 	expect(visibleRows).toBeGreaterThanOrEqual(3);
+
+	await page.evaluate(() => {
+		document.documentElement.dataset.displayMode = 'standalone';
+	});
+	const standaloneNavStyle = await page.locator('.mobile-nav').evaluate((element) => {
+		const bounds = element.getBoundingClientRect();
+		const style = getComputedStyle(element);
+		return {
+			left: bounds.left,
+			right: window.innerWidth - bounds.right,
+			bottom: window.innerHeight - bounds.bottom,
+			borderRadius: Number.parseFloat(style.borderRadius),
+		};
+	});
+	expect(standaloneNavStyle.left).toBeGreaterThanOrEqual(18);
+	expect(standaloneNavStyle.right).toBeGreaterThanOrEqual(18);
+	expect(standaloneNavStyle.bottom).toBeGreaterThanOrEqual(12);
+	expect(standaloneNavStyle.borderRadius).toBeGreaterThanOrEqual(24);
 });

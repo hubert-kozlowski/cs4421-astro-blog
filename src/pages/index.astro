@@ -8,6 +8,7 @@ import LiveGameCenter from '../components/LiveGameCenter.astro';
 import NextSessionCountdown from '../components/NextSessionCountdown.astro';
 import PlayerAvatar from '../components/PlayerAvatar.astro';
 import RecordBoard from '../components/RecordBoard.astro';
+import TeamMark from '../components/TeamMark.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
 import {
 	getDashboardData,
@@ -145,11 +146,27 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 							<button type="button" data-team-filter-close aria-label="Close team filter">×</button>
 						</div>
 						<input type="hidden" name="week" value={dashboard.week} />
-						<label for="team-filter-mobile">Team</label>
-						<select id="team-filter-mobile" name="team">
-							<option value="">All teams</option>
-							{dashboard.teams.map((team) => <option value={team.abbr} selected={team.abbr === teamFilter}>{getTeamDisplayName(team.abbr)}</option>)}
-						</select>
+						<fieldset class="team-filter-options">
+							<legend class="sr-only">Choose a team</legend>
+							<label class="team-filter-choice team-filter-choice--all">
+								<input type="radio" name="team" value="" checked={!teamFilter} />
+								<span class="team-filter-choice__surface">
+									<span class="team-filter-choice__league" aria-hidden="true">NFL</span>
+									<span><strong>All teams</strong><small>Show the full weekly slate</small></span>
+									<span class="team-filter-choice__check" aria-hidden="true">✓</span>
+								</span>
+							</label>
+							{dashboard.teams.map((team) => (
+								<label class="team-filter-choice">
+									<input type="radio" name="team" value={team.abbr} checked={team.abbr === teamFilter} />
+									<span class="team-filter-choice__surface">
+										<TeamMark abbr={team.abbr} />
+										<span><strong>{team.abbr}</strong><small>{getTeamDisplayName(team.abbr)}</small></span>
+										<span class="team-filter-choice__check" aria-hidden="true">✓</span>
+									</span>
+								</label>
+							))}
+						</fieldset>
 						<button class="team-filter-apply" type="submit">Apply filter</button>
 					</form>
 				</dialog>
@@ -909,12 +926,14 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 	.select-hitbox { position: relative; display: inline-flex; min-height: 44px; align-items: center; }
 	.select-hitbox::before { position: absolute; inset: 8px 0; border: 1px solid var(--color-border); border-radius: 7px; background: #fff; content: ""; pointer-events: none; }
 	.select-hitbox::after { position: absolute; top: 18px; right: 9px; width: 5px; height: 5px; border-right: 1.25px solid #737a87; border-bottom: 1.25px solid #737a87; content: ""; pointer-events: none; transform: rotate(45deg); }
+	.select-hitbox:focus-within::before { border-color: color-mix(in srgb, var(--sport-accent) 55%, #fff); box-shadow: 0 0 0 2px var(--sport-accent-soft); }
 	.schedule-filter select { position: relative; z-index: 1; min-height: 44px; padding: 0 25px 0 8px; border: 0; border-radius: 7px; background: transparent; font-size: 10px; }
 	.schedule-filter button { position: relative; min-height: 44px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: #fff; font-size: 10px; isolation: isolate; }
 	.schedule-filter button::before { position: absolute; z-index: -1; inset: 8px 0; border-radius: 7px; background: var(--sport-accent); content: ""; }
 	.schedule-filter select, .mobile-week-filter select {
 		appearance: none;
 	}
+	.schedule-filter select:focus-visible, .mobile-week-filter select:focus-visible { outline: none; }
 	.browse-teams { margin-left: 2px; font-size: 10px; }
 	.schedule-filter button:hover::before { background: var(--sport-accent-strong); }
 	.browse-teams, .text-link { color: var(--sport-accent-strong); }
@@ -958,22 +977,41 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		.mobile-week-filter .select-hitbox::before { inset-block: 9px; border-radius: 6px; }
 		.mobile-week-filter .select-hitbox::after { top: 18px; right: 7px; }
 		.mobile-week-filter select { position: relative; z-index: 1; min-height: 44px; padding: 0 20px 0 7px; border: 0; border-radius: 6px; background: transparent; font-size: 9px; }
-		.mobile-week-filter button { position: relative; min-height: 44px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: #fff; font-size: 9px; font-weight: 750; isolation: isolate; }
+		.mobile-week-filter select, .mobile-week-filter button, .team-filter-trigger { -webkit-tap-highlight-color: transparent; }
+		.mobile-week-filter button { position: relative; min-height: 44px; padding: 0 8px; border: 0; border-radius: 6px; outline: none; background: transparent; color: #fff; font-size: 9px; font-weight: 750; isolation: isolate; }
 		.mobile-week-filter button::before { position: absolute; z-index: -1; inset: 9px 0; border-radius: 6px; background: var(--sport-accent); content: ""; }
+		.mobile-week-filter button:focus-visible::before { box-shadow: 0 0 0 2px color-mix(in srgb, var(--sport-accent) 28%, transparent); }
 		.team-filter-trigger { position: relative; display: inline-flex; min-width: 0; min-height: 44px; align-items: center; gap: 7px; overflow: hidden; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: var(--color-ink); font-size: 9px; font-weight: 700; isolation: isolate; white-space: nowrap; }
 		.team-filter-trigger::before { position: absolute; z-index: -1; inset: 9px 0; border: 1px solid var(--color-border); border-radius: 6px; background: #fff; content: ""; }
+		.team-filter-trigger:focus-visible { outline: none; }
+		.team-filter-trigger:focus-visible::before { border-color: color-mix(in srgb, var(--sport-accent) 55%, #fff); box-shadow: 0 0 0 2px var(--sport-accent-soft); }
 		.team-filter-trigger > span:first-child { overflow: hidden; text-overflow: ellipsis; }
 		.control-chevron { width: 5px; height: 5px; flex: 0 0 auto; margin-top: -3px; border-right: 1.25px solid currentColor; border-bottom: 1.25px solid currentColor; transform: rotate(45deg); }
 		.game-grid, .player-grid { grid-template-columns: 1fr; gap: 6px; }
-		.team-filter-sheet[open] { position: fixed; inset: auto 0 0; display: block; width: 100%; max-width: none; margin: 0; padding: 0; border: 0; border-radius: 18px 18px 0 0; background: #fff; color: var(--color-ink); }
-		.team-filter-sheet::backdrop { background: rgb(10 17 30 / 48%); }
-		.team-filter-sheet form { display: grid; gap: 10px; padding: 8px 18px calc(18px + env(safe-area-inset-bottom)); }
-		.team-filter-sheet__handle { width: 38px; height: 4px; margin: 0 auto 5px; border-radius: 999px; background: #d5d8df; }
+		.team-filter-sheet[open] { position: fixed; inset: auto 10px max(10px, env(safe-area-inset-bottom)); display: block; width: auto; max-width: 430px; max-height: min(76dvh, 650px); margin: 0 auto; overflow: hidden; padding: 0; border: 1px solid rgb(255 255 255 / 85%); border-radius: 22px; background: rgb(255 255 255 / 96%); box-shadow: 0 24px 70px rgb(10 17 30 / 28%); color: var(--color-ink); backdrop-filter: blur(24px); }
+		.team-filter-sheet::backdrop { background: rgb(10 17 30 / 42%); backdrop-filter: blur(3px); }
+		.team-filter-sheet form { display: grid; max-height: min(76dvh, 650px); grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 9px; overflow: hidden; padding: 9px 12px 12px; }
+		.team-filter-sheet__handle { width: 34px; height: 4px; margin: 0 auto 1px; border-radius: 999px; background: #d7dae1; }
 		.team-filter-sheet__header { display: flex; align-items: center; justify-content: space-between; }
-		.team-filter-sheet__header button { width: 44px; height: 44px; border: 0; background: transparent; color: var(--color-muted); font-size: 24px; }
-		.team-filter-sheet label { color: var(--color-muted); font-size: 10px; font-weight: 700; }
-		.team-filter-sheet select { min-height: 46px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 11px; background: #fff; }
-		.team-filter-apply { min-height: 46px; border: 0; border-radius: 11px; background: var(--sport-accent); color: #fff; font-weight: 750; }
+		.team-filter-sheet__header strong { font-size: 15px; letter-spacing: -.02em; }
+		.team-filter-sheet__header button { display: grid; width: 44px; height: 44px; place-items: center; border: 0; border-radius: 50%; background: var(--sport-accent-soft); color: var(--sport-accent-strong); font-size: 22px; cursor: pointer; }
+		.team-filter-options { display: grid; min-height: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1px 2px 5px; border: 0; scrollbar-width: thin; }
+		.team-filter-choice { position: relative; min-width: 0; cursor: pointer; }
+		.team-filter-choice--all { grid-column: 1 / -1; }
+		.team-filter-choice input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+		.team-filter-choice input:focus-visible { outline: none; }
+		.team-filter-choice__surface { display: grid; min-height: 50px; box-sizing: border-box; grid-template-columns: 28px minmax(0, 1fr) 15px; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid #e4e6eb; border-radius: 12px; background: #fff; transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
+		.team-filter-choice__surface > span:nth-child(2) { min-width: 0; }
+		.team-filter-choice__surface strong, .team-filter-choice__surface small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.team-filter-choice__surface strong { color: var(--color-ink); font-size: 10px; }
+		.team-filter-choice__surface small { margin-top: 1px; color: var(--color-muted); font-size: 8px; }
+		.team-filter-choice__surface :global(.team-mark) { width: 26px; height: 26px; }
+		.team-filter-choice__league { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 8px; background: var(--color-navy); color: #fff; font-size: 8px; font-weight: 800; }
+		.team-filter-choice__check { color: var(--sport-accent); font-size: 12px; font-weight: 900; opacity: 0; }
+		.team-filter-choice input:checked + .team-filter-choice__surface { border-color: #e7aeb7; background: var(--sport-accent-soft); box-shadow: inset 0 0 0 1px rgb(194 54 70 / 8%); }
+		.team-filter-choice input:checked + .team-filter-choice__surface .team-filter-choice__check { opacity: 1; }
+		.team-filter-choice input:focus-visible + .team-filter-choice__surface { outline: 2px solid color-mix(in srgb, var(--sport-accent) 45%, transparent); outline-offset: 1px; }
+		.team-filter-apply { min-height: 46px; border: 0; border-radius: 12px; background: var(--sport-accent); box-shadow: 0 7px 18px rgb(194 54 70 / 18%); color: #fff; font-size: 11px; font-weight: 750; cursor: pointer; }
 		.players-feature { padding: 12px; }
 		.player-card { min-height: 70px; }
 	}
