@@ -2,6 +2,7 @@
 import DataFreshness from '../components/DataFreshness.astro';
 import DataState from '../components/DataState.astro';
 import GameCard from '../components/GameCard.astro';
+import { isAbsoluteTimestamp } from '../utils/local-game-time';
 import { getTeamDisplayName } from '../utils/team-names';
 import LiveGameCenter from '../components/LiveGameCenter.astro';
 import NextSessionCountdown from '../components/NextSessionCountdown.astro';
@@ -10,11 +11,9 @@ import RecordBoard from '../components/RecordBoard.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
 import UpcomingGames from '../components/UpcomingGames.astro';
 import {
-	compareTeams,
 	getDashboardData,
 	searchPlayersWithSuggestions,
 	type ApiResult,
-	type HeadToHead,
 	type NflDashboardData,
 	type PlayerSearchResult,
 } from '../utils/nfl-data';
@@ -23,8 +22,6 @@ const searchParams = Astro.url.searchParams;
 const requestedWeek = Number(searchParams.get('week'));
 const requestedTeam = searchParams.get('team') ?? '';
 const playerQuery = searchParams.get('player')?.trim() ?? '';
-const team1Param = searchParams.get('team1') ?? '';
-const team2Param = searchParams.get('team2') ?? '';
 
 let dashboardResult: ApiResult<NflDashboardData> | undefined;
 let dashboardError = false;
@@ -47,7 +44,6 @@ const visibleGames =
 	dashboard?.games.filter(
 		(game) => !teamFilter || game.home_team === teamFilter || game.away_team === teamFilter,
 	) ?? [];
-const teamsByConference = dashboard?.teams ?? [];
 
 let playerResults: PlayerSearchResult | undefined;
 let playerError = false;
@@ -66,35 +62,18 @@ if (playerQuery.length >= 2) {
 	}
 }
 
-const validCompareSelection =
-	dashboard &&
-	teamsByConference.some((team) => team.abbr === team1Param) &&
-	teamsByConference.some((team) => team.abbr === team2Param) &&
-	team1Param !== team2Param;
-let matchupResult: ApiResult<HeadToHead> | undefined;
-let matchupError = false;
-if (validCompareSelection) {
-	try {
-		matchupResult = await compareTeams(team1Param, team2Param);
-	} catch (error) {
-		matchupError = true;
-		console.error(
-			JSON.stringify({
-				level: 'error',
-				event: 'matchup_data_unavailable',
-				error: error instanceof Error ? error.name : 'UnknownError',
-			}),
-		);
-	}
-}
-
+const firstKickoff = (dashboard?.countdownGames ?? [])
+	.map((game) => game.kickoff_at ?? '')
+	.filter((value) => isAbsoluteTimestamp(value))
+	.sort()[0];
+const firstFinalAt = firstKickoff ? new Date(Date.parse(firstKickoff) + 3.5 * 3_600_000).toISOString() : undefined;
 const allRecords = dashboard?.records ?? [];
 const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 ---
 
 <SiteLayout
 	title="NFL dashboard"
-	description="Follow NFL games, standings, team records, player profiles, and classic matchups in one colorful dashboard."
+	description="Follow NFL games, standings, team records, player profiles in one colorful dashboard."
 >
 	<section class="dashboard-hero">
 		<div class="dashboard-hero__copy">
@@ -110,7 +89,6 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		<a href="#schedule"><span class="shortcut-icon shortcut-icon--games">01</span> Games</a>
 		<a href="#standings"><span class="shortcut-icon shortcut-icon--standings">02</span> Standings</a>
 		<a href="#players"><span class="shortcut-icon shortcut-icon--players">03</span> Find a player</a>
-		<a href="#matchups"><span class="shortcut-icon shortcut-icon--matchups">04</span> Matchups</a>
 	</nav>
 
 	<section id="schedule" class="dashboard-section" aria-labelledby="schedule-heading">
@@ -186,6 +164,11 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 				<div>
 					<strong>Records will take shape after the first final.</strong>
 					<p>The standings snapshot is calculated from completed regular-season games, not estimates.</p>
+					{firstFinalAt && (
+						<p class="first-final" data-first-final={firstFinalAt}>
+							First finals expected in <time class="first-final__time" data-first-final-time>--:--:--</time>
+						</p>
+					)}
 				</div>
 			</div>
 		) : (
@@ -256,67 +239,33 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 			<DataState title="No players found" description="Try a different spelling or search with a shorter part of the name." />
 		)}
 	</section>
-
-	<section id="matchups" class="dashboard-section" aria-labelledby="matchups-heading">
-		<div class="section-heading">
-			<div>
-				<p class="eyebrow">HISTORY MAKES THE GAME</p>
-				<h2 id="matchups-heading">Set up a matchup.</h2>
-			</div>
-			<span class="matchup-mark" aria-hidden="true">VS</span>
-		</div>
-		<form class="matchup-form" action="/#matchups" method="get">
-			<label>
-				<span>First team</span>
-				<select name="team1" required>
-					<option value="">Choose a team</option>
-					{dashboard?.teams.map((team) => (
-						<option value={team.abbr} selected={team.abbr === team1Param}>{team.name}</option>
-					))}
-				</select>
-			</label>
-			<span class="matchup-vs" aria-hidden="true">VS</span>
-			<label>
-				<span>Second team</span>
-				<select name="team2" required>
-					<option value="">Choose a team</option>
-					{dashboard?.teams.map((team) => (
-						<option value={team.abbr} selected={team.abbr === team2Param}>{team.name}</option>
-					))}
-				</select>
-			</label>
-			<button type="submit">Compare history <span aria-hidden="true">→</span></button>
-		</form>
-		{matchupResult && (
-			<div class="matchup-result">
-				<p class="matchup-result__eyebrow">ALL-TIME SERIES · {matchupResult.value.total_games} GAMES</p>
-				<div class="matchup-result__score">
-					<strong>{matchupResult.value.record[team1Param]?.wins ?? 0}</strong>
-					<span>{team1Param}</span>
-					<i>—</i>
-					<span>{team2Param}</span>
-					<strong>{matchupResult.value.record[team2Param]?.wins ?? 0}</strong>
-				</div>
-				<DataFreshness fetchedAt={matchupResult.fetchedAt} stale={matchupResult.stale} />
-				<p>Historical matchup data · ties: {matchupResult.value.record[team1Param]?.ties ?? 0}</p>
-			</div>
-		)}
-		{team1Param && team2Param && team1Param === team2Param && (
-			<p class="inline-message">Choose two different teams to compare their series.</p>
-		)}
-		{matchupError && (
-			<DataState
-				state="error"
-				title="Matchup history is unavailable"
-				description="We couldn’t load this historical series. Try again in a moment."
-			/>
-		)}
-	</section>
 </SiteLayout>
 
 <script src="../scripts/dashboard-motion.ts"></script>
 <script>
-	import { animate, inView, stagger } from 'motion';
+	const countdown = document.querySelector<HTMLElement>('[data-first-final]');
+	const target = Date.parse(countdown?.dataset.firstFinal ?? '');
+	const output = countdown?.querySelector<HTMLElement>('[data-first-final-time]');
+	if (countdown && output && Number.isFinite(target)) {
+		const tick = () => {
+			const remaining = Math.max(0, target - Date.now());
+			const days = Math.floor(remaining / 86_400_000);
+			const clock = [
+				Math.floor((remaining % 86_400_000) / 3_600_000),
+				Math.floor((remaining % 3_600_000) / 60_000),
+				Math.floor((remaining % 60_000) / 1000),
+			]
+				.map((part) => String(part).padStart(2, '0'))
+				.join(':');
+			output.textContent = days > 0 ? `${days}d ${clock}` : clock;
+			if (remaining === 0) window.clearInterval(timer);
+		};
+		const timer = window.setInterval(tick, 1000);
+		tick();
+	}
+</script>
+<script>
+	import { animate, stagger } from 'motion';
 
 	if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
 		const heroCopy = document.querySelector<HTMLElement>('.dashboard-hero__copy');
@@ -328,23 +277,6 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 				{ duration: 0.5, delay: stagger(0.09), ease: 'easeOut' },
 			);
 		}
-
-		document.querySelectorAll<HTMLElement>('.matchup-result').forEach((result) => {
-			inView(
-				result,
-				(element) => {
-					if (!(element instanceof HTMLElement)) return;
-					if (element.dataset.motionPlayed) return;
-					element.dataset.motionPlayed = 'true';
-					animate(
-						element.querySelectorAll<HTMLElement>('.matchup-result__score strong, .matchup-result__score i'),
-						{ opacity: [0, 1], scale: [0.86, 1], y: [4, 0] },
-						{ duration: 0.38, delay: stagger(0.08), ease: 'easeOut' },
-					);
-				},
-				{ amount: 0.3 },
-			);
-		});
 	}
 
 	if (window.location.hash === '#players' && new URLSearchParams(window.location.search).has('player')) {
@@ -472,11 +404,6 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		color: #6b56bb;
 	}
 
-	.shortcut-icon--matchups {
-		background: #e9f7f0;
-		color: #27825a;
-	}
-
 	.dashboard-section {
 		scroll-margin-top: 110px;
 		margin-top: 52px;
@@ -531,55 +458,56 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		align-items: center;
 		justify-content: flex-start;
 		gap: 10px;
-		margin-bottom: 17px;
-		padding: 9px 12px;
+		margin-bottom: 20px;
+		padding: 10px 14px;
 		border: 1px solid var(--color-border);
-		border-radius: 12px;
+		border-radius: 14px;
 		background: linear-gradient(110deg, #fff, #f9faff);
 	}
 
 	.schedule-filter {
 		display: flex;
 		align-items: center;
-		gap: 8px;
+		gap: 10px 12px;
 	}
 
 	.schedule-filter label {
 		color: var(--color-muted);
-		font-size: 10px;
+		font-size: 11px;
 		font-weight: 650;
 	}
 
-	.schedule-filter select,
-	.matchup-form select {
-		max-width: 145px;
-		min-height: 34px;
-		padding: 0 26px 0 9px;
+	.schedule-filter select {
+		max-width: 160px;
+		min-height: 38px;
+		padding: 0 30px 0 12px;
 		border: 1px solid var(--color-border);
-		border-radius: 9px;
+		border-radius: 10px;
 		background: #fff;
 		color: var(--color-ink);
-		font-size: 11px;
+		font-size: 12px;
 	}
 
 	.schedule-filter button,
-	.player-search button,
-	.matchup-form button {
-		min-height: 34px;
-		padding: 0 13px;
+	.player-search button {
+		min-height: 38px;
+		padding: 0 18px;
 		border: 0;
-		border-radius: 9px;
+		border-radius: 10px;
 		background: var(--color-navy);
 		color: #fff;
-		font-size: 11px;
+		font-size: 12px;
 		font-weight: 650;
+		line-height: 1;
+		white-space: nowrap;
 		cursor: pointer;
 		transition: background-color 140ms ease;
 	}
 
 	.browse-teams {
+		margin-left: 4px;
 		color: var(--color-blue);
-		font-size: 10px;
+		font-size: 11px;
 		font-weight: 650;
 		text-decoration: none;
 		white-space: nowrap;
@@ -591,8 +519,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 	}
 
 	.schedule-filter button:hover,
-	.player-search button:hover,
-	.matchup-form button:hover {
+	.player-search button:hover {
 		background: #294577;
 	}
 
@@ -633,6 +560,24 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 
 	.section-empty strong {
 		font-size: 12px;
+	}
+
+	.first-final {
+		display: inline-flex;
+		align-items: center;
+		gap: 8px;
+		margin-top: 10px !important;
+		padding: 4px 10px;
+		border-radius: 999px;
+		background: #eeedff;
+		color: #4d3f94 !important;
+		font-size: 11px;
+		font-weight: 650;
+	}
+
+	.first-final__time {
+		font-variant-numeric: tabular-nums;
+		font-weight: 800;
 	}
 
 	.section-empty p {
@@ -791,110 +736,6 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		font-size: 12px;
 	}
 
-	.matchup-mark {
-		display: grid;
-		width: 38px;
-		height: 38px;
-		place-items: center;
-		border-radius: 12px;
-		background: #e9f7f0;
-		color: #32825e;
-		font-size: 10px;
-		font-weight: 850;
-		letter-spacing: 0.06em;
-	}
-
-	.matchup-form {
-		display: flex;
-		align-items: flex-end;
-		gap: 13px;
-		padding: 19px;
-		border: 1px solid var(--color-border);
-		border-radius: 17px;
-		background: linear-gradient(100deg, #fff, #f8fcf9);
-	}
-
-	.matchup-form label {
-		display: grid;
-		flex: 1 1 0;
-		gap: 6px;
-		color: var(--color-muted);
-		font-size: 10px;
-		font-weight: 650;
-	}
-
-	.matchup-form select {
-		max-width: none;
-		min-height: 40px;
-		font-size: 12px;
-	}
-
-	.matchup-vs {
-		padding-bottom: 11px;
-		color: #7f8998;
-		font-size: 9px;
-		font-weight: 800;
-		letter-spacing: 0.08em;
-	}
-
-	.matchup-form button {
-		min-height: 40px;
-		padding: 0 16px;
-		background: #327957;
-		white-space: nowrap;
-	}
-
-	.matchup-form button:hover {
-		background: #246544;
-	}
-
-	.matchup-result {
-		margin-top: 13px;
-		padding: 18px 20px;
-		border: 1px solid #d8ebdf;
-		border-radius: 15px;
-		background: #f4fbf6;
-		text-align: center;
-	}
-
-	.matchup-result__eyebrow {
-		margin: 0;
-		color: #428064;
-		font-size: 9px;
-		font-weight: 800;
-		letter-spacing: 0.1em;
-	}
-
-	.matchup-result__score {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 13px;
-		margin: 8px 0 5px;
-	}
-
-	.matchup-result__score strong {
-		color: #1b6845;
-		font-size: 30px;
-		letter-spacing: -0.05em;
-	}
-
-	.matchup-result__score span {
-		font-size: 12px;
-		font-weight: 750;
-	}
-
-	.matchup-result__score i {
-		color: #92a79b;
-		font-style: normal;
-	}
-
-	.matchup-result > p:last-child {
-		margin: 0;
-		color: var(--color-muted);
-		font-size: 10px;
-	}
-
 	@media (max-width: 820px) {
 		.dashboard-hero {
 			min-height: 220px;
@@ -983,27 +824,6 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 			align-items: flex-start;
 			flex-direction: column;
 			gap: 5px;
-		}
-
-		.matchup-form {
-			display: grid;
-			grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-			gap: 10px;
-			padding: 13px;
-		}
-
-		.matchup-form select {
-			min-width: 0;
-			font-size: 10px;
-		}
-
-		.matchup-vs {
-			align-self: end;
-			padding-bottom: 13px;
-		}
-
-		.matchup-form button {
-			grid-column: 1 / -1;
 		}
 	}
 </style>

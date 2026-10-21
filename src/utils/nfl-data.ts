@@ -748,6 +748,54 @@ export function nearestPlayerMatches(query: string, players: NflPlayer[], limit 
 		.map(({ player }) => player);
 }
 
+const POSITION_PROMINENCE: Readonly<Record<string, number>> = {
+	QB: 6,
+	RB: 4,
+	WR: 4,
+	TE: 3,
+	K: 1,
+	DE: 2,
+	LB: 2,
+	CB: 2,
+	S: 2,
+	DT: 2,
+};
+
+function playerPopularity(player: NflPlayer): number {
+	let score = POSITION_PROMINENCE[player.position ?? ''] ?? 1;
+	if (player.status === 'ACT') score += 12;
+	else if (player.status === 'RES' || player.status === 'INA') score += 3;
+	if (player.draft_round === 1) score += 5;
+	else if (player.draft_round === 2) score += 3;
+	else if (player.draft_round === 3) score += 1;
+	if (player.draft_pick && player.draft_round === 1) score += Math.max(0, (33 - player.draft_pick) / 8);
+	score += Math.min(player.years_exp ?? 0, 12) / 3;
+	return score;
+}
+
+function nameRelevance(query: string, player: NflPlayer): number {
+	const queryTokens = normalizePlayerName(query);
+	const nameTokens = normalizePlayerName(player.display_name);
+	const full = nameTokens.join(' ');
+	const joinedQuery = queryTokens.join(' ');
+	if (full === joinedQuery) return 30;
+	if (full.startsWith(joinedQuery)) return 18;
+	const last = nameTokens.at(-1) ?? '';
+	if (queryTokens.length === 1 && last === queryTokens[0]) return 14;
+	if (queryTokens.every((token) => nameTokens.some((part) => part.startsWith(token)))) return 8;
+	return 0;
+}
+
+export function rankPlayers(query: string, players: NflPlayer[]): NflPlayer[] {
+	return players
+		.map((player) => ({ player, score: nameRelevance(query, player) + playerPopularity(player) }))
+		.sort(
+			(left, right) =>
+				right.score - left.score || left.player.display_name.localeCompare(right.player.display_name),
+		)
+		.map(({ player }) => player);
+}
+
 export interface PlayerSearchResult extends ApiResult<PaginatedResponse<NflPlayer>> {
 	suggested: boolean;
 }
@@ -756,8 +804,11 @@ export async function searchPlayersWithSuggestions(
 	name: string,
 	limit = 20,
 ): Promise<PlayerSearchResult> {
-	const exact = await searchPlayers(name, limit);
-	if (exact.value.data.length > 0) return { ...exact, suggested: false };
+	const exact = await searchPlayers(name, Math.max(limit, 100));
+	if (exact.value.data.length > 0) {
+		const data = rankPlayers(name, exact.value.data).slice(0, limit);
+		return { ...exact, value: { ...exact.value, data }, suggested: false };
+	}
 
 	const fallbackTokens = normalizePlayerName(name)
 		.filter((token) => token.length >= 3)
@@ -767,7 +818,10 @@ export async function searchPlayersWithSuggestions(
 
 	for (const token of fallbackTokens) {
 		const candidates = await searchPlayers(token.slice(0, 3), 100);
-		const nearest = nearestPlayerMatches(name, candidates.value.data, limit);
+		const nearest = rankPlayers(
+			name,
+			nearestPlayerMatches(name, candidates.value.data, candidates.value.data.length),
+		).slice(0, limit);
 		if (nearest.length === 0) continue;
 
 		return {

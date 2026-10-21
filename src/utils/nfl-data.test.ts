@@ -11,6 +11,7 @@ import {
 	makeDashboard,
 	mergeEspnFinalScores,
 	nearestPlayerMatches,
+	rankPlayers,
 	selectPlayerSeasonStats,
 	sortGamesByKickoffAndShock,
 	type NflGame,
@@ -105,6 +106,16 @@ describe('NFL season data helpers', () => {
 		expect(nearestPlayerMatches('Pattrick Mahmoes', players).map((player) => player.gsis_id)).toEqual([
 			'mahomes',
 		]);
+	});
+
+	it('ranks active, prominent players ahead of obscure namesakes', () => {
+		const players: NflPlayer[] = [
+			{ gsis_id: 'a', display_name: 'Josh Allen', position: 'LB', status: 'RET', years_exp: 2 },
+			{ gsis_id: 'b', display_name: 'Josh Allen', position: 'QB', status: 'ACT', years_exp: 8, draft_round: 1, draft_pick: 7 },
+			{ gsis_id: 'c', display_name: 'Joshua Allen', position: 'WR', status: 'ACT', years_exp: 1 },
+		];
+
+		expect(rankPlayers('Josh Allen', players).map((player) => player.gsis_id)).toEqual(['b', 'a', 'c']);
 	});
 
 	it('does not suggest a player when only one token is similar', () => {
