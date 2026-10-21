@@ -1,7 +1,7 @@
 ---
 import DataFreshness from '../components/DataFreshness.astro';
 import DataState from '../components/DataState.astro';
-import GameCard from '../components/GameCard.astro';
+import GameRow from '../components/GameRow.astro';
 import { isAbsoluteTimestamp } from '../utils/local-game-time';
 import { getTeamDisplayName } from '../utils/team-names';
 import LiveGameCenter from '../components/LiveGameCenter.astro';
@@ -9,7 +9,6 @@ import NextSessionCountdown from '../components/NextSessionCountdown.astro';
 import PlayerAvatar from '../components/PlayerAvatar.astro';
 import RecordBoard from '../components/RecordBoard.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
-import UpcomingGames from '../components/UpcomingGames.astro';
 import {
 	getDashboardData,
 	searchPlayersWithSuggestions,
@@ -43,7 +42,11 @@ const teamFilter = dashboard?.teams.some((team) => team.abbr === requestedTeam) 
 const visibleGames =
 	dashboard?.games.filter(
 		(game) => !teamFilter || game.home_team === teamFilter || game.away_team === teamFilter,
-	) ?? [];
+	).sort((left, right) => {
+		const leftTime = isAbsoluteTimestamp(left.kickoff_at ?? undefined) ? Date.parse(left.kickoff_at!) : Number.MAX_SAFE_INTEGER;
+		const rightTime = isAbsoluteTimestamp(right.kickoff_at ?? undefined) ? Date.parse(right.kickoff_at!) : Number.MAX_SAFE_INTEGER;
+		return leftTime - rightTime || (left.gameday ?? '').localeCompare(right.gameday ?? '');
+	}) ?? [];
 
 let playerResults: PlayerSearchResult | undefined;
 let playerError = false;
@@ -77,44 +80,34 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 >
 	<section class="dashboard-hero">
 		<div class="dashboard-hero__copy">
-			<p class="eyebrow">THE NFL, IN FULL VIEW</p>
-			<h1>Every game.<br /><span>One place.</span></h1>
-			<p>From kickoff to the final whistle, follow the games, teams, and players shaping the season.</p>
+			<p class="eyebrow">NFL · {dashboard ? `WEEK ${dashboard.week}` : 'SEASON'}</p>
+			<h1>Every game. <span>One place.</span></h1>
 		</div>
 	</section>
-	{dashboard && <NextSessionCountdown games={dashboard.countdownGames} />}
 	<LiveGameCenter />
-
-	<nav class="dashboard-shortcuts" aria-label="Jump to a dashboard feature">
-		<a href="#schedule"><span class="shortcut-icon shortcut-icon--games">01</span> Games</a>
-		<a href="#standings"><span class="shortcut-icon shortcut-icon--standings">02</span> Standings</a>
-		<a href="#players"><span class="shortcut-icon shortcut-icon--players">03</span> Find a player</a>
-	</nav>
+	{dashboard && <NextSessionCountdown games={dashboard.countdownGames} />}
 
 	<section id="schedule" class="dashboard-section" aria-labelledby="schedule-heading">
-		<div class="section-heading">
+		<div class="section-heading schedule-heading">
 			<div>
-				<p class="eyebrow">THE WEEKLY LINEUP</p>
-				<h2 id="schedule-heading">Pick your game.</h2>
+				<p class="eyebrow">WEEKLY LINEUP</p>
+				<h2 id="schedule-heading">Games</h2>
 			</div>
 			{dashboardResult && <DataFreshness fetchedAt={dashboardResult.fetchedAt} stale={dashboardResult.stale} />}
 		</div>
 
 		{dashboard && (
 			<>
-				{dashboard.upcomingGames.length > 0 && (
-					<UpcomingGames games={dashboard.upcomingGames} />
-				)}
-				<div class="schedule-toolbar">
+				<div class="schedule-toolbar schedule-toolbar--desktop">
 					<form class="schedule-filter" action="/#schedule" method="get">
-						<label for="week-filter">Week</label>
-						<select id="week-filter" name="week">
+						<label for="week-filter-desktop">Week</label>
+						<select id="week-filter-desktop" name="week">
 							{dashboard.availableWeeks.map((week) => (
 								<option value={week} selected={week === dashboard.week}>Week {week}</option>
 							))}
 						</select>
-						<label for="team-filter">Team</label>
-						<select id="team-filter" name="team">
+						<label for="team-filter-desktop">Team</label>
+						<select id="team-filter-desktop" name="team">
 							<option value="">All teams</option>
 							{dashboard.teams.map((team) => (
 								<option value={team.abbr} selected={team.abbr === teamFilter}>{getTeamDisplayName(team.abbr)}</option>
@@ -124,13 +117,45 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 						<a class="browse-teams" href="/teams">Browse teams ↗</a>
 					</form>
 				</div>
+				<div class="schedule-toolbar schedule-toolbar--mobile">
+					<form class="mobile-week-filter" action="/#schedule" method="get">
+						<label for="week-filter-mobile">Week</label>
+						<select id="week-filter-mobile" name="week">
+							{dashboard.availableWeeks.map((week) => <option value={week} selected={week === dashboard.week}>{week}</option>)}
+						</select>
+						{teamFilter && <input type="hidden" name="team" value={teamFilter} />}
+						<button type="submit">Go</button>
+					</form>
+					<button class="team-filter-trigger" type="button" data-team-filter-open>
+						{teamFilter ? getTeamDisplayName(teamFilter) : 'All teams'} <span aria-hidden="true">⌄</span>
+					</button>
+				</div>
+				<dialog class="team-filter-sheet" data-team-filter-dialog aria-labelledby="team-filter-title">
+					<form action="/#schedule" method="get">
+						<div class="team-filter-sheet__handle" aria-hidden="true"></div>
+						<div class="team-filter-sheet__header">
+							<strong id="team-filter-title">Filter by team</strong>
+							<button type="button" data-team-filter-close aria-label="Close team filter">×</button>
+						</div>
+						<input type="hidden" name="week" value={dashboard.week} />
+						<label for="team-filter-mobile">Team</label>
+						<select id="team-filter-mobile" name="team">
+							<option value="">All teams</option>
+							{dashboard.teams.map((team) => <option value={team.abbr} selected={team.abbr === teamFilter}>{getTeamDisplayName(team.abbr)}</option>)}
+						</select>
+						<button class="team-filter-apply" type="submit">Apply filter</button>
+					</form>
+				</dialog>
 				{dashboard.stale && (
 					<p class="stale-note">The provider is temporarily unavailable. Showing the last saved NFL data.</p>
 				)}
 				{visibleGames.length > 0 ? (
-					<div class="game-grid">
-						{visibleGames.map((game) => <GameCard game={game} teams={dashboard.teams} />)}
-					</div>
+					<>
+						<div class="game-grid" data-schedule-list>
+							{visibleGames.map((game, index) => <GameRow game={game} teams={dashboard.teams} extra={index >= 6} />)}
+						</div>
+						{visibleGames.length > 6 && <button class="show-all-games" type="button" data-schedule-toggle aria-expanded="false">Show all {visibleGames.length} games</button>}
+					</>
 				) : (
 					<DataState
 						title={teamFilter ? `No ${getTeamDisplayName(teamFilter)} game in week ${dashboard.week}` : `No games listed for week ${dashboard.week}`}
@@ -281,6 +306,30 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 
 	if (window.location.hash === '#players' && new URLSearchParams(window.location.search).has('player')) {
 		document.querySelector('#players')?.scrollIntoView({ block: 'start', behavior: 'instant' });
+	}
+</script>
+<script>
+	const schedule = document.querySelector<HTMLElement>('[data-schedule-list]');
+	const scheduleToggle = document.querySelector<HTMLButtonElement>('[data-schedule-toggle]');
+	scheduleToggle?.addEventListener('click', () => {
+		const expanded = schedule?.classList.toggle('is-expanded') ?? false;
+		scheduleToggle.setAttribute('aria-expanded', String(expanded));
+		scheduleToggle.textContent = expanded ? 'Show fewer games' : `Show all ${schedule?.children.length ?? ''} games`;
+	});
+
+	const teamDialog = document.querySelector<HTMLDialogElement>('[data-team-filter-dialog]');
+	document.querySelector('[data-team-filter-open]')?.addEventListener('click', () => teamDialog?.showModal());
+	document.querySelector('[data-team-filter-close]')?.addEventListener('click', () => teamDialog?.close());
+	teamDialog?.addEventListener('click', (event) => {
+		if (event.target === teamDialog) teamDialog.close();
+	});
+
+	const liveCenter = document.querySelector<HTMLElement>('[data-live-center]');
+	const nextSession = document.querySelector<HTMLElement>('[data-next-session-shell]');
+	if (liveCenter && nextSession) {
+		const syncStatusStrip = () => { nextSession.hidden = !liveCenter.hidden; };
+		new MutationObserver(syncStatusStrip).observe(liveCenter, { attributes: true, attributeFilter: ['hidden'] });
+		syncStatusStrip();
 	}
 </script>
 
@@ -825,5 +874,80 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 			flex-direction: column;
 			gap: 5px;
 		}
+	}
+
+	/* V2.1 compact application treatment. */
+	.dashboard-hero {
+		min-height: 92px;
+		padding: 18px 28px;
+		border-radius: 18px 18px 0 0;
+		background:
+			radial-gradient(ellipse at 82% 0%, rgb(201 41 58 / 24%), transparent 35%),
+			linear-gradient(115deg, #111a2e 0%, #1b2a49 70%, #30213a 100%);
+	}
+	.dashboard-hero::after { bottom: -155px; height: 210px; }
+	.dashboard-hero .eyebrow { margin-bottom: 5px; color: #e3b9c1; font-size: 9px; }
+	.dashboard-hero h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1; white-space: nowrap; }
+	.dashboard-hero h1 span { color: #f07483; }
+	.dashboard-section { margin-top: 28px; }
+	#schedule { margin-top: 12px; }
+	.section-heading { align-items: center; margin-bottom: 10px; }
+	.section-heading .eyebrow { margin-bottom: 2px; font-size: 9px; }
+	.section-heading h2 { font-size: clamp(20px, 2.4vw, 25px); }
+	.schedule-toolbar { margin-bottom: 9px; padding: 6px 9px; border-radius: 11px; }
+	.schedule-filter select { min-height: 34px; }
+	.schedule-filter button { min-height: 34px; background: var(--sport-accent); }
+	.schedule-filter button:hover { background: var(--sport-accent-strong); }
+	.browse-teams, .text-link { color: var(--sport-accent-strong); }
+	.game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+	.game-grid :global([data-schedule-extra]) { display: none; }
+	.game-grid.is-expanded :global([data-schedule-extra]) { display: grid; }
+	.show-all-games {
+		display: block;
+		min-height: 38px;
+		margin: 10px auto 0;
+		padding: 0 15px;
+		border: 1px solid #ecc8ce;
+		border-radius: 10px;
+		background: var(--sport-accent-soft);
+		color: var(--sport-accent-strong);
+		font-size: 11px;
+		font-weight: 750;
+		cursor: pointer;
+	}
+	.schedule-toolbar--mobile, .team-filter-sheet { display: none; }
+	.players-feature { padding: 16px; border-radius: 16px; background: linear-gradient(110deg, #fff, #fff8f9); }
+	.player-search { max-width: none; min-height: 43px; margin-bottom: 9px; }
+	.player-search > span { color: var(--sport-accent); }
+	.player-search button { min-height: 33px; background: var(--sport-accent); }
+	.player-search button:hover { background: var(--sport-accent-strong); }
+	.player-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+	.player-card { min-height: 76px; padding: 9px; }
+
+	@media (max-width: 560px) {
+		.dashboard-hero { min-height: 70px; padding: 12px 15px; border-radius: 15px 15px 0 0; }
+		.dashboard-hero h1 { font-size: 25px; }
+		.dashboard-section { margin-top: 22px; }
+		#schedule { margin-top: 8px; }
+		.section-heading { align-items: center; flex-direction: row; gap: 8px; margin-bottom: 7px; }
+		.schedule-toolbar--desktop { display: none; }
+		.schedule-toolbar--mobile { display: flex; width: 100%; justify-content: space-between; }
+		.mobile-week-filter { display: flex; align-items: center; gap: 6px; }
+		.mobile-week-filter label { color: var(--color-muted); font-size: 9px; font-weight: 700; }
+		.mobile-week-filter select { min-height: 34px; padding: 0 22px 0 9px; border: 1px solid var(--color-border); border-radius: 9px; background: #fff; font-size: 11px; }
+		.mobile-week-filter button { min-height: 34px; padding: 0 9px; border: 0; border-radius: 9px; background: var(--sport-accent); color: #fff; font-size: 10px; font-weight: 750; }
+		.team-filter-trigger { min-width: 0; min-height: 34px; overflow: hidden; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 9px; background: #fff; color: var(--color-ink); font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+		.game-grid, .player-grid { grid-template-columns: 1fr; gap: 6px; }
+		.team-filter-sheet[open] { position: fixed; inset: auto 0 0; display: block; width: 100%; max-width: none; margin: 0; padding: 0; border: 0; border-radius: 18px 18px 0 0; background: #fff; color: var(--color-ink); }
+		.team-filter-sheet::backdrop { background: rgb(10 17 30 / 48%); }
+		.team-filter-sheet form { display: grid; gap: 10px; padding: 8px 18px calc(18px + env(safe-area-inset-bottom)); }
+		.team-filter-sheet__handle { width: 38px; height: 4px; margin: 0 auto 5px; border-radius: 999px; background: #d5d8df; }
+		.team-filter-sheet__header { display: flex; align-items: center; justify-content: space-between; }
+		.team-filter-sheet__header button { width: 36px; height: 36px; border: 0; background: transparent; color: var(--color-muted); font-size: 24px; }
+		.team-filter-sheet label { color: var(--color-muted); font-size: 10px; font-weight: 700; }
+		.team-filter-sheet select { min-height: 46px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: 11px; background: #fff; }
+		.team-filter-apply { min-height: 46px; border: 0; border-radius: 11px; background: var(--sport-accent); color: #fff; font-weight: 750; }
+		.players-feature { padding: 12px; }
+		.player-card { min-height: 70px; }
 	}
 </style>

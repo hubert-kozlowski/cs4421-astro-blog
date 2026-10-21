@@ -13,7 +13,7 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 	class="live-center"
 	aria-label={isGamePage ? 'Live game updates' : 'NFL games happening now'}
 	data-live-center
-	data-live-layout={isGamePage ? 'game-detail' : 'ticker'}
+	data-live-layout={isGamePage ? 'game-detail' : 'summary'}
 	data-game-home={homeTeam}
 	data-game-away={awayTeam}
 	hidden
@@ -63,6 +63,32 @@ const isGamePage = Boolean(homeTeam && awayTeam);
 		border-radius: 12px;
 		background: linear-gradient(110deg, #fff, #fcfcfd);
 		color: #292d35;
+	}
+
+	.live-center[data-live-layout="summary"] {
+		margin: 0 0 10px;
+		border: 0;
+		border-top: 1px solid rgb(255 255 255 / 12%);
+		border-radius: 0 0 18px 18px;
+		background: linear-gradient(105deg, #111b30, #20375f);
+		color: #fff;
+	}
+
+	.live-center[data-live-layout="summary"] .live-center__header {
+		min-height: 25px;
+		padding: 3px 12px;
+		border-bottom-color: rgb(255 255 255 / 10%);
+	}
+
+	.live-center[data-live-layout="summary"] .live-center__label,
+	.live-center[data-live-layout="summary"] .live-center__freshness {
+		color: #b8c5d9;
+	}
+
+	.live-center[data-live-layout="summary"] :global(.live-game-row) {
+		min-height: 32px;
+		padding: 3px 12px 7px;
+		border-bottom: 0;
 	}
 
 	.live-center[hidden],

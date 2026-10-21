@@ -82,7 +82,7 @@ select {
 	width: min(100% - 48px, 1120px);
 	min-height: calc(100vh - 166px);
 	margin: 0 auto;
-	padding: 64px 0 88px;
+	padding: 26px 0 70px;
 }
 
 #schedule,
@@ -94,7 +94,7 @@ select {
 
 .page-heading {
 	max-width: 720px;
-	margin: 0 0 34px;
+	margin: 0 0 20px;
 }
 
 .eyebrow {
@@ -108,7 +108,7 @@ select {
 
 .page-heading h1 {
 	margin: 0;
-	font-size: clamp(36px, 5vw, 54px);
+	font-size: clamp(30px, 4vw, 44px);
 	font-weight: 700;
 	letter-spacing: -0.055em;
 	line-height: 1.04;
@@ -116,10 +116,10 @@ select {
 
 .page-heading > p:last-child {
 	max-width: 620px;
-	margin: 16px 0 0;
+	margin: 9px 0 0;
 	color: var(--color-muted);
-	font-size: 17px;
-	line-height: 1.65;
+	font-size: 14px;
+	line-height: 1.55;
 }
 
 .content-card {
@@ -313,15 +313,15 @@ select {
 	.site-main {
 		width: min(100% - 32px, 1120px);
 		min-height: calc(100vh - 150px);
-		padding: 42px 0 64px;
+		padding: 12px 0 calc(82px + env(safe-area-inset-bottom));
 	}
 
 	.page-heading {
-		margin-bottom: 26px;
+		margin-bottom: 15px;
 	}
 
 	.page-heading > p:last-child {
-		font-size: 15px;
+		font-size: 13px;
 	}
 
 	.content-card__header {

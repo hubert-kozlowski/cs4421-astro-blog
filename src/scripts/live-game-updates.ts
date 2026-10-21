@@ -833,21 +833,22 @@ function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChange
 			continue;
 		}
 		const fragment = document.createDocumentFragment();
+		const isSummary = center.dataset.liveLayout === 'summary';
 		const orderedGames = orderLiveGames(center, relevant);
-		for (const game of orderedGames) {
+		for (const game of isSummary ? orderedGames.slice(0, 1) : orderedGames) {
 			const recentEvent = recentEvents.get(game.eventId);
 			const event = recentEvent && recentEvent.expiresAt > Date.now()
 				? { ...recentEvent, announce: eventIds.has(game.eventId) }
 				: undefined;
-			fragment.append(
-				renderLiveRow(
+			const row = renderLiveRow(
 					center,
 					game,
 					event,
 					scoreChangedIds.has(game.eventId),
-					center.dataset.liveLayout !== 'game-detail',
-				),
-			);
+					!isSummary && center.dataset.liveLayout !== 'game-detail',
+				);
+			if (isSummary) row.classList.add('live-game-row--compact');
+			fragment.append(row);
 		}
 		list.replaceChildren(fragment);
 		list.querySelectorAll<HTMLElement>('[data-touchdown-motion="pending"]').forEach(animateTouchdown);
