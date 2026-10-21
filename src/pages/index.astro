@@ -82,6 +82,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		<div class="dashboard-hero__copy">
 			<p class="eyebrow">NFL · {dashboard ? `WEEK ${dashboard.week}` : 'SEASON'}</p>
 			<h1>Every game. <span>One place.</span></h1>
+			<p class="dashboard-hero__lede">Scores, standings, and every matchup across the league.</p>
 		</div>
 	</section>
 	<LiveGameCenter />
@@ -879,6 +880,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 	/* V2.1 compact application treatment. */
 	.dashboard-hero {
 		min-height: 210px;
+		align-items: center;
 		padding: 30px 36px;
 		border-radius: 18px 18px 0 0;
 		background:
@@ -887,16 +889,20 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 	}
 	.dashboard-hero::after { right: -18px; bottom: -108px; width: 430px; height: 270px; }
 	.dashboard-hero .eyebrow { margin-bottom: 5px; color: #e3b9c1; font-size: 9px; }
-	.dashboard-hero h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1; white-space: nowrap; }
+	.dashboard-hero h1 { font-size: clamp(36px, 4.5vw, 48px); line-height: .98; white-space: nowrap; }
 	.dashboard-hero h1 span { color: #f07483; }
+	.dashboard-hero__lede { max-width: 390px; margin: 13px 0 0 !important; color: #c9d2e2 !important; font-size: 13px !important; line-height: 1.45 !important; }
 	.dashboard-section { margin-top: 28px; }
 	#schedule { margin-top: 12px; }
 	.section-heading { align-items: center; margin-bottom: 10px; }
 	.section-heading .eyebrow { margin-bottom: 2px; font-size: 9px; }
 	.section-heading h2 { font-size: clamp(20px, 2.4vw, 25px); }
-	.schedule-toolbar { margin-bottom: 9px; padding: 6px 9px; border-radius: 11px; }
-	.schedule-filter select { min-height: 34px; }
-	.schedule-filter button { min-height: 34px; background: var(--sport-accent); }
+	.schedule-toolbar { gap: 7px; margin-bottom: 8px; padding: 4px 7px; border-radius: 10px; }
+	.schedule-filter { gap: 6px 8px; }
+	.schedule-filter label { font-size: 9px; }
+	.schedule-filter select { min-height: 30px; padding: 0 25px 0 9px; border-radius: 8px; font-size: 10px; }
+	.schedule-filter button { min-height: 30px; padding: 0 13px; border-radius: 8px; background: var(--sport-accent); font-size: 10px; }
+	.browse-teams { margin-left: 2px; font-size: 10px; }
 	.schedule-filter button:hover { background: var(--sport-accent-strong); }
 	.browse-teams, .text-link { color: var(--sport-accent-strong); }
 	.game-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
@@ -925,19 +931,20 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 	.player-card { min-height: 76px; padding: 9px; }
 
 	@media (max-width: 560px) {
-		.dashboard-hero { min-height: 200px; align-items: flex-end; padding: 24px 16px; border-radius: 15px 15px 0 0; }
+		.dashboard-hero { min-height: 200px; align-items: center; padding: 24px 16px; border-radius: 15px 15px 0 0; }
 		.dashboard-hero::after { right: -115px; bottom: -82px; width: 380px; height: 230px; }
 		.dashboard-hero h1 { max-width: 310px; font-size: 31px; line-height: .95; white-space: normal; }
+		.dashboard-hero__lede { max-width: 280px; margin-top: 11px !important; font-size: 11px !important; }
 		.dashboard-section { margin-top: 22px; }
 		#schedule { margin-top: 8px; }
 		.section-heading { align-items: center; flex-direction: row; gap: 8px; margin-bottom: 7px; }
 		.schedule-toolbar--desktop { display: none; }
-		.schedule-toolbar--mobile { display: flex; width: 100%; justify-content: space-between; }
-		.mobile-week-filter { display: flex; align-items: center; gap: 6px; }
+		.schedule-toolbar--mobile { display: flex; width: 100%; min-height: 36px; justify-content: space-between; }
+		.mobile-week-filter { display: flex; align-items: center; gap: 4px; }
 		.mobile-week-filter label { color: var(--color-muted); font-size: 9px; font-weight: 700; }
-		.mobile-week-filter select { min-height: 34px; padding: 0 22px 0 9px; border: 1px solid var(--color-border); border-radius: 9px; background: #fff; font-size: 11px; }
-		.mobile-week-filter button { min-height: 34px; padding: 0 9px; border: 0; border-radius: 9px; background: var(--sport-accent); color: #fff; font-size: 10px; font-weight: 750; }
-		.team-filter-trigger { min-width: 0; min-height: 34px; overflow: hidden; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 9px; background: #fff; color: var(--color-ink); font-size: 10px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+		.mobile-week-filter select { min-height: 28px; padding: 0 20px 0 8px; border: 1px solid var(--color-border); border-radius: 7px; background: #fff; font-size: 10px; }
+		.mobile-week-filter button { min-height: 28px; padding: 0 9px; border: 0; border-radius: 7px; background: var(--sport-accent); color: #fff; font-size: 9px; font-weight: 750; }
+		.team-filter-trigger { min-width: 0; min-height: 28px; overflow: hidden; padding: 0 9px; border: 1px solid var(--color-border); border-radius: 7px; background: #fff; color: var(--color-ink); font-size: 9px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 		.game-grid, .player-grid { grid-template-columns: 1fr; gap: 6px; }
 		.team-filter-sheet[open] { position: fixed; inset: auto 0 0; display: block; width: 100%; max-width: none; margin: 0; padding: 0; border: 0; border-radius: 18px 18px 0 0; background: #fff; color: var(--color-ink); }
 		.team-filter-sheet::backdrop { background: rgb(10 17 30 / 48%); }
