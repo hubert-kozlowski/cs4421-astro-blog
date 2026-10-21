@@ -1,6 +1,7 @@
 ---
 import {
 	SITE_AUTHOR,
+	SITE_AUTHOR_URL,
 	SITE_DESCRIPTION,
 	SITE_KEYWORDS,
 	SITE_SOCIAL_IMAGE,
@@ -28,7 +29,8 @@ const structuredData = {
 			'@type': 'Person',
 			'@id': authorId.href,
 			name: SITE_AUTHOR,
-			url: websiteURL.href,
+			url: SITE_AUTHOR_URL,
+			sameAs: [SITE_AUTHOR_URL],
 		},
 		{
 			'@type': 'WebSite',
@@ -37,6 +39,7 @@ const structuredData = {
 			name: SITE_TITLE,
 			description: SITE_DESCRIPTION,
 			inLanguage: 'en',
+			author: { '@id': authorId.href },
 			creator: { '@id': authorId.href },
 		},
 		{
@@ -47,6 +50,7 @@ const structuredData = {
 			description,
 			inLanguage: 'en',
 			isPartOf: { '@id': websiteId.href },
+			author: { '@id': authorId.href },
 			creator: { '@id': authorId.href },
 			primaryImageOfPage: {
 				'@type': 'ImageObject',

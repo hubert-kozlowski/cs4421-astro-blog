@@ -127,9 +127,21 @@ test('publishes canonical, social, and answer-engine metadata', async ({ page })
 		JSON.parse(element.textContent ?? '{}')['@graph'],
 	);
 	expect(graph).toEqual(expect.arrayContaining([
-		expect.objectContaining({ '@type': 'Person', name: 'Hubert Kozlowski' }),
-		expect.objectContaining({ '@type': 'WebSite', name: 'Gridiron Atlas' }),
-		expect.objectContaining({ '@type': 'WebPage', url: 'https://example.com/' }),
+		expect.objectContaining({
+			'@type': 'Person',
+			name: 'Hubert Kozlowski',
+			sameAs: ['https://github.com/hubert-kozlowski'],
+		}),
+		expect.objectContaining({
+			'@type': 'WebSite',
+			name: 'Gridiron Atlas',
+			author: { '@id': 'https://example.com/#author' },
+		}),
+		expect.objectContaining({
+			'@type': 'WebPage',
+			url: 'https://example.com/',
+			author: { '@id': 'https://example.com/#author' },
+		}),
 	]));
 
 	const robots = await page.request.get('/robots.txt');
