@@ -17,12 +17,12 @@
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.3",
-    "@astrojs/node": "^11.1.6",
+    "@astrojs/node": "^11.1.7",
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.3.8",
     "astro-icon": "^1.2.0",
-    "motion": "^14.0.0",
+    "motion": "^14.1.0",
     "sharp": "^0.35.5"
   },
   "allowScripts": {
@@ -31,7 +31,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
     "@eslint/js": "^10.0.1",
-    "@playwright/test": "^1.63.0",
+    "@playwright/test": "^1.64.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^26.6.4",
     "@typescript-eslint/parser": "^8.71.0",

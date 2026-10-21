@@ -77,9 +77,47 @@ AWS CDK defines two independent deployments:
 | Site | Infrastructure | GitHub environment | Workflow |
 | --- | --- | --- | --- |
 | SSR dashboard | ECS Fargate behind an Application Load Balancer (`CdkStack`, implemented by `cdk/lib/ssr-site-stack.ts`) | `production-ssr` | `deploy-container.yml` |
-| Static release | Private S3 bucket behind CloudFront (`StaticSiteStack`) | `production-static` | `deploy-static.yml` |
+| Static blog | Private S3 bucket behind CloudFront (`StaticSiteStack`), published from the immutable `1.0.0` tag | `production-static` | `deploy-static.yml` |
 
-The SSR workflow deploys the current `main` application. The static workflow builds the immutable `1.0.0` release separately. Both workflows deploy after successful CI on `main` and can also be manually dispatched from `main`; successful deployments are recorded in GitHub under their environments.
+The SSR workflow deploys the current `main` application. The static workflow builds the immutable `1.0.0` release separately. Both workflows deploy after successful CI on `main` and can also be manually dispatched from `main`; successful deployments are recorded in GitHub under their environments. Deployments require AWS credentials and a CDK-bootstrapped account. See [`cdk/README.md`](cdk/README.md) for deployment details and prerequisites.
+
+### Container operations
+
+```sh
+curl http://localhost:4321/api/health
+docker ps
+docker inspect --format='{{.State.Health.Status}}' gridiron-atlas
+docker logs gridiron-atlas
+```
+
+In OrbStack, the same running container and image are also visible in its Containers and Images views. You can inspect container status and logs there; the CLI commands above work with both OrbStack and Docker Desktop.
+
+Stop and remove a container when finished. Removing the container does not remove the named data volume:
+
+```sh
+docker stop gridiron-atlas
+docker rm gridiron-atlas
+```
+
+To use a different host port if `4321` is already occupied, change the left side of the mapping (for example, `-p 4322:4321`) and visit <http://localhost:4322>.
+
+The container sets `NFL_DATA_DIR=/app/data`; API responses persist in the mounted data volume, so the last saved schedule/profile can still be served when the provider is unavailable.
+
+### Push to Amazon ECR
+
+Authenticate, tag, and push the cloud-compatible image to the project's ECR repository in `us-east-1`:
+
+```sh
+aws ecr get-login-password --region us-east-1 \
+  | docker login --username AWS --password-stdin 782086108883.dkr.ecr.us-east-1.amazonaws.com
+
+docker tag astro-blog:v1.0.0 782086108883.dkr.ecr.us-east-1.amazonaws.com/astro-blog:v1.0.0
+docker push 782086108883.dkr.ecr.us-east-1.amazonaws.com/astro-blog:v1.0.0
+```
+
+AWS CLI credentials need permission to authenticate and push to the ECR repository. The repository has immutable tags, so choose a new version tag for each published image.
+
+`deploy-static.yml` checks out and builds the immutable `1.0.0` tag before deploying `StaticSiteStack`; `deploy-container.yml` deploys the current `main` SSR application through `CdkStack`.
 
 To work with the CDK application locally, install dependencies in `cdk/` and run:
 
@@ -90,5 +128,3 @@ npm test
 npm run build
 npx cdk synth
 ```
-
-Deployments require AWS credentials and a CDK-bootstrapped account. See [`cdk/README.md`](cdk/README.md) for deployment details and prerequisites.
