@@ -16,8 +16,19 @@
 	--color-navy: #121a2b;
 	--color-red: #c9293a;
 	--color-blue: #2856c7;
+	--sport-accent: #c9293a;
+	--sport-accent-strong: #a91f31;
+	--sport-accent-soft: #fff0f2;
+	--sport-on-accent: #fff;
 	--radius-card: 20px;
 	--shadow-card: 0 14px 40px rgb(20 29 48 / 5%);
+}
+
+body[data-sport="cfb"] {
+	--sport-accent: #2856c7;
+	--sport-accent-strong: #1e4198;
+	--sport-accent-soft: #edf3ff;
+	--sport-on-accent: #fff;
 }
 
 * {
@@ -52,7 +63,7 @@ a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible {
-	outline: 3px solid rgb(40 86 199 / 45%);
+	outline: 3px solid color-mix(in srgb, var(--sport-accent) 45%, transparent);
 	outline-offset: 3px;
 }
 
@@ -64,7 +75,7 @@ select {
 
 ::selection {
 	color: #fff;
-	background: var(--color-blue);
+	background: var(--sport-accent);
 }
 
 .site-main {
