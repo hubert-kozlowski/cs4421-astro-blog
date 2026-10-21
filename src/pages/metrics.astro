@@ -1,0 +1,117 @@
+---
+import SiteLayout from '../layouts/SiteLayout.astro';
+import { getDashboard } from '../utils/cloudwatch-metrics';
+
+export const prerender = false;
+Astro.response.headers.set('Cache-Control', 'no-store');
+
+const data = await getDashboard();
+const maxReq = Math.max(1, ...data.daily.map((d) => d.requests));
+const dayLabel = (iso: string) =>
+	new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+const arrow = (d: string) => (d === 'up' ? '▲' : d === 'down' ? '▼' : '–');
+---
+
+<SiteLayout title="Metrics" description="Traffic and resource usage">
+	<section class="metrics">
+		<header>
+			<h1>Metrics</h1>
+			<p class="meta">
+				Source: <strong>{data.source === 'cloudwatch' ? 'CloudWatch' : 'In-process'}</strong> · updated {data.generatedAt}
+				· trends vs previous 7 days
+			</p>
+			{data.note && <p class="note">{data.note}</p>}
+		</header>
+
+		{
+			data.scaleFirst && (
+				<div class={`callout ${data.scaleFirst.severity}`}>
+					Scale first: <strong>{data.scaleFirst.label}</strong> at {Math.round(data.scaleFirst.percentUsed * 10) / 10}%
+					{data.scaleFirst.severity === 'ok' ? ' — plenty of headroom.' : ' — approaching capacity.'}
+				</div>
+			)
+		}
+
+		<div class="cards">
+			{
+				data.cards.map((c) => (
+					<article class="card">
+						<h2>{c.label}</h2>
+						<p class="value">
+							{c.value}
+							<span class={`trend ${c.trend.tone}`}>
+								{arrow(c.trend.direction)} {c.trend.percent === null ? 'n/a' : `${Math.abs(c.trend.percent)}%`}
+							</span>
+						</p>
+						{c.detail && <p class="detail">{c.detail}</p>}
+					</article>
+				))
+			}
+		</div>
+
+		<article class="card chart">
+			<h2>API requests, last 7 days</h2>
+			<div class="bars" role="img" aria-label="Daily API requests bar chart">
+				{
+					data.daily.map((d) => (
+						<div class="bar-col">
+							<span class="bar-num">{d.requests.toLocaleString('en-US')}</span>
+							<div class="bar" style={`height:${Math.max(2, (d.requests / maxReq) * 100)}%`} />
+							<span class="bar-label">{dayLabel(d.date)}</span>
+						</div>
+					))
+				}
+			</div>
+		</article>
+
+		<h2 class="section">Resource usage</h2>
+		<div class="cards">
+			{
+				data.resources.map((c) => (
+					<article class="card">
+						<h2>{c.label}</h2>
+						<p class="value">
+							{c.value}
+							<span class={`trend ${c.trend.tone}`}>
+								{arrow(c.trend.direction)} {c.trend.percent === null ? 'n/a' : `${Math.abs(c.trend.percent)}%`}
+							</span>
+						</p>
+						{c.detail && <p class="detail">{c.detail}</p>}
+						<div class="meter">
+							<div class={`fill ${c.severity}`} style={`width:${Math.min(100, c.percentUsed ?? 0)}%`} />
+						</div>
+					</article>
+				))
+			}
+		</div>
+	</section>
+</SiteLayout>
+
+<style>
+	.metrics { max-width: 1000px; margin: 0 auto; padding: 2rem 1rem; display: grid; gap: 1.25rem; }
+	h1 { margin: 0; }
+	.meta, .note, .detail { color: var(--color-muted); margin: 0.25rem 0; font-size: 0.9rem; }
+	.note { color: var(--color-red); }
+	.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+	.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-card); box-shadow: var(--shadow-card); padding: 1.25rem; }
+	.card h2, .section { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-muted); margin: 0; }
+	.section { margin-top: 0.5rem; }
+	.value { font-size: 2rem; font-weight: 700; margin: 0.4rem 0; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+	.trend { font-size: 0.9rem; font-weight: 600; }
+	.trend.good { color: #1a8a3d; }
+	.trend.bad { color: var(--color-red); }
+	.trend.neutral { color: var(--color-muted); }
+	.bars { display: flex; align-items: flex-end; gap: 0.75rem; height: 220px; margin-top: 1rem; }
+	.bar-col { flex: 1; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 0.25rem; }
+	.bar { width: 100%; background: var(--color-blue); border-radius: 8px 8px 0 0; min-height: 2px; }
+	.bar-num { font-size: 0.8rem; font-weight: 600; }
+	.bar-label { font-size: 0.8rem; color: var(--color-muted); }
+	.meter { height: 10px; background: var(--color-border); border-radius: 999px; overflow: hidden; margin-top: 0.6rem; }
+	.fill { height: 100%; border-radius: 999px; }
+	.fill.ok { background: #1a8a3d; }
+	.fill.warn { background: #e0a100; }
+	.fill.critical { background: var(--color-red); }
+	.callout { padding: 0.9rem 1.1rem; border-radius: 14px; border: 1px solid var(--color-border); background: var(--color-surface); }
+	.callout.warn { border-color: #e0a100; }
+	.callout.critical { border-color: var(--color-red); }
+</style>

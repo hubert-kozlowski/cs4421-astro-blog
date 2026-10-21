@@ -2,6 +2,10 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as path from 'path';
 
 export class SsrSiteStack extends cdk.Stack {
@@ -14,19 +18,40 @@ export class SsrSiteStack extends cdk.Stack {
 			subnetConfiguration: [{ name: 'Public', subnetType: ec2.SubnetType.PUBLIC }],
 		});
 
-		const cluster = new ecs.Cluster(this, 'Cluster', { vpc });
+		const cluster = new ecs.Cluster(this, 'Cluster', {
+			vpc,
+			containerInsightsV2: ecs.ContainerInsights.ENABLED,
+		});
 		const taskDefinition = new ecs.FargateTaskDefinition(this, 'BlogTask', {
 			cpu: 256,
 			memoryLimitMiB: 512,
 		});
-		taskDefinition.addContainer('Web', {
+		const logGroup = new logs.LogGroup(this, 'WebLogs', {
+			retention: logs.RetentionDays.ONE_MONTH,
+			removalPolicy: cdk.RemovalPolicy.DESTROY,
+		});
+		taskDefinition.taskRole.addToPrincipalPolicy(
+			new iam.PolicyStatement({ actions: ['cloudwatch:GetMetricData'], resources: ['*'] }),
+		);
+		const albParamName = '/blog/metrics/alb-dimension';
+		const serviceName = 'blog-service';
+		taskDefinition.taskRole.addToPrincipalPolicy(
+			new iam.PolicyStatement({
+				actions: ['ssm:GetParameter'],
+				resources: [cdk.Arn.format({ service: 'ssm', resource: 'parameter', resourceName: albParamName.slice(1) }, this)],
+			}),
+		);
+		const container = taskDefinition.addContainer('Web', {
 			image: ecs.ContainerImage.fromAsset(path.join(__dirname, '../..')),
 			environment: {
 				HOST: '0.0.0.0',
 				NODE_ENV: 'production',
 				PORT: '4321',
+				ECS_CLUSTER: cluster.clusterName,
+				ECS_SERVICE: serviceName,
+				ALB_DIMENSION_PARAM: albParamName,
 			},
-			logging: ecs.LogDrivers.awsLogs({ streamPrefix: 'blog' }),
+			logging: ecs.LogDrivers.awsLogs({ streamPrefix: 'blog', logGroup }),
 			healthCheck: {
 				command: [
 					'CMD',
@@ -45,12 +70,59 @@ export class SsrSiteStack extends cdk.Stack {
 		const service = new ecsPatterns.ApplicationLoadBalancedFargateService(this, 'BlogService', {
 			cluster,
 			taskDefinition,
+			serviceName,
 			desiredCount: 1,
 			minHealthyPercent: 100,
 			maxHealthyPercent: 200,
 			assignPublicIp: true,
 			healthCheckGracePeriod: cdk.Duration.seconds(60),
 			circuitBreaker: { rollback: true },
+		});
+
+		// The load balancer name is only known after the service exists, so the app reads it
+		// from SSM at runtime instead of via an env var (which would create a dependency cycle).
+		new ssm.StringParameter(this, 'AlbDimensionParam', {
+			parameterName: albParamName,
+			stringValue: service.loadBalancer.loadBalancerFullName,
+		});
+
+		const errorFilter = new logs.MetricFilter(this, 'ErrorLogFilter', {
+			logGroup,
+			metricNamespace: 'BlogWeb',
+			metricName: 'ErrorLogs',
+			filterPattern: logs.FilterPattern.stringValue('$.level', '=', 'error'),
+			metricValue: '1',
+			defaultValue: 0,
+		});
+		const alarm = (id: string, metric: cloudwatch.IMetric, threshold: number) =>
+			new cloudwatch.Alarm(this, id, {
+				metric,
+				threshold,
+				evaluationPeriods: 3,
+				treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+			});
+		alarm('HighCpu', service.service.metricCpuUtilization(), 70);
+		alarm('HighMemory', service.service.metricMemoryUtilization(), 80);
+		alarm(
+			'Target5xx',
+			new cloudwatch.Metric({
+				namespace: 'AWS/ApplicationELB',
+				metricName: 'HTTPCode_Target_5XX_Count',
+				dimensionsMap: { LoadBalancer: service.loadBalancer.loadBalancerFullName },
+				statistic: 'Sum',
+			}),
+			5,
+		);
+		alarm('ErrorLogs', errorFilter.metric({ statistic: 'Sum', period: cdk.Duration.minutes(5) }), 5);
+
+		new cloudwatch.Dashboard(this, 'Dashboard', {
+			widgets: [
+				[
+					new cloudwatch.GraphWidget({ title: 'CPU / Memory %', left: [service.service.metricCpuUtilization(), service.service.metricMemoryUtilization()] }),
+					new cloudwatch.GraphWidget({ title: 'Requests', left: [service.targetGroup.metrics.requestCount()] }),
+					new cloudwatch.GraphWidget({ title: 'Error logs', left: [errorFilter.metric({ statistic: 'Sum' })] }),
+				],
+			],
 		});
 
 		service.targetGroup.configureHealthCheck({
