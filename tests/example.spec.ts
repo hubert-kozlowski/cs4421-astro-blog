@@ -801,13 +801,15 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 			right: window.innerWidth - bounds.right,
 			bottom: window.innerHeight - bounds.bottom,
 			borderRadius: Number.parseFloat(style.borderRadius),
+			boxShadow: style.boxShadow,
 			backdropFilter: style.backdropFilter || style.getPropertyValue('-webkit-backdrop-filter'),
 		};
 	});
-	expect(appNavStyle.left).toBeGreaterThanOrEqual(12);
-	expect(appNavStyle.right).toBeGreaterThanOrEqual(12);
-	expect(appNavStyle.bottom).toBeGreaterThanOrEqual(10);
-	expect(appNavStyle.borderRadius).toBeGreaterThanOrEqual(24);
+	expect(appNavStyle.left).toBe(0);
+	expect(appNavStyle.right).toBe(0);
+	expect(appNavStyle.bottom).toBe(0);
+	expect(appNavStyle.borderRadius).toBe(0);
+	expect(appNavStyle.boxShadow).toContain('-1px 8px');
 	expect(appNavStyle.backdropFilter).toContain('blur');
 	const activeBottomItem = () => page.locator('.mobile-nav a[aria-current="page"]');
 	await expect(activeBottomItem()).toHaveCount(1);
@@ -833,4 +835,22 @@ test('compact app fits target viewports without horizontal overflow', async ({ p
 		}).length,
 	);
 	expect(visibleRows).toBeGreaterThanOrEqual(3);
+
+	await page.evaluate(() => {
+		document.documentElement.dataset.displayMode = 'standalone';
+	});
+	const standaloneNavStyle = await page.locator('.mobile-nav').evaluate((element) => {
+		const bounds = element.getBoundingClientRect();
+		const style = getComputedStyle(element);
+		return {
+			left: bounds.left,
+			right: window.innerWidth - bounds.right,
+			bottom: window.innerHeight - bounds.bottom,
+			borderRadius: Number.parseFloat(style.borderRadius),
+		};
+	});
+	expect(standaloneNavStyle.left).toBeGreaterThanOrEqual(18);
+	expect(standaloneNavStyle.right).toBeGreaterThanOrEqual(18);
+	expect(standaloneNavStyle.bottom).toBeGreaterThanOrEqual(12);
+	expect(standaloneNavStyle.borderRadius).toBeGreaterThanOrEqual(24);
 });
