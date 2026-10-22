@@ -9,6 +9,7 @@ import NextSessionCountdown from '../components/NextSessionCountdown.astro';
 import PlayerAvatar from '../components/PlayerAvatar.astro';
 import RecordBoard from '../components/RecordBoard.astro';
 import TeamMark from '../components/TeamMark.astro';
+import UpcomingGames from '../components/UpcomingGames.astro';
 import SiteLayout from '../layouts/SiteLayout.astro';
 import {
 	getDashboardData,
@@ -100,6 +101,7 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 
 		{dashboard && (
 			<>
+				{dashboard.upcomingGames.length > 0 && <UpcomingGames games={dashboard.upcomingGames} />}
 				<div class="schedule-toolbar schedule-toolbar--desktop">
 					<form class="schedule-filter" action="/#schedule" method="get">
 						<label for="week-filter-desktop">Week</label>

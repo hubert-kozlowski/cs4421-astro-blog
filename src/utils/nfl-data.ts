@@ -930,6 +930,22 @@ export function getUpcomingGames(games: NflGame[], date = new Date(), limit = 5)
 		.slice(0, Math.max(0, Math.floor(limit)));
 }
 
+export function getMissingFinalScoreDays(games: NflGame[], date = new Date()): string[] {
+	const today = date.toISOString().slice(0, 10);
+	return [
+		...new Set(
+			games
+				.filter(
+					(game) =>
+						game.game_type === 'REG' &&
+						Boolean(game.gameday && game.gameday < today) &&
+						(typeof game.home_score !== 'number' || typeof game.away_score !== 'number'),
+				)
+				.flatMap((game) => (game.gameday ? [game.gameday] : [])),
+		),
+	].sort();
+}
+
 export function getGameUpset(game: NflGame): { team: string; spread: number } | undefined {
 	if (
 		typeof game.home_score !== 'number' ||
@@ -1100,18 +1116,10 @@ export async function getDashboardData(week?: number): Promise<ApiResult<NflDash
 	const [games, metadata] = await Promise.all([getSeasonGames(season), getApiMetadata()]);
 	let stale = games.stale || metadata.stale;
 	let fetchedAt = [games.fetchedAt, metadata.fetchedAt].sort().at(-1) ?? games.fetchedAt;
-	const initialDashboard = makeDashboard(season, games.value.data, metadata.value.teams, week);
-	const missingKickoffDays = [
-		...new Set(
-			initialDashboard.games
-				.filter((game) => game.gameday && game.gameday < new Date().toISOString().slice(0, 10))
-				.filter((game) => !game.kickoff_at)
-				.flatMap((game) => (game.gameday ? [game.gameday] : [])),
-		),
-	];
-	if (missingKickoffDays.length > 0) {
+	const missingFinalScoreDays = getMissingFinalScoreDays(games.value.data);
+	if (missingFinalScoreDays.length > 0) {
 		const scoreboards = await Promise.all(
-			missingKickoffDays.map(async (gameday) => {
+			missingFinalScoreDays.map(async (gameday) => {
 				try {
 					return { ok: true as const, result: await getEspnScoreboard(gameday) };
 				} catch (error) {
