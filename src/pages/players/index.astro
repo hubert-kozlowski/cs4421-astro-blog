@@ -2,6 +2,7 @@
 import DataFreshness from '../../components/DataFreshness.astro';
 import DataState from '../../components/DataState.astro';
 import PlayerAvatar from '../../components/PlayerAvatar.astro';
+import PlayerLeagueBadge from '../../components/PlayerLeagueBadge.astro';
 import SiteLayout from '../../layouts/SiteLayout.astro';
 import { searchPlayersWithSuggestions, type PlayerSearchResult } from '../../utils/nfl-data';
 
@@ -38,7 +39,7 @@ if (query) {
 	<form id="player-search-form" class="player-search" action="/players#player-search-form" method="get" role="search">
 		<label class="sr-only" for="player-search">Search NFL players</label>
 		<span aria-hidden="true">⌕</span>
-		<input id="player-search" type="search" name="name" value={query} minlength="2" placeholder="Player name" required />
+		<input id="player-search" type="search" name="name" value={query} minlength="2" placeholder="Search NFL players" required />
 		<button type="submit">Search players</button>
 	</form>
 	{tooShort && <p class="form-note">Enter at least two characters to search the player directory.</p>}
@@ -62,8 +63,11 @@ if (query) {
 					<a class="player-card" href={`/players/${encodeURIComponent(player.gsis_id)}`}>
 						<PlayerAvatar name={player.display_name} />
 						<span class="player-card__details">
-							<span class:list={['position-pill', `position-pill--${(player.position ?? 'other').toLowerCase()}`]}>
-								{player.position ?? 'NFL'}
+							<span class="player-card__badges">
+								<PlayerLeagueBadge />
+								<span class:list={['position-pill', `position-pill--${(player.position ?? 'other').toLowerCase()}`]}>
+									{player.position ?? 'Player'}
+								</span>
 							</span>
 							<strong>{player.display_name}</strong>
 							<span>
@@ -192,6 +196,12 @@ if (query) {
 		display: grid;
 		min-width: 0;
 		gap: 7px;
+	}
+
+	.player-card__badges {
+		display: flex;
+		align-items: center;
+		gap: 5px;
 	}
 
 	.position-pill {

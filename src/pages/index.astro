@@ -7,6 +7,7 @@ import { getTeamDisplayName } from '../utils/team-names';
 import LiveGameCenter from '../components/LiveGameCenter.astro';
 import NextSessionCountdown from '../components/NextSessionCountdown.astro';
 import PlayerAvatar from '../components/PlayerAvatar.astro';
+import PlayerLeagueBadge from '../components/PlayerLeagueBadge.astro';
 import RecordBoard from '../components/RecordBoard.astro';
 import TeamMark from '../components/TeamMark.astro';
 import UpcomingGames from '../components/UpcomingGames.astro';
@@ -265,8 +266,11 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 						<a class="player-card" href={`/players/${encodeURIComponent(player.gsis_id)}`}>
 							<PlayerAvatar name={player.display_name} />
 							<span class="player-card__details">
+							<span class="player-card__badges">
+								<PlayerLeagueBadge />
 								<span class:list={['position-pill', `position-pill--${(player.position ?? 'other').toLowerCase()}`]}>
-									{player.position ?? 'NFL'}
+									{player.position ?? 'Player'}
+								</span>
 								</span>
 								<strong>{player.display_name}</strong>
 								<span>{player.college ?? 'Player profile'}{player.years_exp ? ` · ${player.years_exp} seasons` : ''}</span>
@@ -764,6 +768,12 @@ const recordsAvailable = allRecords.some((record) => record.gamesPlayed > 0);
 		display: grid;
 		min-width: 0;
 		gap: 6px;
+	}
+
+	.player-card__badges {
+		display: flex;
+		align-items: center;
+		gap: 5px;
 	}
 
 	.position-pill {
