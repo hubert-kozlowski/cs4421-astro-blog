@@ -1,40 +1,64 @@
 ---
-import { teamPalette } from '../utils/team-colors';
-
 interface Props {
 	abbr: string | null | undefined;
 	conference?: string;
 	size?: 'small' | 'medium' | 'large';
 }
 
-const { abbr, conference, size = 'small' } = Astro.props;
-const label = abbr?.slice(0, 4).toUpperCase() || 'NFL';
-const teamColors = teamPalette(label);
+const { abbr, size = 'small' } = Astro.props;
+const normalizedAbbr = abbr?.trim().toUpperCase();
+
+// The data provider includes historic abbreviations, so point those records at
+// the current franchise mark instead of falling back to a fictional badge.
+const logoAbbreviations: Record<string, string> = {
+	LA: 'lar',
+	LAR: 'lar',
+	OAK: 'lv',
+	RAI: 'lv',
+	SD: 'lac',
+	STL: 'lar',
+	PHX: 'ari',
+	SLC: 'ari',
+	WAS: 'was',
+	WSH: 'was',
+};
+const logoAbbr = normalizedAbbr ? logoAbbreviations[normalizedAbbr] ?? normalizedAbbr.toLowerCase() : undefined;
+const logoSrc = logoAbbr ? `/team-logos/nfl/${logoAbbr}.png` : undefined;
+
+// The source artwork is deliberately not all the same shape: wordmarks and
+// narrow crests otherwise look noticeably smaller than round or square marks
+// when placed in an identical box. These modest adjustments balance the
+// visible artwork while preserving each logo's proportions.
+const logoScale: Record<string, number> = {
+	bal: 1.2, buf: 1.15, car: 1.2, cin: 1.15, cle: 1.15, den: 1.2,
+	det: 1.15, gb: 1.2, jax: 1.15, kc: 1.2, lac: 1.2, lar: 1.15,
+	mia: 1.15, min: 1.15, ne: 1.2, nyg: 1.15, nyj: 1.2, phi: 1.2,
+	sea: 1.2, sf: 1.2, was: 1.2,
+};
+const visualScale = logoAbbr ? logoScale[logoAbbr] ?? 1 : 1;
 ---
 
-<svg
-	class:list={['team-mark', `team-mark--${size}`, { 'team-mark--afc': conference === 'AFC' }]}
-	viewBox="0 0 64 64"
-	style={teamColors
-		? `--team-primary: ${teamColors.primary}; --team-accent: ${teamColors.accent}; --team-ink: ${teamColors.ink ?? '#ffffff'}`
-		: undefined}
-	aria-hidden="true"
-	focusable="false"
->
-	<path class="team-mark__plate" d="M32 4 56 13v17c0 14-9.8 24.8-24 30C17.8 54.8 8 44 8 30V13z" />
-	<path class="team-mark__stripe" d="M13 17h38v5H13z" />
-	<text x="32" y="42" text-anchor="middle">{label}</text>
-</svg>
+<span class:list={['team-mark', `team-mark--${size}`]} aria-hidden="true">
+	{logoSrc ? (
+		<img
+			src={logoSrc}
+			alt=""
+			width="500"
+			height="500"
+			style={`--team-mark-logo-scale: ${visualScale}`}
+			loading="lazy"
+			decoding="async"
+		/>
+	) : (
+		<span class="team-mark__fallback">NFL</span>
+	)}
+</span>
 
 <style>
 	.team-mark {
-		display: block;
+		display: grid;
 		flex: 0 0 auto;
-		overflow: visible;
-		color: #fff;
-	}
-
-	.team-mark--small {
+		place-items: center;
 		width: 34px;
 		height: 34px;
 	}
@@ -49,26 +73,26 @@ const teamColors = teamPalette(label);
 		height: 76px;
 	}
 
-	.team-mark__plate {
-		fill: var(--team-primary, #285b9f);
-		stroke: rgb(255 255 255 / 27%);
-		stroke-width: 2;
+	.team-mark img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: contain;
+		transform: scale(var(--team-mark-logo-scale, 1));
+		transform-origin: center;
 	}
 
-	.team-mark__stripe {
-		fill: var(--team-accent, rgb(255 255 255 / 30%));
-		opacity: 0.65;
-	}
-
-	.team-mark text {
-		fill: var(--team-ink, currentColor);
+	.team-mark__fallback {
+		display: grid;
+		width: 100%;
+		height: 100%;
+		place-items: center;
+		border: 1px solid rgb(255 255 255 / 27%);
+		border-radius: 50%;
+		background: #285b9f;
+		color: #fff;
 		font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-		font-size: 15px;
+		font-size: 11px;
 		font-weight: 800;
-		letter-spacing: -0.5px;
-	}
-
-	.team-mark--large text {
-		font-size: 14px;
 	}
 </style>

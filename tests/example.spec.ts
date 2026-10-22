@@ -714,12 +714,11 @@ test('game, team, player, and directory routes respond', async ({ page }) => {
 	}
 });
 
-test('team badges use team-specific colors', async ({ page }) => {
+test('team badges use official NFL logo assets', async ({ page }) => {
 	await page.goto('/');
-	const badge = page.locator('.game-card svg.team-mark').first();
+	const badge = page.locator('.game-card .team-mark img').first();
 
-	await expect(badge).toHaveAttribute('style', /--team-primary:\s*#[0-9a-f]{6}/i);
-	await expect(badge).toHaveAttribute('style', /--team-accent:\s*#[0-9a-f]{6}/i);
+	await expect(badge).toHaveAttribute('src', /\/team-logos\/nfl\/[a-z]{2,3}\.png$/i);
 });
 
 test('standings use individual team colors when provider records are available', async ({ page }) => {
