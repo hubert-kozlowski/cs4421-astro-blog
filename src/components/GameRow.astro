@@ -80,7 +80,7 @@ const scheduledDate = game.gameday
 		text-decoration: none;
 		transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 	}
-	.game-row:hover { transform: translateY(-1px); border-color: #cbd1dc; box-shadow: 0 8px 20px rgb(20 29 48 / 7%); }
+	.game-row:hover { transform: translate3d(0, -2px, 0); border-color: #cbd1dc; box-shadow: 0 8px 20px rgb(20 29 48 / 7%); }
 	.game-row.game-card--live-change { border-color: var(--sport-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sport-accent) 14%, transparent); }
 	.game-status { display: inline-flex; align-items: center; gap: 5px; color: #2c6e53; font-size: 8px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 	.game-status time { color: inherit; font: inherit; letter-spacing: inherit; }
@@ -113,5 +113,10 @@ const scheduledDate = game.gameday
 		.game-row__meta { font-size: 8px; }
 		.game-row__team { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 5px; }
 		.game-row__team :global(.team-mark) { width: 22px; height: 22px; }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.game-row { transition: none; }
+		.game-row:hover { transform: none; }
 	}
 </style>
