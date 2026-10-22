@@ -1,0 +1,34 @@
+---
+interface Props {
+	league?: 'nfl' | 'cfb';
+}
+
+const { league = 'nfl' } = Astro.props;
+const label = league === 'cfb' ? 'NCAAF' : 'NFL';
+---
+
+<span class:list={['player-league-badge', `player-league-badge--${league}`]}>{label}</span>
+
+<style>
+	.player-league-badge {
+		display: inline-flex;
+		width: fit-content;
+		align-items: center;
+		padding: 3px 6px;
+		border-radius: 5px;
+		font-size: 8px;
+		font-weight: 800;
+		letter-spacing: 0.07em;
+		line-height: 1.2;
+	}
+
+	.player-league-badge--nfl {
+		background: #fff0f2;
+		color: #b11f32;
+	}
+
+	.player-league-badge--cfb {
+		background: #edf3ff;
+		color: #1e4eae;
+	}
+</style>

@@ -2,17 +2,19 @@ import * as cdk from 'aws-cdk-lib';
 import { Match, Template } from 'aws-cdk-lib/assertions';
 import { SsrSiteStack } from '../lib/ssr-site-stack';
 import { StaticSiteStack } from '../lib/static-site-stack';
+import { DomainCertificateStack } from '../lib/domain-certificate-stack';
 
 describe('SsrSiteStack', () => {
 	it('deploys the SSR app as an ECS service behind a load balancer', () => {
 		const app = new cdk.App();
-		const stack = new SsrSiteStack(app, 'TestStack');
+		const certificateStack = new DomainCertificateStack(app, 'CertificateStack');
+		const stack = new SsrSiteStack(app, 'TestStack', { certificate: certificateStack.certificate });
 		const template = Template.fromStack(stack);
 
 		template.resourceCountIs('AWS::ECS::Service', 1);
 		template.resourceCountIs('AWS::ElasticLoadBalancingV2::LoadBalancer', 1);
 		template.resourceCountIs('AWS::S3::Bucket', 0);
-		template.resourceCountIs('AWS::CloudFront::Distribution', 0);
+		template.resourceCountIs('AWS::CloudFront::Distribution', 1);
 		template.resourceCountIs('AWS::CloudWatch::Alarm', 4);
 		template.resourceCountIs('AWS::CloudWatch::Dashboard', 1);
 		template.resourceCountIs('AWS::Logs::MetricFilter', 1);
@@ -44,6 +46,18 @@ describe('SsrSiteStack', () => {
 		template.hasResourceProperties('AWS::ElasticLoadBalancingV2::TargetGroup', {
 			HealthCheckPath: '/api/ready',
 			Matcher: { HttpCode: '200' },
+		});
+	});
+
+	it('requests a DNS-validated certificate for the apex and www domains', () => {
+		const app = new cdk.App();
+		const stack = new DomainCertificateStack(app, 'CertificateStack');
+		const template = Template.fromStack(stack);
+
+		template.hasResourceProperties('AWS::CertificateManager::Certificate', {
+			DomainName: 'gridironatlas.app',
+			SubjectAlternativeNames: ['www.gridironatlas.app'],
+			ValidationMethod: 'DNS',
 		});
 	});
 

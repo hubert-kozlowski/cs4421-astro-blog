@@ -8,8 +8,8 @@ import process from 'node:process';
 
 // https://astro.build/config
 export default defineConfig({
-	// Set SITE_URL to the public HTTPS origin at build time when a custom domain is ready.
-	site: process.env.SITE_URL ?? 'https://example.com',
+	// SITE_URL can override the production domain for preview deployments.
+	site: process.env.SITE_URL ?? 'https://gridironatlas.app',
 	output: 'server',
 	adapter: node({ mode: 'standalone' }),
 	integrations: [mdx(), sitemap()],

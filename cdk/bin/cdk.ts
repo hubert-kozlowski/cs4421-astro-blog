@@ -2,9 +2,12 @@
 import * as cdk from 'aws-cdk-lib/core';
 import { SsrSiteStack } from '../lib/ssr-site-stack';
 import { StaticSiteStack } from '../lib/static-site-stack';
+import { DomainCertificateStack } from '../lib/domain-certificate-stack';
 
 const app = new cdk.App();
 const env = { account: '782086108883', region: 'us-east-1' };
+
+const certificateStack = new DomainCertificateStack(app, 'GridironAtlasCertificateStack', { env });
 
 new SsrSiteStack(app, 'CdkStack', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
@@ -18,6 +21,7 @@ new SsrSiteStack(app, 'CdkStack', {
   /* Uncomment the next line if you know exactly what Account and Region you
    * want to deploy the stack to. */
   env,
+  certificate: certificateStack.certificate,
 
   /* For more information, see https://docs.aws.amazon.com/cdk/latest/guide/environments.html */
 });

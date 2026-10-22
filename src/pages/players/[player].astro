@@ -2,6 +2,7 @@
 import DataFreshness from '../../components/DataFreshness.astro';
 import DataState from '../../components/DataState.astro';
 import PlayerAvatar from '../../components/PlayerAvatar.astro';
+import PlayerLeagueBadge from '../../components/PlayerLeagueBadge.astro';
 import SiteLayout from '../../layouts/SiteLayout.astro';
 import {
 	getPlayer,
@@ -120,7 +121,7 @@ const completionRate =
 			<section class="player-hero">
 				<PlayerAvatar name={player.display_name} size="large" />
 				<div class="player-hero__text">
-					<p class="eyebrow">PLAYER PROFILE · {player.position_group ?? player.position ?? 'NFL'}</p>
+					<p class="eyebrow"><PlayerLeagueBadge /> NFL PLAYER PROFILE · {player.position_group ?? player.position ?? 'PLAYER'}</p>
 					<h1>{player.display_name}</h1>
 					<p>
 						{player.college ?? 'College not listed'}
