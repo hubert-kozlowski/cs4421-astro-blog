@@ -6,7 +6,7 @@ on:
     branches: [main, master]
 
 env:
-  NODE_VERSION: 22.12.0
+  NODE_VERSION: 22.22.0
 
 jobs:
   test:
