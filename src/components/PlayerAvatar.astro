@@ -1,4 +1,6 @@
 ---
+import { getEspnHeadshotUrl } from '../utils/player-headshots';
+
 interface Props {
 	name: string;
 	size?: 'small' | 'large';
@@ -13,24 +15,33 @@ const initials =
 		.map((part) => part[0] ?? '')
 		.join('')
 		.toUpperCase() || 'P';
+const headshotUrl = getEspnHeadshotUrl(name);
 ---
 
-<svg
-	class:list={['player-avatar', `player-avatar--${size}`]}
-	viewBox="0 0 64 64"
-	aria-hidden="true"
-	focusable="false"
->
-	<circle class="player-avatar__background" cx="32" cy="32" r="31" />
-	<path class="player-avatar__shape" d="M8 55c3-11 12-17 24-17s21 6 24 17" />
-	<circle class="player-avatar__shape" cx="32" cy="24" r="10" />
-	<text x="32" y="59" text-anchor="middle">{initials}</text>
-</svg>
+<span class:list={['player-avatar', `player-avatar--${size}`]} aria-hidden="true">
+	<svg viewBox="0 0 64 64" focusable="false">
+		<circle class="player-avatar__background" cx="32" cy="32" r="31" />
+		<path class="player-avatar__shape" d="M8 55c3-11 12-17 24-17s21 6 24 17" />
+		<circle class="player-avatar__shape" cx="32" cy="24" r="10" />
+		<text x="32" y="59" text-anchor="middle">{initials}</text>
+	</svg>
+	{headshotUrl && (
+		<img
+			class="player-avatar__headshot"
+			src={headshotUrl}
+			alt=""
+			loading="lazy"
+			decoding="async"
+			onerror="this.remove()"
+		/>
+	)}
+</span>
 
 <style>
 	.player-avatar {
-		display: block;
+		display: grid;
 		flex: 0 0 auto;
+		place-items: center;
 	}
 
 	.player-avatar--small {
@@ -41,6 +52,19 @@ const initials =
 	.player-avatar--large {
 		width: 76px;
 		height: 76px;
+	}
+
+	.player-avatar svg,
+	.player-avatar__headshot {
+		grid-area: 1 / 1;
+		width: 100%;
+		height: 100%;
+	}
+
+	.player-avatar__headshot {
+		border-radius: 50%;
+		object-fit: cover;
+		object-position: center top;
 	}
 
 	.player-avatar__background {
