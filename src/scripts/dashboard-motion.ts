@@ -1,22 +1,8 @@
-import { animate, hover, inView, stagger } from 'motion';
+import { animate, inView, stagger } from 'motion';
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 if (!reduceMotion) {
-	document.querySelectorAll<HTMLElement>('[data-motion-hover]').forEach((card) => {
-		hover(card, () => {
-			const animation = animate(
-				card,
-				{ y: -3, scale: 1.008 },
-				{ type: 'spring', stiffness: 420, damping: 30 },
-			);
-			return () => {
-				animation.stop();
-				animate(card, { y: 0, scale: 1 }, { type: 'spring', stiffness: 420, damping: 30 });
-			};
-		});
-	});
-
 	document.querySelectorAll<HTMLElement>('[data-standings-card]').forEach((card) => {
 		const list = card.querySelector<HTMLElement>('.record-list');
 		if (!list) return;

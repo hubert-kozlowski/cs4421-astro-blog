@@ -82,12 +82,19 @@ const missingKickoffLabel = gameStatus === 'Scheduled' ? 'Kickoff time pending' 
 		background: #fff;
 		color: inherit;
 		text-decoration: none;
-		transition: border-color 150ms ease, box-shadow 150ms ease;
+		transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+		will-change: transform;
 	}
 
 	.game-card:hover {
+		transform: translate3d(0, -2px, 0);
 		border-color: #cbd4e2;
 		box-shadow: 0 10px 24px rgb(25 42 72 / 8%);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.game-card { transition: none; }
+		.game-card:hover { transform: none; }
 	}
 
 	.game-card--live-change {

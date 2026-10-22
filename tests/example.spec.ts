@@ -738,7 +738,7 @@ test('standings use individual team colors when provider records are available',
 	}
 });
 
-test('dashboard game cards receive a subtle Motion hover lift', async ({ page }) => {
+test('dashboard game cards receive a subtle hover lift', async ({ page }) => {
 	await page.goto('/');
 	const card = page.locator('[data-motion-hover]').first();
 	await card.scrollIntoViewIfNeeded();
