@@ -1080,6 +1080,12 @@ export function makeDashboard(
 	const availableWeeks = [...new Set(regularSeasonGames.flatMap((game) => (game.week ? [game.week] : [])))].sort(
 		(a, b) => a - b,
 	);
+	const teamsByAbbr = new Map(teams.map((team) => [team.abbr, team]));
+	const scheduledTeamAbbrs = [
+		...new Set(
+			regularSeasonGames.flatMap((game) => [game.home_team, game.away_team].filter((team): team is string => Boolean(team))),
+		),
+	].sort();
 	const selectedWeek = week && availableWeeks.includes(week) ? week : getDefaultWeek(regularSeasonGames, date);
 	return {
 		season,
@@ -1088,7 +1094,8 @@ export function makeDashboard(
 		games: sortGamesByKickoffAndShock(regularSeasonGames.filter((game) => game.week === selectedWeek)),
 		upcomingGames: getUpcomingGames(regularSeasonGames, date),
 		countdownGames: getCountdownGames(regularSeasonGames, date),
-		teams: teams.filter((team) => regularSeasonGames.some((game) => game.home_team === team.abbr || game.away_team === team.abbr)),
+		// A schedule remains filterable even when the metadata provider omits team details.
+		teams: scheduledTeamAbbrs.map((abbr) => teamsByAbbr.get(abbr) ?? { abbr, name: abbr, conf: '', division: '' }),
 		records: buildTeamRecords(regularSeasonGames, teams, date),
 		fetchedAt: '',
 		stale: false,
