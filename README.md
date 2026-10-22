@@ -84,7 +84,7 @@ AWS CDK defines two independent deployments:
 | SSR dashboard | ECS Fargate behind an Application Load Balancer (`CdkStack`, implemented by `cdk/lib/ssr-site-stack.ts`) | `production-ssr` | `deploy-container.yml` |
 | Static blog | Private S3 bucket behind CloudFront (`StaticSiteStack`), published from the immutable `1.0.0` tag | `production-static` | `deploy-static.yml` |
 
-The SSR workflow deploys the current `main` application. The static workflow builds the immutable `1.0.0` release separately. Both workflows deploy after successful CI on `main` and can also be manually dispatched from `main`; successful deployments are recorded in GitHub under their environments. Deployments require AWS credentials and a CDK-bootstrapped account. See [`cdk/README.md`](cdk/README.md) for deployment details and prerequisites.
+The SSR workflow deploys the current `main` application after a successful CI run. The static workflow builds the immutable `1.0.0` release separately. Both workflows can also be manually dispatched from `main`; successful deployments are recorded in GitHub under their environments. Deployments require AWS credentials and a CDK-bootstrapped account. See [`cdk/README.md`](cdk/README.md) for deployment details and prerequisites.
 
 ### Container operations
 
