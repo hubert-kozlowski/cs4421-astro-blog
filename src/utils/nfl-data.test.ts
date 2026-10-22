@@ -403,4 +403,13 @@ describe('NFL season data helpers', () => {
 		expect(dashboard.games.map((game) => game.game_id)).toEqual(['2026_02_BUF_KC']);
 		expect(dashboard.teams.map((team) => team.abbr)).toEqual(['BUF', 'KC']);
 	});
+
+	it('keeps schedule teams available to filters when team metadata is unavailable', () => {
+		const dashboard = makeDashboard(2026, games, [], 2, new Date('2026-09-30T12:00:00Z'));
+
+		expect(dashboard.teams).toEqual([
+			{ abbr: 'BUF', name: 'BUF', conf: '', division: '' },
+			{ abbr: 'KC', name: 'KC', conf: '', division: '' },
+		]);
+	});
 });
