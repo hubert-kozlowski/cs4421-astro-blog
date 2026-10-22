@@ -31,3 +31,14 @@ if (!siteProperty.test(config)) {
 }
 
 await writeFile(configPath, config.replace(siteProperty, `$1site: ${JSON.stringify(url.origin)},`));
+
+const headerPath = path.resolve(sourceDirectory, 'src/components/Header.astro');
+const header = await readFile(headerPath, 'utf8');
+const legacyNavigation = `<HeaderLink href="/blog">About</HeaderLink>\n\t\t\t<HeaderLink href="/about">Settings</HeaderLink>`;
+const correctedNavigation = `<HeaderLink href="/blog">Blog</HeaderLink>\n\t\t\t<HeaderLink href="/about">About</HeaderLink>`;
+
+if (!header.includes(legacyNavigation)) {
+	throw new Error('Could not find the legacy static-site navigation items to update.');
+}
+
+await writeFile(headerPath, header.replace(legacyNavigation, correctedNavigation));

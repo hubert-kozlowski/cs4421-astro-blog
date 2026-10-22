@@ -55,6 +55,18 @@ describe('SsrSiteStack', () => {
 		template.resourceCountIs('AWS::ECS::Service', 0);
 		template.resourceCountIs('AWS::S3::Bucket', 1);
 		template.resourceCountIs('AWS::CloudFront::Distribution', 1);
+		template.resourceCountIs('AWS::CloudFront::Function', 1);
+		template.hasResourceProperties('AWS::CloudFront::Distribution', {
+			DistributionConfig: {
+				DefaultCacheBehavior: {
+					FunctionAssociations: [
+						{
+							EventType: 'viewer-request',
+						},
+					],
+				},
+			},
+		});
 		template.hasResourceProperties('AWS::S3::Bucket', {
 			PublicAccessBlockConfiguration: {
 				BlockPublicAcls: true,

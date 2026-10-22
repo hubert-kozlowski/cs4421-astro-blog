@@ -15,11 +15,32 @@ export class StaticSiteStack extends cdk.Stack {
 			enforceSSL: true,
 			removalPolicy: cdk.RemovalPolicy.RETAIN,
 		});
+		const routingFunction = new cloudfront.Function(this, 'StaticRouteRewriter', {
+			runtime: cloudfront.FunctionRuntime.JS_2_0,
+			code: cloudfront.FunctionCode.fromInline(`function handler(event) {
+	var request = event.request;
+	var uri = request.uri;
+
+	if (uri.endsWith('/')) {
+		request.uri += 'index.html';
+	} else if (!uri.includes('.')) {
+		request.uri += '/index.html';
+	}
+
+	return request;
+}`),
+		});
 		const staticSiteDistribution = new cloudfront.Distribution(this, 'StaticSiteDistribution', {
 			defaultRootObject: 'index.html',
 			defaultBehavior: {
 				origin: origins.S3BucketOrigin.withOriginAccessControl(staticSiteBucket),
 				viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+				functionAssociations: [
+					{
+						function: routingFunction,
+						eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+					},
+				],
 			},
 		});
 
