@@ -2,14 +2,22 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsPatterns from 'aws-cdk-lib/aws-ecs-patterns';
+import * as ecrAssets from 'aws-cdk-lib/aws-ecr-assets';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as path from 'path';
 
+export interface SsrSiteStackProps extends cdk.StackProps {
+	readonly certificate: acm.ICertificate;
+}
+
 export class SsrSiteStack extends cdk.Stack {
-	constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+	constructor(scope: cdk.App, id: string, props: SsrSiteStackProps) {
 		super(scope, id, props);
 
 		const vpc = new ec2.Vpc(this, 'Vpc', {
@@ -42,8 +50,12 @@ export class SsrSiteStack extends cdk.Stack {
 			}),
 		);
 		const container = taskDefinition.addContainer('Web', {
+			// Local development commonly runs on Apple Silicon, while this Fargate
+			// service uses the default x86_64 runtime. Build the deployable image
+			// explicitly for the runtime to avoid an "exec format error" on ECS.
 			image: ecs.ContainerImage.fromAsset(path.join(__dirname, '../..'), {
-				buildArgs: { SITE_URL: process.env.SITE_URL ?? 'https://example.com' },
+				platform: ecrAssets.Platform.LINUX_AMD64,
+				buildArgs: { SITE_URL: process.env.SITE_URL ?? 'https://gridironatlas.app' },
 			}),
 			environment: {
 				HOST: '0.0.0.0',
@@ -132,8 +144,27 @@ export class SsrSiteStack extends cdk.Stack {
 			healthyHttpCodes: '200',
 		});
 
+		const distribution = new cloudfront.Distribution(this, 'SiteDistribution', {
+			comment: 'Gridiron Atlas SSR edge distribution',
+			domainNames: ['gridironatlas.app', 'www.gridironatlas.app'],
+			certificate: props.certificate,
+			minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+			defaultBehavior: {
+				origin: new origins.LoadBalancerV2Origin(service.loadBalancer, {
+					protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
+				}),
+				viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+				cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+				originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER_EXCEPT_HOST_HEADER,
+				allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+			},
+		});
+
 		new cdk.CfnOutput(this, 'SiteUrl', {
-			value: `http://${service.loadBalancer.loadBalancerDnsName}`,
+			value: 'https://gridironatlas.app',
+		});
+		new cdk.CfnOutput(this, 'CloudFrontDomainName', {
+			value: distribution.distributionDomainName,
 		});
 	}
 }
