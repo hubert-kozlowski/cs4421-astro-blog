@@ -4,6 +4,7 @@ import {
 	currentNflSeason,
 	getGameBroadcastLabel,
 	getGameStatus,
+	getMissingFinalScoreDays,
 	getGameUpset,
 	getDefaultWeek,
 	getCountdownGames,
@@ -161,6 +162,20 @@ describe('NFL season data helpers', () => {
 			away_score: 10,
 		};
 		expect(buildTeamRecords([gameInProgress], teams, new Date('2026-09-30T12:00:00Z'))).toEqual([]);
+	});
+
+	it('requests scoreboards for every past date that is missing a final score', () => {
+		expect(
+			getMissingFinalScoreDays(
+				[
+					{ ...games[0], gameday: '2026-09-12', home_score: null, away_score: null },
+					{ ...games[1], gameday: '2026-09-12', home_score: 21, away_score: 17 },
+					{ ...games[2], gameday: '2026-09-19', home_score: null, away_score: null },
+					{ ...games[2], gameday: '2026-09-30', home_score: null, away_score: null },
+				],
+				new Date('2026-09-30T12:00:00Z'),
+			),
+		).toEqual(['2026-09-12', '2026-09-19']);
 	});
 
 	it('keeps January and February attached to the prior NFL season', () => {

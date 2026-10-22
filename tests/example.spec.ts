@@ -68,7 +68,8 @@ test('compact home brings games, standings, and player search together', async (
 	await expect(page.locator('.mobile-nav a')).toHaveCount(4);
 	await expect(page.locator('.quick-nav')).toHaveCount(0);
 	await expect(page.locator('.header-search')).toHaveCount(0);
-	await expect(page.getByRole('heading', { name: 'Games' })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Games', exact: true })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'The soonest games' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'See who’s climbing.' })).toBeVisible();
 	await expect(page.getByRole('heading', { name: 'Find your player.' })).toBeVisible();
 	await expect(page.locator('#matchups')).toHaveCount(0);
