@@ -123,6 +123,44 @@ test('compact home brings games, standings, and player search together', async (
 	await context.close();
 });
 
+test('publishes canonical, social, and answer-engine metadata', async ({ page }) => {
+	await page.goto('/?week=1');
+
+	await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://example.com/');
+	await expect(page.locator('meta[name="author"]')).toHaveAttribute('content', 'Hubert Kozlowski');
+	await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /max-image-preview:large/);
+	await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+		'content',
+		'https://example.com/social-card.png',
+	);
+	await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+
+	const graph = await page.locator('script[type="application/ld+json"]').evaluate((element) =>
+		JSON.parse(element.textContent ?? '{}')['@graph'],
+	);
+	expect(graph).toEqual(expect.arrayContaining([
+		expect.objectContaining({
+			'@type': 'Person',
+			name: 'Hubert Kozlowski',
+			sameAs: ['https://github.com/hubert-kozlowski'],
+		}),
+		expect.objectContaining({
+			'@type': 'WebSite',
+			name: 'Gridiron Atlas',
+			author: { '@id': 'https://example.com/#author' },
+		}),
+		expect.objectContaining({
+			'@type': 'WebPage',
+			url: 'https://example.com/',
+			author: { '@id': 'https://example.com/#author' },
+		}),
+	]));
+
+	const robots = await page.request.get('/robots.txt');
+	expect(robots.ok()).toBe(true);
+	expect(await robots.text()).toContain('Sitemap: https://example.com/sitemap-index.xml');
+});
+
 test('global styles load after a direct query navigation', async ({ page }) => {
 	const failedStylesheets: string[] = [];
 	page.on('requestfailed', (request) => {

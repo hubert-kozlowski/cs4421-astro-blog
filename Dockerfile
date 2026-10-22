@@ -9,6 +9,9 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 
 FROM build-dependencies AS build
 
+ARG SITE_URL=https://example.com
+ENV SITE_URL=$SITE_URL
+
 COPY . .
 RUN npm run build
 

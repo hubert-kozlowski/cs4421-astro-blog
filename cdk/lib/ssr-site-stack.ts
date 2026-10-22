@@ -42,7 +42,9 @@ export class SsrSiteStack extends cdk.Stack {
 			}),
 		);
 		const container = taskDefinition.addContainer('Web', {
-			image: ecs.ContainerImage.fromAsset(path.join(__dirname, '../..')),
+			image: ecs.ContainerImage.fromAsset(path.join(__dirname, '../..'), {
+				buildArgs: { SITE_URL: process.env.SITE_URL ?? 'https://example.com' },
+			}),
 			environment: {
 				HOST: '0.0.0.0',
 				NODE_ENV: 'production',
