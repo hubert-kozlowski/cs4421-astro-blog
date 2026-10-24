@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: 22.12.0
+  NODE_VERSION: 22.22.0
   # Configure this as a repository or environment variable when the custom domain is ready.
   SITE_URL: ${{ vars.SITE_URL || 'https://example.com' }}
 
