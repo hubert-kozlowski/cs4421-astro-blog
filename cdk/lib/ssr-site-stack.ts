@@ -64,6 +64,7 @@ export class SsrSiteStack extends cdk.Stack {
 				ECS_CLUSTER: cluster.clusterName,
 				ECS_SERVICE: serviceName,
 				ALB_DIMENSION_PARAM: albParamName,
+				DEFENSE_DRILL_FAIL_READINESS: 'true',
 			},
 			logging: ecs.LogDrivers.awsLogs({ streamPrefix: 'blog', logGroup }),
 			healthCheck: {
