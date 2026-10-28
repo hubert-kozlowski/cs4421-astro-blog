@@ -451,7 +451,7 @@ test('game detail snapshot and statistics update from the live feed', async ({ p
 		'Live ball position, provider coordinate 0 from left goal line, offense moving left',
 	);
 	await expect(stadiumBall.locator('circle')).toHaveCount(0);
-	await expect(stadiumBall.locator('[data-stadium-live-ball-marker]')).toHaveAttribute('d', 'M4 89 -3 95 4 101');
+	await expect(stadiumBall.locator('[data-stadium-live-ball-marker]')).toHaveAttribute('d', 'M3 91 -2 95 3 99');
 	await expect(page.locator('[data-live-boxscore]')).toBeVisible();
 	await expect(page.locator('[data-live-boxscore]')).toContainText('Total Yards');
 	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
@@ -463,14 +463,14 @@ test('game detail snapshot and statistics update from the live feed', async ({ p
 	await expect(page.locator('[data-boxscore-title]')).toHaveText('Final game stats');
 });
 
-test('home live strip shows only the leading matchup and hides expanded field detail', async ({ page }) => {
+test('home live strip shows every live matchup with its field position', async ({ page }) => {
 	let apiRequests = 0;
 	const games = [
 		{
 			eventId: 'live-leading-game', kickoffAt: '2026-10-11T13:00:00.000Z', homeTeam: 'JAX', awayTeam: 'PHI',
 			homeScore: 14, awayScore: 10, state: 'in_progress', status: '2nd Quarter', period: 2, clock: '8:42',
 			boxScoreUpdatedAt: null, lastPlay: null, notice: null,
-			situation: { downDistance: '2nd & 4', possession: 'JAX', redZone: false, yardLine: 46, direction: 'right' }, boxScore: [],
+			situation: { downDistance: '2nd & 4', possession: 'JAX', redZone: true, yardLine: 46, direction: 'right' }, boxScore: [],
 		},
 		{
 			eventId: 'live-secondary-game', kickoffAt: '2026-10-11T13:05:00.000Z', homeTeam: 'DAL', awayTeam: 'TB',
@@ -487,18 +487,20 @@ test('home live strip shows only the leading matchup and hides expanded field de
 	const liveCenter = page.locator('[data-live-center]');
 	await expect(liveCenter).toBeVisible();
 	await expect(liveCenter).toHaveAttribute('data-live-layout', 'summary');
-	await expect(liveCenter.locator('.live-game-row')).toHaveCount(1);
-	await expect(liveCenter.locator('.live-game-row')).toContainText('PHI');
-	await expect(liveCenter.locator('.live-game-row')).toContainText('JAX');
-	await expect(liveCenter.locator('.live-game-row__field')).toHaveCount(0);
+	await expect(liveCenter.locator('.live-game-row')).toHaveCount(2);
+	await expect(liveCenter.locator('.live-game-row__field')).toHaveCount(2);
+	await expect(liveCenter.locator('[data-live-field-ball-marker]')).toHaveCount(1);
+	await expect(liveCenter.locator('.live-game-row').first()).toContainText('PHI');
+	await expect(liveCenter.locator('.live-game-row').first()).toContainText('JAX');
+	await expect(liveCenter.locator('.live-game-row').first()).toHaveClass(/live-game-row--red-zone/);
 	await expect(liveCenter.locator('.live-game-row__collapse-toggle')).toHaveCount(0);
 	await expect(page.locator('[data-next-session-shell]')).toBeHidden();
-	expect(await liveCenter.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(80);
+	expect(await liveCenter.evaluate((element) => element.getBoundingClientRect().height)).toBeGreaterThan(80);
 
 	games[0].clock = '8:10';
 	await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
 	await expect.poll(() => apiRequests).toBeGreaterThan(1);
-	await expect(liveCenter.locator('.live-game-row__clock')).toHaveText('Q2 · 8:10');
+	await expect(liveCenter.locator('.live-game-row__clock').first()).toHaveText('Q2 · 8:10');
 });
 
 test('game detail touchdown motion leads into the scoring team score reveal', async ({ page }) => {

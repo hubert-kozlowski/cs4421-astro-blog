@@ -431,7 +431,7 @@ function updateGameDetail(game: LiveGame, changed: boolean, touchdown: boolean, 
 		if (marker && direction) {
 			marker.setAttribute(
 				'd',
-				direction === 'left' ? 'M4 89 -3 95 4 101' : 'M-4 89 3 95 -4 101',
+				direction === 'left' ? 'M3 91 -2 95 3 99' : 'M-3 91 2 95 -3 99',
 			);
 		}
 		if (yardLine !== null) {
@@ -588,8 +588,8 @@ function appendFieldGraphic(parent: HTMLElement, game: LiveGame, possessionTeam:
 	if (yardLine !== null) {
 		const ballPosition = 20 + yardLine * 2.4;
 		if (direction) {
-			const left = Math.max(ballPosition - 4, 2);
-			const right = Math.min(ballPosition + 4, 278);
+			const left = Math.max(ballPosition - 2.5, 2);
+			const right = Math.min(ballPosition + 2.5, 278);
 			const point = offenseMovesRight ? right : left;
 			const tail = offenseMovesRight ? left : right;
 			const marker = appendSvg('path', {
@@ -616,8 +616,9 @@ function renderLiveRow(
 	} | undefined,
 	scoreChanged: boolean,
 	showField: boolean,
+	showControls: boolean,
 ): HTMLElement {
-	const detailHref = showField ? gameDetailHref(game) : undefined;
+	const detailHref = showControls ? gameDetailHref(game) : undefined;
 	const row = document.createElement('article');
 	row.className = 'live-game-row';
 	row.dataset.eventId = game.eventId;
@@ -639,7 +640,7 @@ function renderLiveRow(
 		link.className = 'live-game-row__link';
 		row.append(link);
 	}
-	if (showField) {
+	if (showControls) {
 		row.classList.add('live-game-row--draggable');
 		const keyboardTarget = link ?? row;
 		if (!link) row.tabIndex = 0;
@@ -761,7 +762,7 @@ function renderLiveRow(
 			appendText(banner, 'span', noticeDetail, 'live-game-row__notice-detail');
 		}
 	}
-	if (showField) {
+	if (showControls) {
 		const collapseToggle = document.createElement('button');
 		collapseToggle.className = 'live-game-row__collapse-toggle';
 		collapseToggle.type = 'button';
@@ -822,7 +823,7 @@ function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChange
 		const fragment = document.createDocumentFragment();
 		const isSummary = center.dataset.liveLayout === 'summary';
 		const orderedGames = orderLiveGames(center, relevant);
-		for (const game of isSummary ? orderedGames.slice(0, 1) : orderedGames) {
+		for (const game of orderedGames) {
 			const recentEvent = recentEvents.get(game.eventId);
 			const event = recentEvent && recentEvent.expiresAt > Date.now()
 				? { ...recentEvent, announce: eventIds.has(game.eventId) }
@@ -832,9 +833,9 @@ function renderLiveCenters(games: LiveGame[], eventIds: Set<string>, scoreChange
 					game,
 					event,
 					scoreChangedIds.has(game.eventId),
-					!isSummary && center.dataset.liveLayout !== 'game-detail',
+				center.dataset.liveLayout !== 'game-detail',
+				!isSummary && center.dataset.liveLayout !== 'game-detail',
 				);
-			if (isSummary) row.classList.add('live-game-row--compact');
 			fragment.append(row);
 		}
 		list.replaceChildren(fragment);
