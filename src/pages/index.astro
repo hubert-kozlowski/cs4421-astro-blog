@@ -21,9 +21,14 @@ import {
 } from '../utils/nfl-data';
 
 const searchParams = Astro.url.searchParams;
+const requestedSport = searchParams.get('sport') ?? 'nfl';
 const requestedWeek = Number(searchParams.get('week'));
 const requestedTeam = searchParams.get('team') ?? '';
 const playerQuery = searchParams.get('player')?.trim() ?? '';
+
+if (requestedSport === 'cfb') {
+	throw new Error('CFB data provider is not configured.');
+}
 
 let dashboardResult: ApiResult<NflDashboardData> | undefined;
 let dashboardError = false;
