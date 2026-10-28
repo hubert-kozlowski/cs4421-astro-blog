@@ -6,6 +6,7 @@ const isGame = path.startsWith('/games/');
 const isPlayer = path.startsWith('/players');
 const isTeam = path.startsWith('/teams');
 const isCompare = path === '/compare';
+const selectedSport = Astro.url.searchParams.get('sport') === 'cfb' ? 'cfb' : 'nfl';
 ---
 
 <header class="site-header">
@@ -14,6 +15,10 @@ const isCompare = path === '/compare';
 			<span class="brand__mark" aria-hidden="true">GA</span>
 			<span class="brand__name">GRIDIRON <span>ATLAS</span></span>
 		</a>
+		<nav class="sport-switcher" aria-label="Sport">
+			<a href="/?sport=nfl" aria-current={selectedSport === 'nfl' ? 'page' : undefined}>NFL</a>
+			<a href="/?sport=cfb" aria-current={selectedSport === 'cfb' ? 'page' : undefined}>CFB</a>
+		</nav>
 		<nav class="desktop-nav" aria-label="Primary navigation">
 			<a href="/#schedule" data-nav-section="schedule" aria-current={isGame ? 'page' : undefined}>Games</a>
 			<a href="/#standings" data-nav-section="standings">Standings</a>
@@ -120,6 +125,9 @@ const isCompare = path === '/compare';
 	.brand__mark::after { position: absolute; right: 0; bottom: 0; width: 12px; height: 12px; background: var(--sport-accent); clip-path: polygon(100% 0, 0 100%, 100% 100%); content: ""; }
 	.brand__name { font-size: 12px; font-weight: 800; letter-spacing: 0.04em; white-space: nowrap; }
 	.brand__name span { color: var(--color-muted); font-weight: 600; }
+	.sport-switcher { display: inline-flex; overflow: hidden; margin-left: auto; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-page); }
+	.sport-switcher a { padding: 5px 9px; color: var(--color-muted); font-size: 11px; font-weight: 800; letter-spacing: .06em; text-decoration: none; }
+	.sport-switcher a[aria-current="page"] { background: var(--sport-accent); color: var(--sport-on-accent); }
 	.desktop-nav { display: flex; align-items: center; gap: 3px; }
 	.desktop-nav > a, .more-menu > summary, .more-menu__panel a { display: flex; min-height: 44px; align-items: center; padding: 0 11px; border-radius: 9px; color: var(--color-muted); font-size: 12px; font-weight: 650; text-decoration: none; cursor: pointer; }
 	.desktop-nav a:hover, .desktop-nav a[aria-current="page"], .more-menu > summary:hover { background: var(--sport-accent-soft); color: var(--sport-accent-strong); }
@@ -134,6 +142,7 @@ const isCompare = path === '/compare';
 
 	@media (max-width: 640px) {
 		.site-header__inner { width: min(100% - 28px, 1120px); min-height: 56px; }
+		.sport-switcher { margin-left: auto; }
 		.desktop-nav { display: none; }
 		.mobile-more { display: block; }
 		.mobile-more > summary { min-height: 44px; padding: 0 8px; font-size: 11px; }
